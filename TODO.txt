@@ -1,0 +1,31 @@
+Convert tests to use WaveformBase._allclose
+
+Implement BMS transformation
+  * Tests
+    * Trivial construction of grid from modes; test values at points
+    * Transformation of scalar
+    * Group properties
+      * Identity
+      * Inverses for each type of transformation
+      * Composite of transformations is same as transformation by composite
+    * Linear-in-time mode gives rise to constants in other modes
+    * Normality of super/translation subgroup
+    * Equivalence of rotations with standard Wigner-D method
+    * Special case for supertranslation with Psi4, h, etc., as constant zero
+    * Special case for boosts using constant [(ell,m)=(2,0)?] mode
+    * Any selection rules?
+    * Infinitesimal transformations (1e-8)?
+
+
+Alignments
+  * Interpolate fixed waveform to uniform grid within window
+  * Interpolate moving waveform to uniform grid 2 or 3 times as large as window
+  * Evaluate difference in norms (∆n) for each possible discrete shift δt
+  * Find the smallest value of ∆n, look at the two neighboring values, and take the greater
+  * Look for all values δt with values of ∆n lower than that maximum
+  * Look through all such values of δt, and remove neighbors with larger ∆n
+  * Loop over each such point in the following
+    * Start with initial delta t given by the above
+    * Align the axes using the angular velocities (average directions over time?  value at midpoint?)
+    * Rotate about z axis to minimize norm difference using (2*ell+1?) discrete values of rotation angle
+    * Optimize explicitly over four degrees of freedom

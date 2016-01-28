@@ -1,0 +1,9 @@
+numpy>=1.7
+scipy
+matplotlib
+h5py
+pytest
+numba
+quaternion
+spinsfast
+spherical_functions
