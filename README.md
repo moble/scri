@@ -18,7 +18,8 @@ for it), please cite the papers for/by which it was produced:
 * "Gravitational-wave modes from precessing black-hole binaries", Boyle *et
   al.*, http://arxiv.org/abs/1409.4431 (2014).
 * "Transformations of asymptotic gravitational-wave data", Boyle,
-  http://arxiv.org/abs/1509.00862 (2015).
+  [Phys. Rev. D, 93, 084031](http://link.aps.org/doi/10.1103/PhysRevD.93.084031)
+  (2015).
 
 Bibtex entries for these articles can be found
 [here](https://raw.githubusercontent.com/moble/scri/master/scri.bib).  It might
