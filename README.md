@@ -36,7 +36,9 @@ installation is as simple as
 conda install -c moble scri
 ```
 
-Then, in python, you can check to make sure it worked with
+If you need to install `anaconda` first, it's very easy and doesn't require root permissions.  Just [download](http://continuum.io/downloads) and follow the instructions — particularly setting your `PATH`.  Also, make sure `PYTHONPATH` and `PYTHONHOME` are *not* set.  Ensure that it worked by running `python --version`.  It should say something about anaconda; if not, you probably forgot to set your `PATH`.  Now just run the installation command above.
+
+Then, in python, you can check to make sure installation worked with
 
 ```python
 import scri
