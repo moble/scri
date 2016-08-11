@@ -105,15 +105,15 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
     t, com = com_motion(path_to_horizons_h5)
 
     # We will be skipping the beginning and end of the data;
-    # this gives us the initial and (one-past-)final indices
+    # this gives us the initial and final indices
     i_i, i_f = int(len(t)*skip_beginning_fraction), int(len(t)*(1.0-skip_ending_fraction))
     t_i, t_f = t[i_i], t[i_f]
 
     # Find the optimum analytically
-    CoM_0 = simps(com[i_i:i_f], t[i_i:i_f], axis=0)
-    CoM_1 = simps((t[:, np.newaxis]*com)[i_i:i_f], t[i_i:i_f], axis=0)
+    CoM_0 = simps(com[i_i:i_f+1], t[i_i:i_f+1], axis=0)
+    CoM_1 = simps((t[:, np.newaxis]*com)[i_i:i_f+1], t[i_i:i_f+1], axis=0)
     if fit_acceleration:
-        CoM_2 = simps((t[:, np.newaxis]**2*com)[i_i:i_f], t[i_i:i_f], axis=0)
+        CoM_2 = simps((t[:, np.newaxis]**2*com)[i_i:i_f+1], t[i_i:i_f+1], axis=0)
         x_i = 3*(CoM_0*(3*t_f**4 + 12*t_f**3*t_i + 30*t_f**2*t_i**2 + 12*t_f*t_i**3 + 3*t_i**4) - 12*CoM_1*(t_f + t_i)*(t_f**2 + 3*t_f*t_i + t_i**2) + CoM_2*(10*t_f**2 + 40*t_f*t_i + 10*t_i**2))/(t_f - t_i)**5
         v_i = 12*(-3*CoM_0*(t_f + t_i)*(t_f**2 + 3*t_f*t_i + t_i**2) + CoM_1*(16*t_f**2 + 28*t_f*t_i + 16*t_i**2) + CoM_2*(-15*t_f - 15*t_i))/(t_f - t_i)**5
         a_i = 60*(CoM_0*(t_f**2 + 4*t_f*t_i + t_i**2) + CoM_1*(-6*t_f - 6*t_i) + 6*CoM_2)/(t_f - t_i)**5
