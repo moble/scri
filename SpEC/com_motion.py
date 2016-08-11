@@ -69,7 +69,7 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
 
     The translation to be applied to the data should be calculated given the values returned by this function as
 
-        np.array([x_i+v_i*(t_j-t_i)+0.5*a_i*(t_j-t_i)**2 for t_j in t])
+        np.array([x_i+v_i*t_j+0.5*a_i*t_j**2 for t_j in t])
 
 
     Parameters
@@ -137,7 +137,7 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
                 SXS_BBH = '\n' + SXS_BBH.strip()
         except:
             SXS_BBH = ''
-        delta_x = np.array([x_i+v_i*(t_j-t_i)+0.5*a_i*(t_j-t_i)**2 for t_j in t])
+        delta_x = np.array([x_i+v_i*t_j+0.5*a_i*t_j**2 for t_j in t])
         comprm = com - delta_x
         max_displacement = np.linalg.norm(delta_x, axis=1).max()
         max_d_color = min(1.0, 10*max_displacement)
@@ -235,7 +235,7 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
         t_merger = w_m.max_norm_time() - 300.
         t_ringdown = w_m.max_norm_time() + 100.
         t_final = w_m.t[-1]
-        delta_x = np.array([x_0+v_0*(t_j-t_0) for t_j in w_m.t])
+        delta_x = np.array([x_0+v_0*t_j for t_j in w_m.t])
         max_displacement = np.linalg.norm(delta_x, axis=1).max()
         max_d_color = min(1.0, 9*max_displacement)
         LM_indices1 = [[2, 2], [2, 1], [3, 3], [3, 1], [4, 3]]
