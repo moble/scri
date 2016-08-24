@@ -6,6 +6,9 @@ python:
   - "2.7"
   - "3.5"
 
+env:
+  - CONDA=true
+
 install:
   - lsb_release -a
   - source auto_version/travis_install_conda.sh numpy scipy matplotlib numba pip pytest h5py;
