@@ -16,3 +16,13 @@ install:
 script:
   - python -c 'import scri; print(scri.version_info())'
   - py.test -s --run_slow_tests
+
+after_success:
+  # Change permissions for Anaconda deployment script
+  - chmod +x ./.conda_deploy.sh
+
+deploy:
+  # Deploy to Anaconda.org
+  - provider: script
+    script: "./.conda_deploy.sh"
+    skip_cleanup: true
