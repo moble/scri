@@ -23,7 +23,7 @@ script:
 after_success:
   # Change permissions for Anaconda deployment script
   - chmod +x ./.conda_deploy.sh
-  - python conda/.meta_yaml_replacer.py
+  - python ./.meta_yaml_replacer.py
 
 deploy:
   # Deploy to Anaconda.org

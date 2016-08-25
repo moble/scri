@@ -8,7 +8,7 @@ from __future__ import print_function, absolute_import
 import fileinput
 from auto_version import calculate_version
 
-version_string = calculate_version().replace('.dirty', '')
+version_string = calculate_version().replace('.dirty', '').replace('+dirty', '')
 
 f = fileinput.FileInput('conda/meta.yaml', inplace=True)
 for line in f:
