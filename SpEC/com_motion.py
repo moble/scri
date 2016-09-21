@@ -177,7 +177,8 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
                           skip_beginning_fraction=0.01,
                           skip_ending_fraction=0.10,
                           plot=False,
-                          file_write_mode='w'):
+                          file_write_mode='w',
+                          outfile=None):
     """Rewrite waveform data in center-of-mass frame
 
     This simply uses `estimate_avg_com_motion`, and then transforms to that frame as appropriate.  Most of the
@@ -207,12 +208,17 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 
     # Read the waveform data in
     w_m = read_from_h5(path_to_waveform_h5)
+#-------------------------------------------------------------------------------------------------------------------
+#Changes added by cwoodford 16/09/21
 
-    # Insert '_CoM' into the original `path_to_waveform_h5`; this will be the output path
-    path_to_new_waveform_h5 = path_to_waveform_h5.split('.h5', 1)
-    path_to_new_waveform_h5.insert(1, '_CoM.h5')
-    path_to_new_waveform_h5 = ''.join(path_to_new_waveform_h5).replace(w_m.descriptor_string + '_', '')
+    if outfile is None:
+        # Output filename: insert '_CoM' into the original `path_to_waveform_h5`
+        path_to_new_waveform_h5 = path_to_waveform_h5.replace('.h5', '_CoM.h5')
+    else:
+        #Use name given by user for Output filename
+        path_to_new_waveform_h5 = outfile
 
+#-------------------------------------------------------------------------------------------------------------------
     # Get the CoM motion from Horizons.h5
     x_0,v_0,t_0,t_f = estimate_avg_com_motion(path_to_horizons_h5=path_to_horizons_h5,
                                               skip_beginning_fraction=skip_beginning_fraction,
@@ -313,6 +319,7 @@ if __name__ == '__main__':
     parser.add_argument("--plot",
                         action="store_true",
                         help="make plots as `CoM_before_and_after_transformation.pdf` in same directory as Horizons.h5")
+
     args = parser.parse_args()
 
     estimate_avg_com_motion(path_to_horizons_h5=args.path_to_horizons_h5,
