@@ -210,9 +210,9 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 
     # Output filename: insert '_CoM' into the original `path_to_waveform_h5`
     if path_to_waveform_h5.count(".h5")>1:
-        print "The path ro the waveform contains '.h5' multiple times."
-        print "This is bad practice, and makes it unclear how to produce"
-        print "an output path".
+        print("The path ro the waveform contains '.h5' multiple times.")
+        print("This is bad practice, and makes it unclear how to produce")
+        print("an output path")
         os.sys.exit(-1)
     tmp = path_to_waveform_h5.replace('.h5', '_CoM.h5')
 
