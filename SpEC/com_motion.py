@@ -208,10 +208,18 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
     # Read the waveform data in
     w_m = read_from_h5(path_to_waveform_h5)
 
-    # Insert '_CoM' into the original `path_to_waveform_h5`; this will be the output path
-    path_to_new_waveform_h5 = path_to_waveform_h5.split('.h5', 1)
-    path_to_new_waveform_h5.insert(1, '_CoM.h5')
-    path_to_new_waveform_h5 = ''.join(path_to_new_waveform_h5).replace(w_m.descriptor_string + '_', '')
+    # Output filename: insert '_CoM' into the original `path_to_waveform_h5`
+    if path_to_waveform_h5.count(".h5")>1:
+        print("The path ro the waveform contains '.h5' multiple times.")
+        print("This is bad practice, and makes it unclear how to produce")
+        print("an output path")
+        os.sys.exit(-1)
+    tmp = path_to_waveform_h5.replace('.h5', '_CoM.h5')
+
+    # remove the descriptor string from the input-path, as it is added
+    # back automatically in write_waveform
+    path_to_new_waveform_h5 = tmp.replace(w_m.descriptor_string+'_','')
+
 
     # Get the CoM motion from Horizons.h5
     x_0,v_0,t_0,t_f = estimate_avg_com_motion(path_to_horizons_h5=path_to_horizons_h5,
