@@ -19,8 +19,8 @@ Other options may be passed to the `estimate_avg_com_motion` function; see its d
 from __future__ import print_function, division, absolute_import
 
 import argparse
-
 import os.path
+import re
 import numpy as np
 from scipy.integrate import simps
 import h5py
@@ -208,10 +208,10 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
     # Read the waveform data in
     w_m = read_from_h5(path_to_waveform_h5)
 
-    # Insert '_CoM' into the original `path_to_waveform_h5`; this will be the output path
-    path_to_new_waveform_h5 = path_to_waveform_h5.split('.h5', 1)
-    path_to_new_waveform_h5.insert(1, '_CoM.h5')
-    path_to_new_waveform_h5 = ''.join(path_to_new_waveform_h5).replace(w_m.descriptor_string + '_', '')
+    # Compose output h5 path
+    path_to_new_waveform_h5 = re.sub(w_m.descriptor_string + '_', '',  # Remove 'rhOverM_', 'rMPsi4_', or whatever
+                                     path_to_waveform_h5.replace('.h5', '_CoM.h5', 1),  # Add '_CoM' once
+                                     flags=re.I)  # Ignore case of 'psi4'/'Psi4', etc.
 
     # Get the CoM motion from Horizons.h5
     x_0,v_0,t_0,t_f = estimate_avg_com_motion(path_to_horizons_h5=path_to_horizons_h5,
