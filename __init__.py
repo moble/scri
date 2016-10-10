@@ -68,7 +68,7 @@ FrameType = [UnknownFrameType, Inertial, Coprecessing, Coorbital, Corotating] = 
 FrameNames = ["UnknownFrameType", "Inertial", "Coprecessing", "Coorbital", "Corotating"]
 
 DataType = [UnknownDataType, psi0, psi1, psi2, psi3, psi4, sigma, h, hdot, news, psin] = range(11)
-DataNames = ["UnknownDataType", "psi0", "psi1", "psi2", "psi3", "psi4", "sigma", "h", "hdot", "news", "psin"]
+DataNames = ["UnknownDataType", "Psi0", "Psi1", "Psi2", "Psi3", "Psi4", "sigma", "h", "hdot", "news", "psin"]
 SpinWeights = [sys.maxsize, 2, 1, 0, -1, -2, 2, -2, -2, -2, sys.maxsize]
 ConformalWeights = [sys.maxsize, 2, 1, 0, -1, -2, 1, 0, -1, -1, -3]
 RScaling = [sys.maxsize, 5, 4, 3, 2, 1, 2, 1, 1, 1, 0]
