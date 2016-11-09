@@ -212,8 +212,10 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 #Changes added by cwoodford 16/09/21
 
     if outfile is None:
-        # Output filename: insert '_CoM' into the original `path_to_waveform_h5`
-        path_to_new_waveform_h5 = path_to_waveform_h5.replace('.h5', '_CoM.h5')
+        # Output filename: insert '_CoM' into the original `path_to_waveform_h5`, same as original moble/scri
+        path_to_new_waveform_h5 = path_to_waveform_h5.split('.h5', 1)
+        path_to_new_waveform_h5.insert(1, '_CoM.h5')
+        path_to_new_waveform_h5 = ''.join(path_to_new_waveform_h5).replace(w_m.descriptor_string + '_', '')
     else:
         #Use name given by user for Output filename
         path_to_new_waveform_h5 = outfile
