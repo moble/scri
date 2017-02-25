@@ -33,6 +33,7 @@ of python (the preferred distribution for scientific applications),
 installation is as simple as
 
 ```sh
+conda update -y --all
 conda install -c moble scri
 ```
 
