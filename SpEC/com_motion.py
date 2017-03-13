@@ -285,7 +285,7 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
             fig.text(0.004, 0.004, str(max_displacement), fontsize=24, ha='left', va='bottom',
                      bbox=dict(facecolor=mpl.cm.jet(max_d_color), alpha=max_d_color, boxstyle='square,pad=0.2'))
             plt.legend(loc='upper left', framealpha=0.9)
-            fig.savefig(os.path.join(directory, 'Modes_{0}_{1}.pdf'.format(subdir[:-4], num)))
+            fig.savefig(os.path.join(directory, 'Modes_{0}_{1}_{2}.pdf'.format(w_m.descriptor_string, subdir[:-4], num)))
             plt.close()
 
     return w_m
