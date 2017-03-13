@@ -320,10 +320,11 @@ def single_mode_proportional_to_time_supertranslated(**kwargs):
                     addition = (
                         beta
                         * supertranslation[i]
-                        * (-1)**(s+mp)
                         * math.sqrt(((2*ellpp+1)*(2*ell+1)*(2*ellp+1))/(4*math.pi))
                         * sf.Wigner3j(ellpp, ell, ellp, 0, -s, s)*sf.Wigner3j(ellpp, ell, ellp, mpp, m, -mp)
                     )
+                    if (s+mp)%2 == 1:
+                        addition *= -1
                     data[:, sf.LM_index(ellp, mp, ell_min)] += addition
 
     if kwargs:

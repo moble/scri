@@ -270,7 +270,7 @@ class WaveformGrid(WaveformBase):
                     i_neg = sf.LM_index(ell, -m, 0)
                     a = supertranslation[i_pos]
                     b = supertranslation[i_neg]
-                    if abs(a - (-1)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
+                    if abs(a - (-1.)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
                         raise ValueError("\nsupertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_pos, a, ell, m)
                                          + "supertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_neg, b, ell, -m)
                                          + "Will result in an imaginary supertranslation.")
