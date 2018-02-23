@@ -6,6 +6,7 @@ from __future__ import print_function, division, absolute_import
 from math import sqrt
 
 import numpy as np
+import quaternion
 
 from spherical_functions import ladder_operator_coefficient as ladder
 from quaternion.numba_wrapper import jit, njit, xrange
@@ -344,7 +345,7 @@ def LLDominantEigenvector(W, RoughInitialDirection=np.array([0.0, 0.0, 1.0])):
     return dpa
 
 
-@jit
+#@jit
 def angular_velocity(W):
     """Angular velocity of Waveform
 
@@ -366,8 +367,11 @@ def angular_velocity(W):
 
     omega = np.linalg.solve(ll, l)
 
-    # omega = np.empty_like(l)
-    # for i in xrange(omega.shape[0]):
-    # omega[i] = scipy.linalg.solve(ll[i], l[i], sym_pos=True, overwrite_a=True, overwrite_b=True, check_finite=False)
-
     return -omega
+
+
+def corotating_frame(W, R0=quaternion.one, tolerance=1e-12):
+    from quaternion.quaternion_time_series import integrate_angular_velocity, squad
+    t, R = integrate_angular_velocity((W.t, angular_velocity(W)), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance)
+    R = squad(R, t, W.t)
+    return R

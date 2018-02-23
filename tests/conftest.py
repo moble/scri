@@ -61,8 +61,11 @@ def linear_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
 
 
 @pytest.fixture
-def random_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
+def random_waveform(begin=-10., end=100., n_times=1000, ell_min=None, ell_max=8, dataType=scri.h):
     np.random.seed(hash('random_waveform') % 4294967294)  # Use mod to get in an acceptable range
+    spin_weight = scri.SpinWeights[scri.DataType.index(dataType)]
+    if ell_min is None:
+        ell_min = abs(spin_weight)
     n_modes = (ell_max * (ell_max + 2) - ell_min ** 2 + 1)
     t = np.sort(np.random.uniform(begin, end, size=n_times))
     frame = np.array([np.quaternion(*np.random.uniform(-1, 1, 4)).normalized() for t_i in t])
@@ -70,7 +73,7 @@ def random_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
     W = scri.WaveformModes(t=t, frame=frame, data=data,
                            ell_min=ell_min, ell_max=ell_max,
                            history=['# Called from random_waveform'],
-                           frameType=scri.Corotating, dataType=scri.h,
+                           frameType=scri.Corotating, dataType=dataType,
                            r_is_scaled_out=True, m_is_scaled_out=False)
     return W
 

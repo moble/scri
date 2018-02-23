@@ -71,3 +71,57 @@ def test_dpa_rotated_generally(w, Rs):
                  np.linalg.norm(LL1 + LL2, axis=1))),
             axis=0)
     ) < 1.e-12
+
+
+def test_zero_angular_velocity():
+    from scri.mode_calculations import angular_velocity
+
+    w = constant_waveform(end=10.0, n_times=10000)
+    Omega_out = angular_velocity(w)
+    assert np.allclose(Omega_out, np.zeros_like(Omega_out), atol=1e-15, rtol=0.0)
+
+
+def test_z_angular_velocity():
+    from scri.mode_calculations import angular_velocity
+
+    w = constant_waveform(end=10.0, n_times=10000)
+    omega = 2*math.pi/5.0
+    R = np.exp(quaternion.quaternion(0, 0, 0, omega/2)*w.t)
+    w.rotate_physical_system(R)
+    Omega_out = angular_velocity(w)
+    Omega_in = np.zeros_like(Omega_out)
+    Omega_in[:, 2] = omega
+    assert np.allclose(Omega_in, Omega_out, atol=1e-12, rtol=2e-8)
+
+
+def test_rotated_angular_velocity():
+    from scri.mode_calculations import angular_velocity
+
+    w = constant_waveform(end=10.0, n_times=10000)
+    omega = 2*math.pi/5.0
+    R0 = quaternion.quaternion(1, 2, 3, 4).normalized()
+    R = R0 * np.exp(quaternion.quaternion(0, 0, 0, omega/2)*w.t)
+    w.rotate_physical_system(R)
+    Omega = R0 * quaternion.quaternion(0, 0, 0, omega) * R0.inverse()
+    Omega_out = angular_velocity(w)
+    Omega_in = np.zeros_like(Omega_out)
+    Omega_in[:, 0] = Omega.x
+    Omega_in[:, 1] = Omega.y
+    Omega_in[:, 2] = Omega.z
+    assert np.allclose(Omega_in, Omega_out, atol=1e-12, rtol=2e-8)
+
+
+def test_corotating_frame():
+    from scri.mode_calculations import corotating_frame
+
+    w = constant_waveform(end=10.0, n_times=100000)  # Need lots of time steps for accurate integration
+    omega = 2*math.pi/5.0
+    R0 = quaternion.quaternion(1, 2, 3, 4).normalized()
+    R_in = R0 * np.exp(quaternion.quaternion(0, 0, 0, omega/2)*w.t)
+    w_rot = w.deepcopy()
+    w_rot.rotate_physical_system(R_in)
+    R_out = corotating_frame(w_rot, R0=R0, tolerance=1e-12)
+    assert np.allclose(quaternion.as_float_array(R_in), quaternion.as_float_array(R_out), atol=1e-10, rtol=0.0)
+    w_rot.to_corotating_frame(R0=R0, tolerance=1e-12)
+    assert w._allclose(w_rot)
+

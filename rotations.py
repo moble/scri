@@ -8,6 +8,14 @@ import quaternion
 import spherical_functions as sf
 from quaternion.numba_wrapper import njit, xrange
 from .waveform_base import waveform_alterations
+from .mode_calculations import corotating_frame
+
+
+@waveform_alterations
+def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12):
+    res = W.rotate_decomposition_basis(corotating_frame(W, R0=R0, tolerance=1e-12))
+    W._append_history('{0}.to_corotating_frame({1}, {2})'.format(W, R0, tolerance))
+    return res  # Probably no return, but just in case...
 
 
 @waveform_alterations
@@ -84,6 +92,8 @@ def rotate_decomposition_basis(W, R_basis):
     W.__history_depth__ -= 1
     W._append_history('{0}.rotate_decomposition_basis({1})'.format(W, R_basis))
     np.set_printoptions(**opts)
+
+    return W
 
 
 @njit('void(c16[:,:], i8, i8, c16[:], c16[:])')

@@ -93,9 +93,12 @@ WaveformModes.LLComparisonMatrix = LLComparisonMatrix
 WaveformModes.LLMatrix = LLMatrix
 WaveformModes.LLDominantEigenvector = LLDominantEigenvector
 WaveformModes.angular_velocity = angular_velocity
-from .rotations import rotate_decomposition_basis, rotate_physical_system
+from .rotations import (
+    rotate_decomposition_basis, rotate_physical_system, to_corotating_frame
+)
 WaveformModes.rotate_decomposition_basis = rotate_decomposition_basis
 WaveformModes.rotate_physical_system = rotate_physical_system
+WaveformModes.to_corotating_frame = to_corotating_frame
 
 from .waveform_grid import WaveformGrid
 
