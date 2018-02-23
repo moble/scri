@@ -113,6 +113,7 @@ def test_rotated_angular_velocity():
 
 def test_corotating_frame():
     from scri.mode_calculations import corotating_frame
+    from scri import Corotating
 
     w = constant_waveform(end=10.0, n_times=100000)  # Need lots of time steps for accurate integration
     omega = 2*math.pi/5.0
@@ -123,5 +124,5 @@ def test_corotating_frame():
     R_out = corotating_frame(w_rot, R0=R0, tolerance=1e-12)
     assert np.allclose(quaternion.as_float_array(R_in), quaternion.as_float_array(R_out), atol=1e-10, rtol=0.0)
     w_rot.to_corotating_frame(R0=R0, tolerance=1e-12)
-    assert w._allclose(w_rot)
-
+    assert w._allclose(w_rot, atol=1e-8)
+    assert w_rot.frameType == Corotating

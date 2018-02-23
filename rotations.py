@@ -9,13 +9,15 @@ import spherical_functions as sf
 from quaternion.numba_wrapper import njit, xrange
 from .waveform_base import waveform_alterations
 from .mode_calculations import corotating_frame
+from . import Corotating
 
 
 @waveform_alterations
 def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12):
-    res = W.rotate_decomposition_basis(corotating_frame(W, R0=R0, tolerance=1e-12))
+    W.rotate_decomposition_basis(corotating_frame(W, R0=R0, tolerance=1e-12))
     W._append_history('{0}.to_corotating_frame({1}, {2})'.format(W, R0, tolerance))
-    return res  # Probably no return, but just in case...
+    W.frameType = Corotating
+    return W
 
 
 @waveform_alterations
@@ -29,9 +31,9 @@ def rotate_physical_system(W, R_phys):
     http://moble.github.io/spherical_functions/SWSHs.html#rotating-swshs
 
     """
-    res = rotate_decomposition_basis(W, ~R_phys)
+    W = rotate_decomposition_basis(W, ~R_phys)
     W._append_history('{0}.rotate_physical_system(...)'.format(W))
-    return res  # Probably no return, but just in case...
+    return W  # Probably no return, but just in case...
 
 
 @waveform_alterations
