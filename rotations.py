@@ -3,13 +3,14 @@
 
 from __future__ import print_function, division, absolute_import
 
+import math
 import numpy as np
 import quaternion
 import spherical_functions as sf
 from quaternion.numba_wrapper import njit, xrange
 from .waveform_base import waveform_alterations
-from .mode_calculations import corotating_frame
-from . import Corotating
+from .mode_calculations import corotating_frame, angular_velocity, LLDominantEigenvector
+from . import Coprecessing, Coorbital, Corotating, Inertial
 
 
 @waveform_alterations
@@ -18,6 +19,166 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12):
     W._append_history('{0}.to_corotating_frame({1}, {2})'.format(W, R0, tolerance))
     W.frameType = Corotating
     return W
+
+
+@waveform_alterations
+def to_inertial_frame(W):
+    W.rotate_decomposition_basis(~W.frame)
+    W._append_history('{0}.to_inertial_frame()'.format(W))
+    W.frameType = Inertial
+    return W
+
+
+def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternion.x, ell_max=None):
+    """Find the appropriate rotation to fix the attitude of the corotating frame.
+
+    This function simply finds the rotation necessary to align the
+    corotating frame to the waveform at the fiducial time, rather than
+    applying it.  This is called by `AlignDecompositionFrameToModes`
+    and probably does not need to be called directly; see that
+    function's documentation for more details.
+
+    Parameters
+    ----------
+    w: WaveformModes
+        Object to be aligned
+    t_fid: float
+        Fiducial time at which the alignment should happen
+    nHat_t_fid: quaternion (optional)
+        The approximate direction of nHat at t_fid; defaults to x
+    ell_max: int
+       Highest ell mode to use in computing the <LL> matrix
+
+    """
+    # We seek that R_c such that R_corot(t_fid)*R_c rotates the z axis
+    # onto V_f.  V_f measured in this frame is given by
+    #     V_f = R_V_f * Z * R_V_f.conjugate(),
+    # (note Z rather than z) where R_V_f is found below.  But
+    #     Z = R_corot * z * R_corot.conjugate(),
+    # so in the (x,y,z) frame,
+    #     V_f = R_V_f * R_corot * z * R_corot.conjugate() * R_V_f.conjugate().
+    # Now, this is the standard composition for rotating physical
+    # vectors.  However, rotation of the basis behaves oppositely, so
+    # we want R_V_f as our constant rotation, applied as a rotation of
+    # the decomposition basis.  We also want to rotate so that the
+    # phase of the (2,2) mode is zero at t_fid.  This can be achieved
+    # with an initial rotation.
+
+    if ell_max is None:
+        ell_max = w.ell_max
+
+    if w.frameType not in [Coprecessing, Coorbital, Corotating]:
+        message = ("get_alignment_of_decomposition_frame_to_modes only takes Waveforms in the "
+                   + "coprecessing, coorbital, or corotating frames.  This Waveform is in the "
+                   + "'{0}' frame.")
+        raise ValueError(message.format(w.frame_type_string))
+
+    if w.frame.size != w.n_times:
+        message = ("get_alignment_of_decomposition_frame_to_modes requires full information about the Waveform's frame."
+                   + "This Waveform has {0} time steps, but only {1} rotors in its frame.")
+        raise ValueError(message.format(w.n_times, np.asarray(w.frame).size))
+
+    if t_fid<w.t[0] or t_fid>w.t[-1]:
+        message = "The requested alignment time t_fid={0} is outside the range of times in this waveform ({1}, {2})."
+        raise ValueError(message.format(t_fid, w.t[0], w.t[-1]))
+
+    # Get direction of angular-velocity vector near t_fid
+    i_t_fid = (w.t <= t_fid).nonzero()[0][-1]  # Find the largest index i with t[i-1] <= t_fid
+    if i_t_fid < w.t.size-1:
+        i_t_fid += 1
+    i1 = (0 if i_t_fid-5 < 0 else i_t_fid-5)
+    i2 = (w.t.size if i1+11>w.t.size else i1+11)
+    Region = w[i1:i2, 2].to_inertial_frame()
+    omegaHat = quaternion.quaternion(0, *(angular_velocity(Region)[i_t_fid-i1])).normalized()
+
+    # omegaHat contains the components of that vector relative to the
+    # inertial frame.  To get its components in this Waveform's
+    # (possibly rotating) frame, we need to rotate it by the inverse
+    # of this Waveform's `frame` data:
+    if w.frame.size>1:
+        R = w.frame[i_t_fid]
+        omegaHat = R.inverse() * omegaHat * R
+    elif w.frame.size==1:
+        R = w.frame[0]
+        omegaHat = R.inverse() * omegaHat * R
+
+    # Interpolate the Waveform to t_fid
+    Instant = w[i1:i2].interpolate(np.array([t_fid,]))
+    R_f0 = Instant.frame[0]
+
+    # V_f is the dominant eigenvector of <LL>, suggested by O'Shaughnessy et al.
+    V_f = quaternion.quaternion(0, *(LLDominantEigenvector(Instant[:, :ell_max+1])[0])).normalized()
+    V_f_aligned = (-V_f if np.dot(omegaHat.vec, V_f.vec) < 0 else V_f)
+
+    # R_V_f is the rotor taking the Z axis onto V_f
+    R_V_f = (-V_f_aligned*quaternion.z).sqrt()
+    # INFOTOCERR << omegaHat << "\n"
+    #            << V_f << "\n"
+    #            << V_f_aligned << "\n"
+    #            << R_V_f * Quaternions::zHat * R_V_f.conjugate() << "\n" << std::endl;
+
+    # Now rotate Instant so that its z axis is aligned with V_f
+    Instant.rotate_decomposition_basis(R_V_f)
+
+    # Get the phase of the (2,+/-2) modes after rotation
+    i_22 = Instant.index(2,2)
+    i_2m2 = Instant.index(2,-2)
+    phase_22 = math.atan2(Instant.data[0, i_22].imag, Instant.data[0, i_22].real)
+    phase_2m2 = math.atan2(Instant.data[0, i_2m2].imag, Instant.data[0, i_2m2].real)
+
+    # R_eps is the rotation we will be applying on the right-hand side
+    R_eps = R_V_f * (quaternion.quaternion(0,0,0,(-(phase_22-phase_2m2)/8.))).exp()
+
+    # Without changing anything else (the direction of V_f or the
+    # phase), make sure that the rotating frame's XHat axis is more
+    # parallel to the input nHat_t_fid than anti-parallel.
+    if np.dot(nHat_t_fid.vec, (R_f0*R_eps*quaternion.x*R_eps.inverse()*R_f0.inverse()).vec) < 0:
+        R_eps = R_eps * ((math.pi/2.)*quaternion.z).exp()
+
+    return R_eps
+
+
+
+
+@waveform_alterations
+def align_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternion.x, ell_max=None):
+    """Fix the attitude of the corotating frame.
+
+    The corotating frame is only defined up to some constant rotor
+    R_eps; if R_corot is corotating, then so is R_corot*R_eps.  This
+    function uses that freedom to ensure that the frame is aligned
+    with the Waveform modes at the fiducial time.  In particular, it
+    ensures that the Z axis of the frame in which the decomposition
+    is done is along the dominant eigenvector of the <LL> matrix
+    (suggested by O'Shaughnessy et al.), and the phase of the (2,2)
+    mode is zero.
+
+    If ell_max is None (default), all ell modes are used.
+
+    Parameters
+    ----------
+    w: WaveformModes
+        Object to be aligned
+    t_fid: float
+        Fiducial time at which the alignment should happen
+    nHat_t_fid: quaternion (optional)
+        The approximate direction of nHat at t_fid; defaults to x
+    ell_max: int
+       Highest ell mode to use in computing the <LL> matrix
+
+    """
+
+    # Find the appropriate rotation
+    R_eps = get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid, ell_max)
+
+    # Record what happened
+    command = '{0}.align_decomposition_frame_to_modes({1}, {2}, {3})  # R_eps={4}'
+    w._append_history(command.format(w, t_fid, nHat_t_fid, ell_max, R_eps))
+
+    # Now, apply the rotation
+    w = w.rotate_decomposition_basis(R_eps)
+
+    return w
 
 
 @waveform_alterations
@@ -32,7 +193,7 @@ def rotate_physical_system(W, R_phys):
 
     """
     W = rotate_decomposition_basis(W, ~R_phys)
-    W._append_history('{0}.rotate_physical_system(...)'.format(W))
+    W._append_history('{0}.rotate_physical_system({1})'.format(W, R_phys))
     return W  # Probably no return, but just in case...
 
 
