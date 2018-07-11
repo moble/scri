@@ -189,7 +189,7 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
     from numpy import sqrt, log, array
     from h5py import File
     import scri
-    construction = """extrapolation.read_finite_radius_waveform({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, Ws)"""
+    construction = """# extrapolation.read_finite_radius_waveform({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, Ws)"""
     construction = construction.format(n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex.pattern, LModes, DataType)
     try:
         f = File(filename, 'r')
@@ -234,7 +234,7 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
             UnitScaleFactor = 1.0 / ChMass
         elif (DataType == scri.hdot):
             UnitScaleFactor = 1.0
-        elif (DataType == scri.Psi4):
+        elif (DataType == scri.psi4):
             UnitScaleFactor = ChMass
         else:
             raise ValueError('DataType "{0}" is unknown.'.format(DataType))
@@ -297,10 +297,10 @@ def read_finite_radius_data(ChMass=0.0, filename='rh_FiniteRadii_CodeUnits.h5', 
         elif 'h' in DataType.lower():
             DataType = scri.h
         elif 'psi4' in DataType.lower():
-            DataType = scri.Psi4
+            DataType = scri.psi4
         else:
             DataType = scri.UnknownDataType
-            message = "The file '{0}' does not contain a recognizable description of the data type ('h', 'Psi4')."
+            message = "The file '{0}' does not contain a recognizable description of the data type ('h', 'psi4')."
             raise ValueError(message.format(filename))
         PrintedLine = ''
         for n in range(NWaveforms):
@@ -581,8 +581,10 @@ def extrapolate(**kwargs):
     stdout.flush()
     if W_outer.frameType != Inertial:
         raise ValueError("Extrapolation assumes that the input data are in the inertial frame")
-    W_outer.to_corotating_frame()
-    W_outer.align_decomposition_frame_to_modes(AlignmentTime)
+    print('Using alignment region (0.1, 0.8)')
+    W_outer.to_corotating_frame(z_alignment_region=(0.1, 0.8))
+    # W_outer.to_corotating_frame()
+    # W_outer.align_decomposition_frame_to_modes(AlignmentTime)
 
     # Transform everyone else into the same frame
     for i in SortedRadiiIndices[:-1]:
@@ -1017,6 +1019,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None)
         N = ExtrapolationOrders[i_N]
         if (N < 0):
             ExtrapolatedWaveforms[i_N] = scri.WaveformModes(FiniteRadiusWaveforms[NFiniteRadii + N])
+            ExtrapolatedWaveforms[i_N].history += ["### Extrapolating with N={0}\n".format(N)]
         else:
             # Do everything but set the data
             ExtrapolatedWaveforms[i_N] = scri.WaveformModes(

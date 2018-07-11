@@ -127,7 +127,7 @@ def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternio
         i_t_fid += 1
     i1 = (0 if i_t_fid-5 < 0 else i_t_fid-5)
     i2 = (w.t.size if i1+11>w.t.size else i1+11)
-    Region = w[i1:i2, 2].to_inertial_frame()
+    Region = w[i1:i2, 2].copy().to_inertial_frame()
     omegaHat = quaternion.quaternion(0, *(angular_velocity(Region)[i_t_fid-i1])).normalized()
 
     # omegaHat contains the components of that vector relative to the
@@ -142,7 +142,7 @@ def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternio
         omegaHat = R.inverse() * omegaHat * R
 
     # Interpolate the Waveform to t_fid
-    Instant = w[i1:i2].interpolate(np.array([t_fid,]))
+    Instant = w[i1:i2].copy().interpolate(np.array([t_fid,]))
     R_f0 = Instant.frame[0]
 
     # V_f is the dominant eigenvector of <LL>, suggested by O'Shaughnessy et al.

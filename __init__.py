@@ -105,6 +105,8 @@ WaveformModes.to_inertial_frame = to_inertial_frame
 WaveformModes.align_decomposition_frame_to_modes = align_decomposition_frame_to_modes
 
 from .waveform_grid import WaveformGrid
+from .waveform_in_detector import WaveformInDetector
+from .extrapolation import extrapolate
 
 from . import sample_waveforms, SpEC
 
