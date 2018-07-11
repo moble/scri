@@ -467,6 +467,7 @@ def extrapolate(**kwargs):
     EarliestTime = kwargs.pop('EarliestTime', -3.0e300)
     LatestTime = kwargs.pop('LatestTime', 3.0e300)
     AlignmentTime = kwargs.pop('AlignmentTime', None)
+    return_finite_radius_waveforms = kwargs.pop('return_finite_radius_waveforms', False)
     if (len(kwargs) > 0):
         raise ValueError("Unknown arguments to `extrapolate`: kwargs={0}".format(kwargs))
 
@@ -774,6 +775,9 @@ def extrapolate(**kwargs):
     #     print("☺");
     #     stdout.flush()
 
+
+    if return_finite_radius_waveforms:
+        return ExtrapolatedWaveforms, Ws
     return ExtrapolatedWaveforms
 
 
