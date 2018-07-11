@@ -276,44 +276,63 @@ def LLMatrix(W):
     return LL
 
 
-@njit('void(f8[:,:], f8[:])')
-def _LLDominantEigenvector(dpa, dpa_i):
+@njit('void(f8[:,:], f8[:], i8)')
+def _LLDominantEigenvector(dpa, dpa_i, i_index):
     """Jitted helper function for LLDominantEigenvector"""
     # Make the initial direction closer to RoughInitialEllDirection than not
-    if (dpa_i[0] * dpa[0, 0] + dpa_i[1] * dpa[0, 1] + dpa_i[2] * dpa[0, 2]) < 0.:
-        dpa[0, 0] *= -1
-        dpa[0, 1] *= -1
-        dpa[0, 2] *= -1
+    if (dpa_i[0] * dpa[i_index, 0] + dpa_i[1] * dpa[i_index, 1] + dpa_i[2] * dpa[i_index, 2]) < 0.:
+        dpa[i_index, 0] *= -1
+        dpa[i_index, 1] *= -1
+        dpa[i_index, 2] *= -1
     # Now, go through and make the vectors reasonably continuous.
-    if dpa.shape[0] > 0:
-        LastNorm = sqrt(dpa[0, 0] ** 2 + dpa[0, 1] ** 2 + dpa[0, 2] ** 2)
-        for i in xrange(1, dpa.shape[0]):
-            Norm = dpa[i, 0] ** 2 + dpa[i, 1] ** 2 + dpa[i, 2] ** 2
-            dNorm = (dpa[i, 0] - dpa[i - 1, 0]) ** 2 + (dpa[i, 1] - dpa[i - 1, 1]) ** 2 + (dpa[i, 2] - dpa[
-                i - 1, 2]) ** 2
-            if dNorm > Norm:
-                dpa[i, 0] *= -1
-                dpa[i, 1] *= -1
-                dpa[i, 2] *= -1
-            # While we're here, let's just normalize that last one
-            if LastNorm != 0.0 and LastNorm != 1.0:
-                dpa[i - 1, 0] /= LastNorm
-                dpa[i - 1, 1] /= LastNorm
-                dpa[i - 1, 2] /= LastNorm
-            LastNorm = sqrt(Norm)
+    d = -1
+    LastNorm = sqrt(dpa[i_index, 0] ** 2 + dpa[i_index, 1] ** 2 + dpa[i_index, 2] ** 2)
+    for i in xrange(i_index-1, -1, -1):
+        Norm = dpa[i, 0] ** 2 + dpa[i, 1] ** 2 + dpa[i, 2] ** 2
+        dNorm = ((dpa[i, 0] - dpa[i - d, 0]) ** 2 + (dpa[i, 1] - dpa[i - d, 1]) ** 2
+                 + (dpa[i, 2] - dpa[i - d, 2]) ** 2)
+        if dNorm > Norm:
+            dpa[i, 0] *= -1
+            dpa[i, 1] *= -1
+            dpa[i, 2] *= -1
+        # While we're here, let's just normalize that last one
         if LastNorm != 0.0 and LastNorm != 1.0:
-            i = dpa.shape[0] - 1
-            dpa[i, 0] /= LastNorm
-            dpa[i, 1] /= LastNorm
-            dpa[i, 2] /= LastNorm
+            dpa[i - d, 0] /= LastNorm
+            dpa[i - d, 1] /= LastNorm
+            dpa[i - d, 2] /= LastNorm
+        LastNorm = sqrt(Norm)
+    if LastNorm != 0.0 and LastNorm != 1.0:
+        dpa[0, 0] /= LastNorm
+        dpa[0, 1] /= LastNorm
+        dpa[0, 2] /= LastNorm
+    d = 1
+    LastNorm = sqrt(dpa[i_index, 0] ** 2 + dpa[i_index, 1] ** 2 + dpa[i_index, 2] ** 2)
+    for i in xrange(i_index+1, dpa.shape[0]):
+        Norm = dpa[i, 0] ** 2 + dpa[i, 1] ** 2 + dpa[i, 2] ** 2
+        dNorm = ((dpa[i, 0] - dpa[i - d, 0]) ** 2 + (dpa[i, 1] - dpa[i - d, 1]) ** 2
+                 + (dpa[i, 2] - dpa[i - d, 2]) ** 2)
+        if dNorm > Norm:
+            dpa[i, 0] *= -1
+            dpa[i, 1] *= -1
+            dpa[i, 2] *= -1
+        # While we're here, let's just normalize that last one
+        if LastNorm != 0.0 and LastNorm != 1.0:
+            dpa[i - d, 0] /= LastNorm
+            dpa[i - d, 1] /= LastNorm
+            dpa[i - d, 2] /= LastNorm
+        LastNorm = sqrt(Norm)
+    if LastNorm != 0.0 and LastNorm != 1.0:
+        dpa[-1, 0] /= LastNorm
+        dpa[-1, 1] /= LastNorm
+        dpa[-1, 2] /= LastNorm
     return
 
 
-def LLDominantEigenvector(W, RoughInitialDirection=np.array([0.0, 0.0, 1.0])):
+def LLDominantEigenvector(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=0):
     """Calculate the principal axis of the LL matrix
 
     \param Lmodes L modes to evaluate (optional)
-    \param RoughInitialEllDirection Vague guess about the preferred initial (optional)
+    \param RoughDirection Vague guess about the preferred initial (optional)
 
     If Lmodes is empty (default), all L modes are used.  Setting
     Lmodes to [2] or [2,3,4], for example, restricts the range of
@@ -340,7 +359,7 @@ def LLDominantEigenvector(W, RoughInitialDirection=np.array([0.0, 0.0, 1.0])):
     # Now we find and normalize the dominant principal axis at each
     # moment, made continuous
     dpa = eigenvecs[:, :, 2]  # `eigh` always returns eigenvals in *increasing* order
-    _LLDominantEigenvector(dpa, RoughInitialDirection)
+    _LLDominantEigenvector(dpa, RoughDirection, RoughDirectionIndex)
 
     return dpa
 
@@ -357,15 +376,18 @@ def angular_velocity(W):
     is minimized.
 
     The vector is given in the (possibly rotating) mode frame (X,Y,Z),
-    rather than the inertial frame (x,y,z).
+    which is not necessarily equal to the inertial frame (x,y,z).
 
     """
 
-    # Calculate the L vector and LL matrix at each instant
+    # Calculate the <Ldt> vector and <LL> matrix at each instant
     l = W.LdtVector()
     ll = W.LLMatrix()
 
-    omega = np.linalg.solve(ll, l)
+    # Solve <Ldt> = - <LL> . omega
+    omega = -np.linalg.solve(ll, l)
+
+    return omega
 
     return -omega
 
