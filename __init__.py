@@ -86,7 +86,7 @@ DataNamesLaTeX = [r"\mathrm{unknown data type}", r"\psi_0", r"\psi_1", r"\psi_2"
 # Set up the WaveformModes object, by adding some methods
 from .waveform_modes import WaveformModes
 from .mode_calculations import (LdtVector, LVector, LLComparisonMatrix, LLMatrix,
-                                LLDominantEigenvector, angular_velocity)
+                                LLDominantEigenvector, angular_velocity, corotating_frame)
 WaveformModes.LdtVector = LdtVector
 WaveformModes.LVector = LVector
 WaveformModes.LLComparisonMatrix = LLComparisonMatrix

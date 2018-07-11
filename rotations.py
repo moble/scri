@@ -14,9 +14,48 @@ from . import Coprecessing, Coorbital, Corotating, Inertial
 
 
 @waveform_alterations
-def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12):
-    W.rotate_decomposition_basis(corotating_frame(W, R0=R0, tolerance=1e-12))
-    W._append_history('{0}.to_corotating_frame({1}, {2})'.format(W, R0, tolerance))
+def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None):
+    """Transform waveform in place to a corotating frame
+
+    Parameters
+    ==========
+    W: waveform
+        Waveform object to be transformed in place
+    R0: quaternion [defaults to 1]
+        Initial value of frame when integrating angular velocity
+    tolerance: float [defaults to 1e-12]
+        Absolute tolerance used in integration of angular velocity
+    z_alignment_region: None or 2-tuple of floats [defaults to None]
+        If not None, the dominant eigenvector of the <LL> matrix is aligned with the z axis,
+        averaging over this portion of the data.  The first and second elements of the input are
+        considered fractions of the inspiral at which to begin and end the average.  For example,
+        (0.1, 0.9) would lead to starting 10% of the time from the first time step to the max norm
+        time, and ending at 90% of that time.
+
+    """
+    frame = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region)
+    # if z_alignment_region is None:
+    #     correction_rotor = quaternion.one
+    # else:
+    #     initial_time = W.t[0]
+    #     inspiral_time = W.max_norm_time() - initial_time
+    #     t1 = initial_time + z_alignment_region[0]*inspiral_time
+    #     t2 = initial_time + z_alignment_region[1]*inspiral_time
+    #     i1 = np.argmin(np.abs(W.t-t1))
+    #     i2 = np.argmin(np.abs(W.t-t2))
+    #     R = frame[i1:i2]
+    #     i1m = max(0, i1-10)
+    #     i1p = i1m + 21
+    #     RoughDirection = W[i1m:i1p].angular_velocity()[10]
+    #     Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
+    #     Vhat_corot = np.array([(Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
+    #                            for Ri, Vhati in zip(R, Vhat)])
+    #     Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
+    #     # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
+    #     correction_rotor = np.sqrt_of_rotor(-quaternion.z * Vhat_corot_mean).inverse()
+    # W.rotate_decomposition_basis(frame * correction_rotor)
+    W.rotate_decomposition_basis(frame)
+    W._append_history('{0}.to_corotating_frame({1}, {2}, {3})'.format(W, R0, tolerance, z_alignment_region))
     W.frameType = Corotating
     return W
 
