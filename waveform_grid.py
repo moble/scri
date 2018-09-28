@@ -17,6 +17,158 @@ import spherical_functions as sf
 import spinsfast
 
 
+def process_transformation_kwargs(**kwargs):
+    original_kwargs = kwargs.copy()
+
+    # Build the supertranslation and spacetime_translation arrays
+    supertranslation = np.zeros((4,), dtype=complex)  # For now; may be resized below
+    ell_max_supertranslation = 1  # For now; may be increased below
+    if 'supertranslation' in kwargs:
+        supertranslation = np.array(kwargs.pop('supertranslation'), dtype=complex)
+        if supertranslation.dtype != 'complex' and supertranslation.size > 0:
+            # I don't actually think this can ever happen...
+            raise TypeError("\nInput argument `supertranslation` should be a complex array with size>0.\n"
+                            "Got a {0} array of shape {1}.".format(supertranslation.dtype,
+                                                                   supertranslation.shape))
+        # Make sure the array has size at least 4, by padding with zeros
+        if supertranslation.size <= 4:
+            supertranslation = np.lib.pad(supertranslation, (0, 4-supertranslation.size),
+                                          'constant', constant_values=(0.0,))
+        # Check that the shape is a possible array of scalar modes with complete (ell,m) data
+        ell_max_supertranslation = int(np.sqrt(len(supertranslation))) - 1
+        if (ell_max_supertranslation + 1)**2 != len(supertranslation):
+            raise ValueError('\nInput supertranslation parameter must contain modes from ell=0 up to some ell_max, '
+                             'including\nall relevant m modes in standard order (see `spherical_functions` '
+                             'documentation for details).\nThus, it must be an array with length given by a '
+                             'perfect square; its length is {0}'.format(len(supertranslation)))
+        # Check that the resulting supertranslation will be real
+        for ell in range(ell_max_supertranslation+1):
+            for m in range(ell+1):
+                i_pos = sf.LM_index(ell, m, 0)
+                i_neg = sf.LM_index(ell, -m, 0)
+                a = supertranslation[i_pos]
+                b = supertranslation[i_neg]
+                if abs(a - (-1.)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
+                    raise ValueError("\nsupertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_pos, a, ell, m)
+                                     + "supertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_neg, b, ell, -m)
+                                     + "Will result in an imaginary supertranslation.")
+    spacetime_translation = np.zeros((4,), dtype=float)
+    spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
+    spacetime_translation[1:4] = -sf.vector_from_ell_1_modes(supertranslation[1:4]).real
+    if 'spacetime_translation' in kwargs:
+        st_trans = np.array(kwargs.pop('spacetime_translation'), dtype=float)
+        if st_trans.shape != (4,) or st_trans.dtype != 'float':
+            raise TypeError("\nInput argument `spacetime_translation` should be a float array of shape (4,).\n"
+                            "Got a {0} array of shape {1}.".format(st_trans.dtype, st_trans.shape))
+        spacetime_translation = st_trans[:]
+        supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
+        supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
+    if 'space_translation' in kwargs:
+        s_trans = np.array(kwargs.pop('space_translation'), dtype=float)
+        if s_trans.shape != (3,) or s_trans.dtype != 'float':
+            raise TypeError("\nInput argument `space_translation` should be an array of floats of shape (3,).\n"
+                            "Got a {0} array of shape {1}.".format(s_trans.dtype, s_trans.shape))
+        spacetime_translation[1:4] = s_trans[:]
+        supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
+    if 'time_translation' in kwargs:
+        t_trans = kwargs.pop('time_translation')
+        if not isinstance(t_trans, float):
+            raise TypeError("\nInput argument `time_translation` should be a single float.\n"
+                            "Got {0}.".format(t_trans))
+        spacetime_translation[0] = t_trans
+        supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
+
+    # Decide on the number of points to use in each direction.  A nontrivial supertranslation will introduce
+    # power in higher modes, so for best accuracy, we need to account for that.  But we'll make it a firm
+    # requirement to have enough points to capture the original waveform, at least
+    w_ell_max = kwargs.pop('ell_max')
+    ell_max = w_ell_max + ell_max_supertranslation
+    n_theta = kwargs.pop('n_theta', 2*ell_max+1)
+    n_phi = kwargs.pop('n_phi', 2*ell_max+1)
+    if n_theta < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
+        warning = ("n_theta={0} is small; because of the supertranslation, ".format(n_theta)
+                   + "it will lose accuracy for anything less than 2*ell+1={1}".format(ell_max))
+        warnings.warn(warning)
+    if n_theta < 2*w_ell_max+1:
+        raise ValueError('n_theta={0} is too small; '.format(n_theta)
+                         + 'must be at least 2*ell+1={1}'.format(2*w_ell_max+1))
+    if n_phi < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
+        warning = ("n_phi={0} is small; because of the supertranslation, ".format(n_phi)
+                   + "it will lose accuracy for anything less than 2*ell+1={1}".format(ell_max))
+        warnings.warn(warning)
+    if n_phi < 2*w_ell_max+1:
+        raise ValueError('n_phi={0} is too small; '.format(n_phi)
+                         + 'must be at least 2*ell+1={1}'.format(2*w_ell_max+1))
+
+    # Get the rotor for the frame rotation
+    frame_rotation = np.quaternion(*np.array(kwargs.pop('frame_rotation', [1, 0, 0, 0]), dtype=float))
+    if frame_rotation.abs() < 3e-16:
+        raise ValueError('frame_rotation={0} should be a unit quaternion'.format(frame_rotation))
+    frame_rotation = frame_rotation.normalized()
+
+    # Get the boost velocity vector
+    boost_velocity = np.array(kwargs.pop('boost_velocity', [0.0]*3), dtype=float)
+    beta = np.linalg.norm(boost_velocity)
+    if boost_velocity.shape != (3,) or beta >= 1.0:
+        raise ValueError('Input boost_velocity=`{0}` should be a 3-vector with '
+                         'magnitude strictly less than 1.0.'.format(boost_velocity))
+    gamma = 1 / math.sqrt(1 - beta**2)
+    varphi = math.atanh(beta)
+
+    if kwargs:
+        import pprint
+        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+
+    # These are the angles in the transformed system at which we need to know the function values
+    thetaprm_j_phiprm_k = np.array([[[thetaprm_j, phiprm_k]
+                                     for phiprm_k in np.linspace(0.0, 2*np.pi, num=n_phi, endpoint=False)]
+                                    for thetaprm_j in np.linspace(0.0, np.pi, num=n_theta, endpoint=True)])
+
+    # Construct the function that modifies our rotor grid to account for the boost
+    if beta > 3e-14:  # Tolerance for beta; any smaller and numerical errors will have greater effect
+        vhat = boost_velocity / beta
+
+        def Bprm_j_k(thetaprm, phiprm):
+            """Construct rotor taking r' to r
+
+            I derived this result in a different way, but I've also found it described in Penrose-Rindler Vol. 1,
+            around Eq. (1.3.5).  Note, however, that their discussion is for the past celestial sphere,
+            so there's a sign difference.
+
+            """
+            # Note: It doesn't matter which we use -- r' or r; all we need is the direction of the bivector
+            # spanned by v and r', which is the same as the direction of the bivector spanned by v and r,
+            # since either will be normalized, and one cross product is zero iff the other is zero.
+            rprm = np.array([math.cos(phiprm)*math.sin(thetaprm),
+                             math.sin(phiprm)*math.sin(thetaprm),
+                             math.cos(thetaprm)])
+            Thetaprm = math.acos(np.dot(vhat, rprm))
+            Theta = 2 * math.atan(math.exp(-varphi) * math.tan(Thetaprm/2.0))
+            rprm_cross_vhat = np.quaternion(0.0, *np.cross(rprm, vhat))
+            if rprm_cross_vhat.abs() > 1e-200:
+                return (rprm_cross_vhat.normalized() * (Thetaprm - Theta) / 2).exp()
+            else:
+                return quaternion.one
+    else:
+        def Bprm_j_k(thetaprm, phiprm):
+            return quaternion.one
+
+    # Set up rotors that we can use to evaluate the SWSHs in the original frame
+    R_j_k = np.empty(thetaprm_j_phiprm_k.shape[:2], dtype=np.quaternion)
+    for j in range(thetaprm_j_phiprm_k.shape[0]):
+        for k in range(thetaprm_j_phiprm_k.shape[1]):
+            thetaprm_j, phiprm_k = thetaprm_j_phiprm_k[j, k]
+            R_j_k[j, k] = (Bprm_j_k(thetaprm_j, phiprm_k)
+                           * frame_rotation
+                           * quaternion.from_spherical_coords(thetaprm_j, phiprm_k))
+
+    return (
+        supertranslation, ell_max, n_theta, n_phi,
+        beta, gamma, varhpi,
+        R_j_k, Bprm_j_k, thetaprm_j_phiprm_k,
+    )
+
+
 class WaveformGrid(WaveformBase):
 
     def __init__(self, *args, **kwargs):
@@ -204,30 +356,6 @@ class WaveformGrid(WaveformBase):
         WaveformGrid
 
         """
-        # TODO: Check if spinsfast has direct support for real-valued functions.
-        # TODO: Think about switching to STA for the frame_rotation-boost sector
-
-        # The first task is to establish a set of constant u' slices on which the new grid should be evaluated.  This
-        # is done simply by translating the original set of slices by the time translation (the lowest moment of the
-        # supertranslation).  But some of these slices (at the beginning and end) will not have complete data,
-        # because of the direction-dependence of the rest of the supertranslation.  That is, in some directions,
-        # the data for the complete slice (data in all directions on the sphere) of constant u' will actually refer to
-        # spacetime events that were not in the original set of time slices; we would have to extrapolate the original
-        # data.  So, for nontrivial supertranslations, the output data will actually represent a proper subset of the
-        # input data.
-        #
-        #
-        # We can invert the equation for u' to obtain u as a function of angle assuming constant u'
-        #   u'(theta, phi) = u + alpha(theta, phi) + u * np.dot(boost_velocity, nhat(theta, phi))
-        #   u(theta, phi) = (u' - alpha(theta, phi)) / (1 + np.dot(boost_velocity, nhat(theta, phi)))
-        # But really, we want u'(theta', phi') for given values
-        #
-        # Note that `space_translation` (and the spatial part of `spacetime_translation`) get reversed signs when
-        # transformed into supertranslation modes, because these pieces enter the time transformation with opposite
-        # sign compared to the time translation, as can be seen by looking at the retarded time: `t-r`.
-
-        original_kwargs = kwargs.copy()
-
         # Check input object type and frame type
         #
         # The data in `w_modes` is given in the original frame.  We need to get the value of the field on a grid of
@@ -241,6 +369,26 @@ class WaveformGrid(WaveformBase):
         if w_modes.frameType != Inertial:
             raise ValueError("\nInput waveform object must be in an inertial frame; "
                              "this is in a frame of type `{0}`".format(w_modes.frame_type_string))
+
+        # The first task is to establish a set of constant u' slices on which the new grid should be evaluated.  This
+        # is done simply by translating the original set of slices by the time translation (the lowest moment of the
+        # supertranslation).  But some of these slices (at the beginning and end) will not have complete data,
+        # because of the direction-dependence of the rest of the supertranslation.  That is, in some directions,
+        # the data for the complete slice (data in all directions on the sphere) of constant u' will actually refer to
+        # spacetime events that were not in the original set of time slices; we would have to extrapolate the original
+        # data.  So, for nontrivial supertranslations, the output data will actually represent a proper subset of the
+        # input data.
+        #
+        # We can invert the equation for u' to obtain u as a function of angle assuming constant u'
+        #   u'(theta, phi) = u + alpha(theta, phi) + u * np.dot(boost_velocity, nhat(theta, phi))
+        #   u(theta, phi) = (u' - alpha(theta, phi)) / (1 + np.dot(boost_velocity, nhat(theta, phi)))
+        # But really, we want u'(theta', phi') for given values
+        #
+        # Note that `space_translation` (and the spatial part of `spacetime_translation`) get reversed signs when
+        # transformed into supertranslation modes, because these pieces enter the time transformation with opposite
+        # sign compared to the time translation, as can be seen by looking at the retarded time: `t-r`.
+
+        original_kwargs = kwargs.copy()
 
         # Build the supertranslation and spacetime_translation arrays
         supertranslation = np.zeros((4,), dtype=complex)  # For now; may be resized below
@@ -382,7 +530,6 @@ class WaveformGrid(WaveformBase):
                 R_j_k[j, k] = (Bprm_j_k(thetaprm_j, phiprm_k)
                                * frame_rotation
                                * quaternion.from_spherical_coords(thetaprm_j, phiprm_k))
-                # TODO: Confirm the order the two inverse transformations above should be in
 
         # TODO: Incorporate the w_modes.frame information into rotors, which will require time dependence throughout
         # It would be best to leave the waveform in its frame.  But we'll have to apply the frame_rotation to the BMS
