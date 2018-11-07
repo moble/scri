@@ -95,11 +95,12 @@ WaveformModes.LLDominantEigenvector = LLDominantEigenvector
 WaveformModes.angular_velocity = angular_velocity
 from .rotations import (
     rotate_decomposition_basis, rotate_physical_system,
-    to_corotating_frame, to_inertial_frame,
+    to_coprecessing_frame, to_corotating_frame, to_inertial_frame,
     align_decomposition_frame_to_modes
 )
 WaveformModes.rotate_decomposition_basis = rotate_decomposition_basis
 WaveformModes.rotate_physical_system = rotate_physical_system
+WaveformModes.to_coprecessing_frame = to_coprecessing_frame
 WaveformModes.to_corotating_frame = to_corotating_frame
 WaveformModes.to_inertial_frame = to_inertial_frame
 WaveformModes.align_decomposition_frame_to_modes = align_decomposition_frame_to_modes

@@ -14,8 +14,33 @@ from . import Coprecessing, Coorbital, Corotating, Inertial
 
 
 @waveform_alterations
+def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=None):
+    """Transform waveform (in place) to a coprecessing frame
+
+    Parameters
+    ==========
+    W: waveform
+        Waveform object to be transformed in place.
+    RoughDirection: 3-array [defaults to np.array([0.0, 0.0, 1.0])]
+        Vague guess about the preferred initial axis, to choose the sign of the eigenvectors.
+    RoughDirectionIndex: int or None [defaults to None]
+        Time index at which to apply RoughDirection guess.
+
+    """
+    if RoughDirectionIndex is None:
+        RoughDirectionIndex = W.n_times // 8
+    dpa = LLDominantEigenvector(W, RoughDirection=RoughDirection, RoughDirectionIndex=RoughDirectionIndex)
+    R = np.array([quaternion.quaternion.sqrt(-quaternion.quaternion(0, *q).normalized() * quaternion.z) for q in dpa])
+    R = quaternion.minimal_rotation(R, W.t, iterations=3)
+    W.rotate_decomposition_basis(R)
+    W._append_history('{0}.to_coprecessing_frame({1}, {2})'.format(W, RoughDirection, RoughDirectionIndex))
+    W.frameType = Coprecessing
+    return W
+
+
+@waveform_alterations
 def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None):
-    """Transform waveform in place to a corotating frame
+    """Transform waveform (in place) to a corotating frame
 
     Parameters
     ==========
@@ -290,7 +315,6 @@ def rotate_decomposition_basis(W, R_basis):
 
     opts = np.get_printoptions()
     np.set_printoptions(threshold=6)
-
     W.__history_depth__ -= 1
     W._append_history('{0}.rotate_decomposition_basis({1})'.format(W, R_basis))
     np.set_printoptions(**opts)
