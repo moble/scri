@@ -365,7 +365,7 @@ def LLDominantEigenvector(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
 
 
 #@jit
-def angular_velocity(W):
+def angular_velocity(W, include_frame_velocity=False):
     """Angular velocity of Waveform
 
     This function calculates the angular velocity of a Waveform object from
@@ -387,11 +387,16 @@ def angular_velocity(W):
     # Solve <Ldt> = - <LL> . omega
     omega = -np.linalg.solve(ll, l)
 
+    if include_frame_velocity and len(W.frame)==W.n_times:
+        from quaternion import derivative, as_quat_array, as_float_array
+        Rdot = as_quat_array(derivative(as_float_array(W.frame), W.t))
+        omega += as_float_array(2 * Rdot * W.frame.conjugate())[:, 1:]
+
     return omega
 
 
 #def corotating_frame(W, Ri=quaternion.one, ti=0.0, tolerance=1e-12):
-def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None):
+def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
     """Return rotor taking current mode frame into corotating frame
 
     This function simply evaluates the angular velocity of the waveform, and
@@ -414,10 +419,15 @@ def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=N
         considered fractions of the inspiral at which to begin and end the average.  For example,
         (0.1, 0.9) would lead to starting 10% of the time from the first time step to the max norm
         time, and ending at 90% of that time.
+    return_omega: bool [defaults to False]
+        If True, return a 2-tuple consisting of the frame (the usual returned object) and the
+        angular-velocity data.  That is frequently also needed, so this is just a more efficient
+        way of getting the data.
 
     """
     from quaternion.quaternion_time_series import integrate_angular_velocity, squad
-    t, frame = integrate_angular_velocity((W.t, angular_velocity(W)), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance)
+    omega = angular_velocity(W)
+    t, frame = integrate_angular_velocity((W.t, omega), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance)
     if z_alignment_region is None:
         correction_rotor = quaternion.one
     else:
@@ -438,4 +448,7 @@ def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=N
         # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
         correction_rotor = np.sqrt_of_rotor(-quaternion.z * Vhat_corot_mean).inverse()
     # R = squad(R, t, W.t)
-    return frame * correction_rotor
+    if return_omega:
+        return (frame * correction_rotor, omega)
+    else:
+        return frame * correction_rotor

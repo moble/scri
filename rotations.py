@@ -39,7 +39,7 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
 
 
 @waveform_alterations
-def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None):
+def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
     """Transform waveform (in place) to a corotating frame
 
     Parameters
@@ -56,9 +56,16 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
         considered fractions of the inspiral at which to begin and end the average.  For example,
         (0.1, 0.9) would lead to starting 10% of the time from the first time step to the max norm
         time, and ending at 90% of that time.
+    return_omega: bool [defaults to False]
+        If True, return a 2-tuple consisting of the waveform in the corotating frame (the usual
+        returned object) and the angular-velocity data.  That is frequently also needed, so this is
+        just a more efficient way of getting the data.
 
     """
-    frame = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region)
+    if return_omega:
+        frame, omega = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region, return_omega=True)
+    else:
+        frame = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region)
     # if z_alignment_region is None:
     #     correction_rotor = quaternion.one
     # else:
@@ -82,7 +89,10 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
     W.rotate_decomposition_basis(frame)
     W._append_history('{0}.to_corotating_frame({1}, {2}, {3})'.format(W, R0, tolerance, z_alignment_region))
     W.frameType = Corotating
-    return W
+    if return_omega:
+        return (W, omega)
+    else:
+        return W
 
 
 @waveform_alterations
