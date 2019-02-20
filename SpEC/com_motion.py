@@ -25,6 +25,20 @@ import numpy as np
 from scipy.integrate import simps
 import h5py
 
+def get_version_history(filename):
+    """
+    Returns version history of a data file as a list of pairs for each
+    version change. The first element in the pair is the git commit ID
+    before the change and the second element is a description of the change.
+    """
+    # NOTE: git@github.com:sxs-collaboration/CatalogAnalysis depends on this
+    # function being defined here.
+    try:
+        version_hist = h5py.File(filename, 'r')['VersionHist.ver']
+    except KeyError:
+        version_hist = None
+    return version_hist
+
 
 def com_motion(path_to_horizons_h5):
     """Calculate the center-of-mass motion from Horizons.h5
@@ -199,7 +213,8 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 
     from .file_io import read_from_h5, write_to_h5
 
-    directory = os.path.dirname(os.path.abspath(path_to_waveform_h5.split('.h5', 1)[0]+'.h5'))
+    h5filename = os.path.abspath(path_to_waveform_h5.split('.h5', 1)[0]+'.h5')
+    directory = os.path.dirname(h5filename)
     subdir = os.path.basename(path_to_waveform_h5.split('.h5', 1)[1])
 
     if path_to_horizons_h5 is None:
@@ -256,6 +271,15 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 
     # Write the data to the new file
     write_to_h5(w_m, path_to_new_waveform_h5, file_write_mode=file_write_mode)
+
+    # Copy over VersionHist.ver if necessary
+    new_h5filename = h5filename.replace('.h5', '_CoM.h5', 1)
+    version_hist = get_version_history(h5filename)
+    if version_hist and not get_version_history(new_h5filename):
+        h5py.File(new_h5filename,'r+').create_dataset('VersionHist.ver',
+                                                      version_hist.shape,
+                                                      data=version_hist,
+                                                      dtype=h5py.special_dtype(vlen=bytes))
 
     # Finish by plotting the new data and save to PDF
     if plot:
