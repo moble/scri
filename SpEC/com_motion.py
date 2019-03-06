@@ -255,7 +255,8 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
     w_m = w_m.transform(space_translation=x_0, boost_velocity=v_0)
 
     # Write the data to the new file
-    write_to_h5(w_m, path_to_new_waveform_h5, file_write_mode=file_write_mode)
+    write_to_h5(w_m, path_to_new_waveform_h5, file_write_mode=file_write_mode,
+                attributes={'space_translation': x_0, 'boost_velocity': v_0})
 
     # Finish by plotting the new data and save to PDF
     if plot:
