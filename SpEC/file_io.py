@@ -241,7 +241,7 @@ def read_from_h5(file_name, **kwargs):
     return w
 
 
-def write_to_h5(w, file_name, file_write_mode='w'):
+def write_to_h5(w, file_name, file_write_mode='w', attributes={}):
     """
     Output the Waveform in NRAR format.
 
@@ -252,6 +252,7 @@ def write_to_h5(w, file_name, file_write_mode='w'):
 
     import os.path
     import h5py
+    import warnings
 
     group = None
     if '.h5' in file_name and not file_name.endswith('.h5'):
@@ -282,6 +283,12 @@ def write_to_h5(w, file_name, file_write_mode='w'):
         g.attrs['DataType'] = translate_data_types_waveforms_to_GWFrames(w.dataType)
         g.attrs['RIsScaledOut'] = int(w.r_is_scaled_out)
         g.attrs['MIsScaledOut'] = int(w.m_is_scaled_out)
+        for attr in attributes:
+            try:
+                g.attrs[attr] = attributes[attr]
+            except:
+                warning = "scri.SpEC.write_to_h5 unable to output attribute {0}={1}".format(attr, attributes[attr])
+                warnings.warn(warning)
         for i_m in range(w.n_modes):
             ell, m = w.LM[i_m]
             Data_m = g.create_dataset("Y_l{0}_m{1}.dat".format(ell, m),
