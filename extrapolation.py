@@ -644,14 +644,15 @@ def extrapolate(**kwargs):
                 dirname(ExtrapolatedFile) + '/' + ExtrapolatedWaveforms[i].GetFileNamePrefix() + basename(
                     ExtrapolatedFile))
         else:
-            if (UseStupidNRARFormat):
-                from scri.SpEC import write_to_h5
-                if i==0:
-                    write_to_h5(ExtrapolatedWaveforms[i], ExtrapolatedFile, 'w')
-                else:
-                    write_to_h5(ExtrapolatedWaveforms[i], ExtrapolatedFile, 'a')
+            from scri.SpEC import write_to_h5
+            if i==0:
+                file_write_mode = 'w'
             else:
-                ExtrapolatedWaveforms[i].OutputToH5(ExtrapolatedFile)
+                file_write_mode = 'a'
+            write_to_h5(ExtrapolatedWaveforms[i], 
+                        ExtrapolatedFile, 
+                        file_write_mode=file_write_mode, 
+                        use_NRAR_format=UseStupidNRARFormat)
         print("☺")
         stdout.flush()
 

@@ -242,9 +242,9 @@ def read_from_h5(file_name, **kwargs):
     return w
 
 
-def write_to_h5(w, file_name, file_write_mode='w', attributes={}):
+def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_format=True):
     """
-    Output the Waveform in NRAR format.
+    Output the Waveform to an HDF5 file. Default behavior uses the NRAR format. 
 
     Note that the file_name is prepended with some descriptive information involving the data type and the frame type,
     such as 'rhOverM_Corotating_' or 'rMpsi4_Aligned_'.
@@ -290,12 +290,26 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}):
             except:
                 warning = "scri.SpEC.write_to_h5 unable to output attribute {0}={1}".format(attr, attributes[attr])
                 warnings.warn(warning)
-        for i_m in range(w.n_modes):
-            ell, m = w.LM[i_m]
-            Data_m = g.create_dataset("Y_l{0}_m{1}.dat".format(ell, m),
-                                      data=[[t, d.real, d.imag] for t, d in zip(w.t, w.data[:, i_m])],
-                                      compression="gzip", shuffle=True)
-            Data_m.attrs['ell'] = ell
-            Data_m.attrs['m'] = m
+        if use_NRAR_format:
+            for i_m in range(w.n_modes):
+                ell, m = w.LM[i_m]
+                Data_m = g.create_dataset("Y_l{0}_m{1}.dat".format(ell, m),
+                                          data=[[t, d.real, d.imag] for t, d in zip(w.t, w.data[:, i_m])],
+                                          compression="gzip", shuffle=True)
+                Data_m.attrs['ell'] = ell
+                Data_m.attrs['m'] = m
+        else:
+            g.create_dataset("Time", data=w.t.tolist(), compression="gzip", shuffle=True)
+            if(len(w.frame)>0) :
+                g.create_dataset("Frame", data=[[r.w, r.x, r.y, r.z] for r in w.frame])
+            else:
+                g.create_dataset("Frame", shape=())
+            Data = g.create_group("Data")
+            for i_m in range(w.n_modes):
+                ell,m = w.LM[i_m]
+                Data_m = Data.create_dataset("l{0}_m{1:+}".format(int(ell), int(m)), data=w.data[:,i_m],
+                                             compression="gzip", shuffle=True)
+                Data_m.attrs['ell'] = ell
+                Data_m.attrs['m'] = m
     finally:  # Use `finally` to make sure this happens:
         f.close()
