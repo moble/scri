@@ -18,13 +18,6 @@ Other options may be passed to the `estimate_avg_com_motion` function; see its d
 
 from __future__ import print_function, division, absolute_import
 
-import argparse
-import os.path
-import re
-import numpy as np
-from scipy.integrate import simps
-import h5py
-
 
 def com_motion(path_to_horizons_h5):
     """Calculate the center-of-mass motion from Horizons.h5
@@ -45,6 +38,8 @@ def com_motion(path_to_horizons_h5):
         Position of CoM at each instant of time
 
     """
+    import numpy as np
+    import h5py
     with h5py.File(path_to_horizons_h5, 'r') as horizons:
         t = horizons['AhA.dir/ChristodoulouMass.dat'][:, 0]
         m_A = horizons['AhA.dir/ChristodoulouMass.dat'][:, 1]
@@ -102,12 +97,16 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
         Final time used.  This is determined by the `skip_ending_fraction` input parameter.
 
     """
+    import os.path
+    import numpy as np
+    from scipy.integrate import simps
+
     t, com = com_motion(path_to_horizons_h5)
 
     # We will be skipping the beginning and end of the data;
     # this gives us the initial and final indices
-    i_i, i_f = int(len(t)*skip_beginning_fraction), int(len(t)*(1.0-skip_ending_fraction))
-    t_i, t_f = t[i_i], t[i_f]
+    t_i, t_f = t[0]+(t[-1]-t[0])*skip_beginning_fraction, t[-1]-(t[-1]-t[0])*skip_ending_fraction
+    i_i, i_f = np.argmin(np.abs(t-t_i)), np.argmin(np.abs(t-t_f))
 
     # Find the optimum analytically
     CoM_0 = simps(com[i_i:i_f+1], t[i_i:i_f+1], axis=0)
@@ -196,7 +195,9 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
         This is the transformed object in the new frame
 
     """
-
+    import os.path
+    import re
+    import numpy as np
     from .file_io import read_from_h5, write_to_h5
 
     directory = os.path.dirname(os.path.abspath(path_to_waveform_h5.split('.h5', 1)[0]+'.h5'))
@@ -293,6 +294,8 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
 
 
 if __name__ == '__main__':
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Calculate optimal translation and boost from Horizons.h5",
         epilog=("This simply attempts to minimize the squared distance of the CoM from the origin by applying some "
