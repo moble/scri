@@ -56,7 +56,7 @@ co-rotating frames, and applying boosts, translations, and supertranslations.
 """
 
 if __name__ == "__main__":
-    from distutils.core import setup
+    from setuptools import setup
     setup(name='scri',
           version=version,
           description='Manipulating time-dependent functions of spin-weighted spherical harmonics',
@@ -66,5 +66,5 @@ if __name__ == "__main__":
           author_email='mob22@cornell.edu',
           package_dir={'scri': '.'},
           packages=['scri', 'scri.pn', 'scri.SpEC', 'scri.LVC'],
-          requires=['numpy', 'scipy', 'numpy-quaternion', 'spinsfast', 'spherical_functions'],
+          requires=['numpy', 'scipy', 'numpy-quaternion', 'spinsfast', 'spherical-functions'],
     )
