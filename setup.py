@@ -49,15 +49,22 @@ with open('_version.py', 'w') as f:
     f.write('__version__ = "{0}"'.format(version))
 
 
+long_description = """\
+This package collects a number of functions for constructing and manipulating gravitational
+waveforms, including rotating, determining the angular velocity, finding the co-precessing and
+co-rotating frames, and applying boosts, translations, and supertranslations.
+"""
+
 if __name__ == "__main__":
     from distutils.core import setup
     setup(name='scri',
           version=version,
           description='Manipulating time-dependent functions of spin-weighted spherical harmonics',
+          long_description=long_description,
           url='https://github.com/moble/scri',
           author='Michael Boyle',
           author_email='mob22@cornell.edu',
           package_dir={'scri': '.'},
           packages=['scri', 'scri.pn', 'scri.SpEC', 'scri.LVC'],
-          requires=['numpy', 'scipy', 'quaternion', 'spherical_functions'],
+          requires=['numpy', 'scipy', 'numpy-quaternion', 'spinsfast', 'spherical_functions'],
     )
