@@ -122,6 +122,8 @@ class WaveformBase(_object):
         As far as possible, all functions applied to the object are recorded in the `history` variable.  In fact,
         the object should almost be able to be recreated using the commands in the history list. Commands taking
         large arrays, however, are shortened -- so the data will not be entirely reconstructable.
+    version_hist : list of pairs of strings
+        Records the git hash and description for any change in the way SpEC outputs waveform data.
     frameType : int
         Index corresponding to `scri.FrameType` appropriate for `data`.
     dataType : int
@@ -204,6 +206,8 @@ class WaveformBase(_object):
         history : list of strings, empty default
             This is the list of strings prepended to the history, an additional line is appended, showing the call to
             this initializer.
+        version_hist : list of pairs of strings, empty default
+            Remains empty if waveform data is on version 0.
         frameType : int, defaults to 0 (UnknownFrameType)
             See scri.FrameNames for possible values
         dataType : int, defaults to 0 (UnknownDataType)
@@ -232,6 +236,7 @@ class WaveformBase(_object):
             self.data = kwargs.pop('data', np.empty((0, 0), dtype=complex))
             # Information about this object
             self.history = kwargs.pop('history', [])
+            self.version_hist = kwargs.pop('version_hist', [])
             self.frameType = kwargs.pop('frameType', UnknownFrameType)
             self.dataType = kwargs.pop('dataType', UnknownDataType)
             self.r_is_scaled_out = kwargs.pop('r_is_scaled_out', False)
@@ -251,6 +256,7 @@ class WaveformBase(_object):
             self.data = np.copy(other.data)
             # Information about this object
             self.history = other.history[:]
+            self.version_hist = other.version_hist[:]
             self.frameType = other.frameType
             self.dataType = other.dataType
             self.r_is_scaled_out = other.r_is_scaled_out
@@ -610,7 +616,7 @@ class WaveformBase(_object):
         rep = rep.format(type(self).__name__,
                          str(self.t).replace('\n', '\n' + ' ' * 15),
                          str(self.frame).replace('\n', '\n' + ' ' * 19),
-                         self.history, str(self.data).replace('\n', '\n' + ' ' * 18),
+                         self.history, self.version_hist, str(self.data).replace('\n', '\n' + ' ' * 18),
                          self.frameType, self.dataType, self.r_is_scaled_out, self.m_is_scaled_out, self.num)
         np.set_printoptions(**opts)
         return dedent(rep)
@@ -738,6 +744,10 @@ class WaveformBase(_object):
                     if self.history[:min_length] != other.history[:min_length]:
                         warnings.warn("\n  `history` fields differ")
                         equality = False
+            elif key == 'version_hist':
+                if self.version_hist != other.version_hist:
+                    warnings.warn("\n  `version_hist` fields differ")
+                    equality = False
             elif isinstance(val, np.ndarray):
                 if val.dtype == np.quaternion:
                     if not np.allclose(quaternion.as_float_array(val),

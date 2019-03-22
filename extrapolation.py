@@ -178,7 +178,7 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
     return Valid
 
 
-def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, Ws):
+def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws):
     """
     This is just a worker function defined for read_finite_radius_data,
     below, reading a single waveform from an h5 file of many
@@ -189,8 +189,8 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
     from numpy import sqrt, log, array
     from h5py import File
     import scri
-    construction = """# extrapolation.read_finite_radius_waveform({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, Ws)"""
-    construction = construction.format(n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex.pattern, LModes, DataType)
+    construction = """# extrapolation.read_finite_radius_waveform({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, Ws)"""
+    construction = construction.format(n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex.pattern, LModes, DataType, VersionHist)
     try:
         f = File(filename, 'r')
     except IOError:
@@ -223,6 +223,7 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
             # frame=,  # not set because we assume the inertial frame below
             data=np.zeros((NTimes, NModes), dtype=np.complex),
             history=[construction,],
+            version_hist=VersionHist,
             frameType=scri.Inertial,  # Assumption! (but this should be safe)
             dataType=DataType,
             r_is_scaled_out=True,  # Assumption! (but it should be safe)
@@ -285,6 +286,11 @@ def read_finite_radius_data(ChMass=0.0, filename='rh_FiniteRadii_CodeUnits.h5', 
     try:
         # Get list of waveforms we'll be using
         WaveformNames = list(f)
+        try:
+            VersionHist = f['VersionHist.ver'][:]
+            WaveformNames.remove('VersionHist.ver')
+        except KeyError:
+            VersionHist = []
         if (not CoordRadii):
             # If the list of Radii is empty, figure out what they are
             CoordRadii = [m.group('r') for Name in WaveformNames for m in
@@ -342,7 +348,7 @@ def read_finite_radius_data(ChMass=0.0, filename='rh_FiniteRadii_CodeUnits.h5', 
                 stdout.flush()
                 PrintedLine += WaveformNameString
             Radii[n] = read_finite_radius_waveform(n, filename, WaveformNames[n], ChMass, InitialAdmEnergy, YLMRegex,
-                                                   LModes, DataType, Ws)
+                                                   LModes, DataType, VersionHist, Ws)
             # Ws[n].AppendHistory(str("### # Python read from '{0}/{1}'.\n".format(filename, WaveformNames[n])))
     finally:
         f.close()
@@ -1097,6 +1103,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None)
                 frame=FiniteRadiusWaveforms[NFiniteRadii - 1].frame,
                 data=np.zeros((NTimes, NModes), dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype),
                 history=FiniteRadiusWaveforms[NFiniteRadii - 1].history + ["### Extrapolating with N={0}\n".format(N)],
+                version_hist=FiniteRadiusWaveforms[NFiniteRadii - 1].version_hist,
                 frameType=FiniteRadiusWaveforms[NFiniteRadii - 1].frameType,
                 dataType=FiniteRadiusWaveforms[NFiniteRadii - 1].dataType,
                 r_is_scaled_out=FiniteRadiusWaveforms[NFiniteRadii - 1].r_is_scaled_out,

@@ -285,6 +285,8 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_forma
         g.attrs['DataType'] = translate_data_types_waveforms_to_GWFrames(w.dataType)
         g.attrs['RIsScaledOut'] = int(w.r_is_scaled_out)
         g.attrs['MIsScaledOut'] = int(w.m_is_scaled_out)
+        if (len(w.version_hist)>0):
+            g.create_dataset("VersionHist.ver", (len(w.version_hist),2), data = w.version_hist, dtype=h5py.special_dtype(vlen=bytes))
         for attr in attributes:
             try:
                 g.attrs[attr] = attributes[attr]
