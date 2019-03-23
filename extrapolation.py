@@ -83,10 +83,10 @@ def intersection(t1, t2, min_step=None, min_time=None, max_time=None):
     else:
         maxt = min(min(max1, max2), max_time)
     if mint > max1 or mint > max2:
-        message = "Empty intersection in t1=[{0}, ..., {1}], t2={{2}, ..., {3}] with min_time={4}"
+        message = "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] with min_time={4}"
         raise ValueError(message.format(min1, max1, min2, max2, min_time))
     if maxt < min1 or maxt < min2:
-        message = "Empty intersection in t1=[{0}, ..., {1}], t2={{2}, ..., {3}] with max_time={4}"
+        message = "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] with max_time={4}"
         raise ValueError(message.format(min1, max1, min2, max2, max_time))
     if min_step is None:
         min_step = min(np.min(np.diff(t1)), np.min(np.diff(t2)))
