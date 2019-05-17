@@ -806,8 +806,8 @@ class WaveformBase(_object):
         W.data = np.empty((W.n_times,)+self.data.shape[1:], dtype=self.data.dtype)
         if self.data.dtype == np.dtype(complex):
             for i in range(W.n_data_sets):
-                W.data_2d[:, i] = (splev(W.t, splrep(self.t, self.data_2d.view(dtype=float)[:, 2*i], s=0), der=0)
-                                   + 1j*splev(W.t, splrep(self.t, self.data_2d.view(dtype=float)[:, 2*i+1], s=0), der=0))
+                W.data_2d[:, i] = (splev(W.t, splrep(self.t, self.data_2d[:, i].real, s=0), der=0)
+                                   + 1j*splev(W.t, splrep(self.t, self.data_2d[:, i].imag, s=0), der=0))
         elif self.data.dtype == np.dtype(float):
             for i in range(W.n_data_sets):
                 W.data_2d[:, i] = splev(W.t, splrep(self.t, self.data_2d[:, i], s=0), der=0)
