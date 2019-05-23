@@ -7,3 +7,4 @@ numba
 quaternion
 spinsfast
 spherical_functions
+sxs

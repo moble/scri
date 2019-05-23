@@ -8,8 +8,7 @@ import numpy as np
 from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
 from .. import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4)
-from . import read_metadata_into_object
-
+from sxs.metadata import Metadata
 
 def translate_data_types_GWFrames_to_waveforms(d):
     if d < 4:
@@ -109,13 +108,15 @@ def read_from_h5(file_name, **kwargs):
     else:
         f = f_h5
 
-    # If it exists, add the metadata file to `w` as an object.  So, for example, the initial spin on object 1 can be
-    # accessed as `w.metadata.initial_spin1`.  See the documentation of `scri.SpEC.read_metadata_into_object`
-    # for more details.  And in IPython, tab completion works on the `w.metadata` object.
+    # If it exists, add the metadata file to `w` as an object.  So, for example, the initial spin on
+    # object 1 can be accessed as `w.metadata.initial_spin1`.  See the documentation of
+    # `sxs.metadata.Metadata` for more details.  And in IPython, tab completion works on the
+    # `w.metadata` object.
     try:
-        w.metadata = read_metadata_into_object(os.path.join(os.path.dirname(file_name), 'metadata.txt'))
+        w.metadata = Metadata.from_file(os.path.join(os.path.dirname(file_name), 'metadata'),
+                                        ignore_invalid_lines=True, cache_json=False)
     except:
-        pass  # Probably couldn't find the metadata.txt file
+        pass  # Probably couldn't find the metadata.json/metadata.txt file
 
     try:  # Make sure the h5py.File gets closed, even in the event of an exception
 
