@@ -493,6 +493,8 @@ class WaveformBase(_object):
                 descriptor = descriptor + self.data_type_string + "OverM" + str(-Mexponent)
             elif Mexponent == -1:
                 descriptor = descriptor + self.data_type_string + "OverM"
+            elif Mexponent == 0:
+                descriptor = descriptor + self.data_type_string
             elif Mexponent == 1:
                 descriptor = descriptor + "M" + self.data_type_string
             elif Mexponent > 1:

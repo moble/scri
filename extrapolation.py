@@ -221,7 +221,7 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
         Ws[n] = scri.WaveformModes(
             t=T / ChMass,
             # frame=,  # not set because we assume the inertial frame below
-            data=np.empty((NTimes, NModes), dtype=np.complex),
+            data=np.zeros((NTimes, NModes), dtype=np.complex),
             history=[construction,],
             frameType=scri.Inertial,  # Assumption! (but this should be safe)
             dataType=DataType,
@@ -232,13 +232,28 @@ def read_finite_radius_waveform(n, filename, WaveformName, ChMass, InitialAdmEne
         )
         if (DataType == scri.h):
             UnitScaleFactor = 1.0 / ChMass
+            RadiusRatioExp = 1.0
         elif (DataType == scri.hdot):
             UnitScaleFactor = 1.0
+            RadiusRatioExp = 1.0
         elif (DataType == scri.psi4):
             UnitScaleFactor = ChMass
+            RadiusRatioExp = 1.0
+        elif (DataType == scri.psi3):
+            UnitScaleFactor = 1.0
+            RadiusRatioExp = 2.0
+        elif (DataType == scri.psi2):
+            UnitScaleFactor = 1.0 /ChMass
+            RadiusRatioExp = 3.0
+        elif (DataType == scri.psi1):
+            UnitScaleFactor = 1.0 / ChMass**2
+            RadiusRatioExp = 4.0
+        elif (DataType == scri.psi0):
+            UnitScaleFactor = 1.0 / ChMass**3
+            RadiusRatioExp = 5.0
         else:
             raise ValueError('DataType "{0}" is unknown.'.format(DataType))
-        RadiusRatio = Radii / CoordRadius
+        RadiusRatio = (Radii / CoordRadius)**RadiusRatioExp
         for m, DataSet in enumerate(YLMdata):
             modedata = array(W[DataSet])
             Ws[n].data[:, m] = (modedata[Indices, 1] + 1j * modedata[Indices, 2]) * RadiusRatio * UnitScaleFactor
@@ -298,9 +313,17 @@ def read_finite_radius_data(ChMass=0.0, filename='rh_FiniteRadii_CodeUnits.h5', 
             DataType = scri.h
         elif 'psi4' in DataType.lower():
             DataType = scri.psi4
+        elif 'psi3' in DataType.lower():
+            DataType = scri.psi3
+        elif 'psi2' in DataType.lower():
+            DataType = scri.psi2
+        elif 'psi1' in DataType.lower():
+            DataType = scri.psi1
+        elif 'psi0' in DataType.lower():
+            DataType = scri.psi0
         else:
             DataType = scri.UnknownDataType
-            message = "The file '{0}' does not contain a recognizable description of the data type ('h', 'psi4')."
+            message = "The file '{0}' does not contain a recognizable description of the data type ('h', 'psi4', 'psi3', 'psi2', 'psi1', 'psi0')."
             raise ValueError(message.format(filename))
         PrintedLine = ''
         for n in range(NWaveforms):
@@ -380,8 +403,9 @@ def extrapolate(**kwargs):
           `h5ls`.  If the list is empty, all radii that can be found
           are used.
 
-        LModes                   range(2,100)
-          List of ell modes to extrapolate
+        LModes                   range(abs(s),100)
+          List of ell modes to extrapolate, is the spin-weight of the
+          waveform to be extrapolated.
 
         ExtrapolationOrders      [-1, 2, 3, 4, 5, 6]
           Negative numbers correspond to extracted data, counting down
@@ -446,6 +470,7 @@ def extrapolate(**kwargs):
     from textwrap import dedent
     from numpy import sqrt, abs, fmod, pi, transpose, array
     #from scipy.interpolate import splev, splrep
+    import scri
     from scri import Inertial, Corotating, WaveformModes
 
     # Process keyword arguments
@@ -455,7 +480,7 @@ def extrapolate(**kwargs):
     ChMass = kwargs.pop('ChMass', 0.0)
     HorizonsFile = kwargs.pop('HorizonsFile', 'Horizons.h5')
     CoordRadii = kwargs.pop('CoordRadii', [])
-    LModes = kwargs.pop('LModes', range(2, 100))
+    LModes = kwargs.pop('LModes', range(-1, 100))
     ExtrapolationOrders = kwargs.pop('ExtrapolationOrders', [-1, 2, 3, 4, 5, 6])
     UseOmega = kwargs.pop('UseOmega', False)
     OutputFrame = kwargs.pop('OutputFrame', Inertial)
@@ -479,6 +504,34 @@ def extrapolate(**kwargs):
     if (ChMass == 0.0):
         print("WARNING: ChMass is being automatically determined from the data, rather than metadata.txt.")
         ChMass = pick_Ch_mass(HorizonsFile)
+
+    DataType = basename(DataFile).partition('_')[0]
+    if 'hdot' in DataType.lower():
+        DataType = scri.hdot
+    elif 'h' in DataType.lower():
+        DataType = scri.h
+    elif 'psi4' in DataType.lower():
+        DataType = scri.psi4
+    elif 'psi3' in DataType.lower():
+        DataType = scri.psi3
+    elif 'psi2' in DataType.lower():
+        DataType = scri.psi2
+    elif 'psi1' in DataType.lower():
+        DataType = scri.psi1
+    elif 'psi0' in DataType.lower():
+        DataType = scri.psi0
+    else:
+        DataType = scri.UnknownDataType
+        message = "The file '{0}' does not contain a recognizable description of the data type ('h', 'psi4', 'psi3', 'psi2', 'psi1', 'psi0')."
+        raise ValueError(message.format(filename))
+
+    # Set the correct default ell_min based on the spin-weight
+    if LModes[0] < 0:
+        if DataType == scri.psi3 or DataType == scri.psi1:
+            LModes = range(1,100)
+        if DataType == scri.psi2:
+            LModes = range(0,100)
+
     # AlignmentTime is reset properly once the data are read in, if necessary.
     # The reasonableness of ExtrapolationOrder is checked below.
 
@@ -892,6 +945,18 @@ def FindPossibleExtrapolationsToRun(TopLevelInputDir):
                 if ('rPsi4_FiniteRadii_CodeUnits.h5' in step[2]):
                     SubdirectoriesAndDataFiles.append(
                         [step[0].replace(TopLevelInputDir + '/', ''), 'rPsi4_FiniteRadii_CodeUnits.h5'])
+                if ('r2Psi3_FiniteRadii_CodeUnits.h5' in step[2]):
+                    SubdirectoriesAndDataFiles.append(
+                        [step[0].replace(TopLevelInputDir + '/', ''), 'r2Psi3_FiniteRadii_CodeUnits.h5'])
+                if ('r3Psi2_FiniteRadii_CodeUnits.h5' in step[2]):
+                    SubdirectoriesAndDataFiles.append(
+                        [step[0].replace(TopLevelInputDir + '/', ''), 'r3Psi2_FiniteRadii_CodeUnits.h5'])
+                if ('r4Psi1_FiniteRadii_CodeUnits.h5' in step[2]):
+                    SubdirectoriesAndDataFiles.append(
+                        [step[0].replace(TopLevelInputDir + '/', ''), 'r4Psi1_FiniteRadii_CodeUnits.h5'])
+                if ('r5Psi0_FiniteRadii_CodeUnits.h5' in step[2]):
+                    SubdirectoriesAndDataFiles.append(
+                        [step[0].replace(TopLevelInputDir + '/', ''), 'r5Psi0_FiniteRadii_CodeUnits.h5'])
     return SubdirectoriesAndDataFiles
 
 
@@ -1030,7 +1095,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None)
             ExtrapolatedWaveforms[i_N] = scri.WaveformModes(
                 t=FiniteRadiusWaveforms[NFiniteRadii - 1].t,
                 frame=FiniteRadiusWaveforms[NFiniteRadii - 1].frame,
-                data=np.empty((NTimes, NModes), dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype),
+                data=np.zeros((NTimes, NModes), dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype),
                 history=FiniteRadiusWaveforms[NFiniteRadii - 1].history + ["### Extrapolating with N={0}\n".format(N)],
                 frameType=FiniteRadiusWaveforms[NFiniteRadii - 1].frameType,
                 dataType=FiniteRadiusWaveforms[NFiniteRadii - 1].dataType,

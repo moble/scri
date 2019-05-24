@@ -7,21 +7,22 @@ import warnings
 import numpy as np
 from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
-from .. import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4)
+from .. import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0)
 from sxs.metadata import Metadata
 
+
 def translate_data_types_GWFrames_to_waveforms(d):
-    if d < 4:
-        return {0: UnknownDataType, 1: h, 2: hdot, 3: psi4}[d]
+    if d < 8:
+        return {0: UnknownDataType, 1: h, 2: hdot, 3: psi4, 4: psi3, 5: psi2, 6: psi1, 7: psi0}[d]
     else:
-        return DataType[d-4]
+        return DataType[d-8]
 
 
 def translate_data_types_waveforms_to_GWFrames(d):
-    if d in [UnknownDataType, h, hdot, psi4]:
-        return {UnknownDataType: 0, h: 1, hdot: 2, psi4: 3}[d]
+    if d in [UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0]:
+        return {UnknownDataType: 0, h: 1, hdot: 2, psi4: 3, psi3: 4, psi2: 5, psi1: 6, psi0: 7}[d]
     else:
-        return d+4
+        return d+8
 
 
 @jit
@@ -77,7 +78,7 @@ def read_from_h5(file_name, **kwargs):
         These four parameters are documented in the docstring of the WaveformBase object.  Note that if any of these
         is present in the H5 file (which is not common) that value will override this argument.  If neither the file
         nor these parameters are present, defaults will be applied, assuming that the frame is inertial, R and M are
-        both scaled out, and the data type (psi4, hdot, or h) can be gleaned from `file_name`.
+        both scaled out, and the data type (hdot, h, psi4, psi4, psi2, psi1, or psi0) can be gleaned from `file_name`.
 
     """
 
