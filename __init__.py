@@ -87,7 +87,8 @@ DataNamesLaTeX = [r"\mathrm{unknown data type}", r"\psi_0", r"\psi_1", r"\psi_2"
 from .waveform_modes import WaveformModes
 from .mode_calculations import (LdtVector, LVector, LLComparisonMatrix, LLMatrix,
                                 inner_product,
-                                LLDominantEigenvector, angular_velocity, corotating_frame)
+                                LLDominantEigenvector, angular_velocity, corotating_frame, momentum_flux)
+
 WaveformModes.LdtVector = LdtVector
 WaveformModes.LVector = LVector
 WaveformModes.LLComparisonMatrix = LLComparisonMatrix
@@ -105,6 +106,7 @@ WaveformModes.to_coprecessing_frame = to_coprecessing_frame
 WaveformModes.to_corotating_frame = to_corotating_frame
 WaveformModes.to_inertial_frame = to_inertial_frame
 WaveformModes.align_decomposition_frame_to_modes = align_decomposition_frame_to_modes
+WaveformModes.momentum_flux = momentum_flux
 
 from .waveform_grid import WaveformGrid
 # from .waveform_in_detector import WaveformInDetector

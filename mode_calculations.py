@@ -861,3 +861,50 @@ def _make_p_plus_minus_for_s_minus_2(sign):
 
 p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
 p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
+
+def momentum_flux(h):
+    """Compute momentum flux from waveform
+    
+    This implements Eqs. (6)-(8) from Gerosa, Hébert, Stein <https://arxiv.org/abs/1802.04276>
+    """
+    from .waveform_modes import WaveformModes
+    from . import h as htype
+    from . import hdot as hdottype
+    if not isinstance(h, WaveformModes):
+        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
+                         +"this object is of type `{0}`.".format(type(h)))
+    if h.dataType == hdottype:
+        hdot = h
+    elif h.dataType == htype:
+        hdot = h.copy()
+        hdot.dataType = hdottype
+        hdot.data = h.data_dot
+    else:
+        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
+                         +"this waveform data has type `{0}`".format(h.data_type_string))
+    pdot = np.zeros((hdot.n_times, 3), dtype=float)
+    ell, m = hdot.LM.T
+    alm = np.sqrt((ell-m)*(ell+m+1))/(ell*(ell+1))
+    blm = np.sqrt((ell-2)*(ell+2)*(ell+m)*(ell+m-1)/((2*ell-1)*(2*ell+1)))/(2*ell)
+    clm = 2*m/(ell*(ell+1))
+    dlm = np.sqrt((ell-2)*(ell+2)*(ell-m)*(ell+m)/((2*ell-1)*(2*ell+1)))/ell
+    for ell in range(2, hdot.ell_max+1):
+        i1 = hdot.index(ell, -ell)
+        i2 = hdot.index(ell, ell)
+        pdot[:, :2] += np.sum(alm[i1:i2] * hdot.data[:, i1:i2] * hdot.data[:, i1+1:i2+1].conjugate(), axis=1).view(float).reshape((-1, 2))
+        pdot[:, 2] += np.sum(clm[i1:i2+1] * hdot.data[:, i1:i2+1] * hdot.data[:, i1:i2+1].conjugate(), axis=1).real
+        if ell-1 >= hdot.ell_min:
+            i3 = hdot.index(ell-1, -(ell-1))
+            i4 = hdot.index(ell-1, ell-1)
+            pdot[:, :2] += np.sum(blm[i2:i1+2-1:-1] * hdot.data[:, i1:i2-1] * hdot.data[:, i3:i4+1].conjugate(), axis=1).view(float).reshape((-1, 2))
+            pdot[:, 2] += np.sum(dlm[i1+1:i2]  * hdot.data[:, i1+1:i2] * hdot.data[:, i3:i4+1].conjugate(), axis=1).real
+        if ell+1 <= hdot.ell_max:
+            i5 = hdot.index(ell+1, -ell+1)
+            i6 = hdot.index(ell+1, ell+1)
+            pdot[:, :2] -= np.sum(blm[i5:i6+1] * hdot.data[:, i1:i2+1] * hdot.data[:, i5:i6+1].conjugate(), axis=1).view(float).reshape((-1, 2))
+            i7 = hdot.index(ell+1, -ell)
+            i8 = hdot.index(ell+1, ell)
+            pdot[:, 2] += np.sum(dlm[i7:i8+1]  * hdot.data[:, i1:i2+1] * hdot.data[:, i7:i8+1].conjugate(), axis=1).real
+    pdot[:, :2] *= 2
+    pdot /= 16*np.pi
+    return pdot
