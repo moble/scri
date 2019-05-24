@@ -1,4 +1,4 @@
- <a href="https://travis-ci.org/moble/scri"><img align="right" hspace="3" alt="Status of automatic build and test suite" src="https://travis-ci.org/moble/scri.svg?branch=master"></a> <a href="https://github.com/moble/scri/blob/master/LICENSE"><img align="right" hspace="3" alt="Code distributed under the open-source MIT license" src="http://moble.github.io/spherical_functions/images/MITLicenseBadge.svg"></a>
+ <a href="https://travis-ci.org/moble/scri"><img align="right" hspace="3" alt="Status of automatic build and test suite" src="https://travis-ci.org/moble/scri.svg?branch=master"></a> <a href="https://github.com/moble/scri/blob/master/LICENSE"><img align="right" hspace="3" alt="MIT license" src="https://img.shields.io/github/license/moble/out_of_core_fft.svg"></a>
 
 Scri
 ====
