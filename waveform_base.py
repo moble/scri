@@ -122,6 +122,8 @@ class WaveformBase(_object):
         As far as possible, all functions applied to the object are recorded in the `history` variable.  In fact,
         the object should almost be able to be recreated using the commands in the history list. Commands taking
         large arrays, however, are shortened -- so the data will not be entirely reconstructable.
+    version_hist : list of pairs of strings
+        Records the git hash and description for any change in the way SpEC outputs waveform data.
     frameType : int
         Index corresponding to `scri.FrameType` appropriate for `data`.
     dataType : int
@@ -204,6 +206,8 @@ class WaveformBase(_object):
         history : list of strings, empty default
             This is the list of strings prepended to the history, an additional line is appended, showing the call to
             this initializer.
+        version_hist : list of pairs of strings, empty default
+            Remains empty if waveform data is on version 0.
         frameType : int, defaults to 0 (UnknownFrameType)
             See scri.FrameNames for possible values
         dataType : int, defaults to 0 (UnknownDataType)
@@ -232,6 +236,7 @@ class WaveformBase(_object):
             self.data = kwargs.pop('data', np.empty((0, 0), dtype=complex))
             # Information about this object
             self.history = kwargs.pop('history', [])
+            self.version_hist = kwargs.pop('version_hist', [])
             self.frameType = kwargs.pop('frameType', UnknownFrameType)
             self.dataType = kwargs.pop('dataType', UnknownDataType)
             self.r_is_scaled_out = kwargs.pop('r_is_scaled_out', False)
@@ -251,6 +256,7 @@ class WaveformBase(_object):
             self.data = np.copy(other.data)
             # Information about this object
             self.history = other.history[:]
+            self.version_hist = other.version_hist[:]
             self.frameType = other.frameType
             self.dataType = other.dataType
             self.r_is_scaled_out = other.r_is_scaled_out
@@ -493,6 +499,8 @@ class WaveformBase(_object):
                 descriptor = descriptor + self.data_type_string + "OverM" + str(-Mexponent)
             elif Mexponent == -1:
                 descriptor = descriptor + self.data_type_string + "OverM"
+            elif Mexponent == 0:
+                descriptor = descriptor + self.data_type_string
             elif Mexponent == 1:
                 descriptor = descriptor + "M" + self.data_type_string
             elif Mexponent > 1:
@@ -560,6 +568,103 @@ class WaveformBase(_object):
         """
         return self.t[self.max_norm_index(skip_fraction_of_data=skip_fraction_of_data)]
 
+    def compare(self, w_a, min_time_step=0.005, min_time=-3.0e300):
+        """Return a waveform with differences between the two inputs
+
+        This function simply subtracts the data in this waveform from the data
+        in Waveform A, and finds the rotation needed to take this frame into frame A.
+        Note that the waveform data are stored as complex numbers, rather than as 
+        modulus and phase.
+        """
+        from quaternion.means import mean_rotor_in_chordal_metric
+        from scipy.interpolate import InterpolatedUnivariateSpline
+        from scri.extrapolation import intersection
+        import scri.waveform_modes
+
+        if self.frameType != w_a.frameType:
+          warning = ('\nWarning:'+
+                     '\n    This Waveform is in the ' + self.frame_type_string + ' frame,'+
+                     '\n    The Waveform in the argument is in the ' + w_a.frame_type_string + ' frame.'+
+                     '\n    Comparing them probably does not make sense.\n')
+          warnings.warn(warning)
+
+        if self.n_modes != w_a.n_modes:
+          raise Exception('Trying to compare waveforms with mismatched LM data.'+
+                          '\nA.n_modes=' + str(w_a.n_modes) + '\tB.n_modes()=' + str(self.n_modes))
+ 
+        new_times = intersection(self.t, w_a.t)
+
+        w_c = scri.waveform_modes.WaveformModes(
+            t=new_times,
+            data=np.zeros((new_times.shape[0], self.n_modes), dtype=self.data.dtype),
+            history=[],
+            version_hist=self.version_hist,
+            frameType=self.frameType,
+            dataType=self.dataType,
+            r_is_scaled_out=self.r_is_scaled_out,
+            m_is_scaled_out=self.m_is_scaled_out,
+            ell_min=self.ell_min,
+            ell_max=self.ell_max)
+
+        w_c.history += ['B.compare(A)\n']
+        w_c.history += ['### A.history.str():\n' + ''.join(w_a.history)]
+        w_c.history += ['### B.history.str():\n' + ''.join(self.history)]
+        w_c.history += ['### End of old histories from `compare`']
+
+        # Process the frame, depending on the sizes of the input frames
+        if w_a.frame.shape[0] > 1 and self.frame.shape[0] > 1:
+          # Find the frames interpolated to the appropriate times
+          Aframe = quaternion.squad(w_a.frame, w_a.t, w_c.t)
+          Bframe = quaternion.squad(self.frame, self.t, w_c.t)
+          # Assign the data
+          w_c.frame = Aframe * np.array([np.quaternion.inverse(v) for v in Bframe])
+        elif w_a.frame.shape[0] == 1 and self.frame.shape[0] > 1:
+          # Find the frames interpolated to the appropriate times
+          Bframe = np.quaternion.squad(self.frame, self.t, w_c.t)
+          # Assign the data
+          w_c.frame.resize(w_c.n_times)
+          w_c.frame = w_a.frame[0] * np.array([np.quaternion.inverse(v) for v in Bframe])
+        elif w_a.frame.shape[0] > 1 and self.frame.shape[0] == 1:
+          # Find the frames interpolated to the appropriate times
+          Aframe = np.quaternion.squad(w_a.frame, w_a.t, w_c.t)
+          # Assign the data
+          w_c.frame.resize(w_c.n_times)
+          w_c.frame = Aframe * np.quaternion.inverse(self.frame[0])
+        elif w_a.frame.shape[0] == 1 and self.frame.shape[0] == 1:
+          # Assign the data
+          w_c.frame = np.array(w_a.frame[0] * np.quaternions.inverse(self.frame[0]))
+        elif w_a.frame.shape[0] == 0 and self.frame.shape[0] == 1:
+          # Assign the data
+          w_c.frame = np.array(np.quaternions.inverse(self.frame[0]))
+        elif w_a.frame.shape[0] == 1 and self.frame.shape[0] == 1:
+          # Assign the data
+          w_c.frame = np.array(w_a.frame[0])
+        # else, leave the frame data empty
+
+        # If the average frame rotor is closer to -1 than to 1, flip the sign
+        if w_c.frame.shape[0] == w_c.n_times:
+          R_m = mean_rotor_in_chordal_metric(w_c.frame, w_c.t)
+          if quaternion.rotor_chordal_distance(R_m, -quaternion.one) < quaternion.rotor_chordal_distance(R_m, quaternion.one):
+            w_c.frame = -w_c.frame
+        elif w_c.frame.shape[0] == 1:
+          if quaternion.rotor_chordal_distance(w_c.frame[0], -quaternion.one) < quaternion.rotor_chordal_distance(w_c.frame[0], quaternion.one):
+            w_c.frame[0] = -w_c.frame[0]
+      
+        # Now loop over each mode filling in the waveform data
+        for Mode in range(w_a.n_modes):
+          # Assume that all the ell,m data are the same, but not necessarily in the same order
+          BMode = self.index(w_a.LM[Mode][0], w_a.LM[Mode][1])
+          # Initialize the interpolators for this data set
+          splineReA = InterpolatedUnivariateSpline(w_a.t, w_a.data[:,Mode].real)
+          splineImA = InterpolatedUnivariateSpline(w_a.t, w_a.data[:,Mode].imag)
+          splineReB = InterpolatedUnivariateSpline(self.t, self.data[:,BMode].real)
+          splineImB = InterpolatedUnivariateSpline(self.t, self.data[:,BMode].imag)
+          # Assign the data from the transition
+
+          w_c.data[:,Mode] = (splineReA(w_c.t) - splineReB(w_c.t)) + 1j*(splineImA(w_c.t) - splineImB(w_c.t))
+
+        return w_c
+
     @property
     def data_dot(self):
         return quaternion.calculus.derivative(self.data, self.t)
@@ -608,7 +713,7 @@ class WaveformBase(_object):
         rep = rep.format(type(self).__name__,
                          str(self.t).replace('\n', '\n' + ' ' * 15),
                          str(self.frame).replace('\n', '\n' + ' ' * 19),
-                         self.history, str(self.data).replace('\n', '\n' + ' ' * 18),
+                         self.history, self.version_hist, str(self.data).replace('\n', '\n' + ' ' * 18),
                          self.frameType, self.dataType, self.r_is_scaled_out, self.m_is_scaled_out, self.num)
         np.set_printoptions(**opts)
         return dedent(rep)
@@ -736,6 +841,10 @@ class WaveformBase(_object):
                     if self.history[:min_length] != other.history[:min_length]:
                         warnings.warn("\n  `history` fields differ")
                         equality = False
+            elif key == 'version_hist':
+                if self.version_hist != other.version_hist:
+                    warnings.warn("\n  `version_hist` fields differ")
+                    equality = False
             elif isinstance(val, np.ndarray):
                 if val.dtype == np.quaternion:
                     if not np.allclose(quaternion.as_float_array(val),

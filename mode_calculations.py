@@ -12,7 +12,7 @@ from spherical_functions import ladder_operator_coefficient as ladder
 from quaternion.numba_wrapper import jit, njit, xrange
 
 
-@njit('void(c16[:,:], c16[:,:], i8[:,:], f8[:,:])')
+@njit("void(c16[:,:], c16[:,:], i8[:,:], f8[:,:])")
 def _LdtVector(data, datadot, lm, Ldt):
     """Helper function for the LdtVector function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -25,12 +25,20 @@ def _LdtVector(data, datadot, lm, Ldt):
         M = lm[i_mode, 1]
         for i_time in xrange(data.shape[0]):
             # Compute first in (+,-,z) basis
-            Lp = (np.conjugate(data[i_time, i_mode + 1]) * datadot[i_time, i_mode] * ladder(L, M)
-                  if M + 1 <= L
-                  else 0.0 + 0.0j)
-            Lm = (np.conjugate(data[i_time, i_mode - 1]) * datadot[i_time, i_mode] * ladder(L, -M)
-                  if M - 1 >= -L
-                  else 0.0 + 0.0j)
+            Lp = (
+                np.conjugate(data[i_time, i_mode + 1])
+                * datadot[i_time, i_mode]
+                * ladder(L, M)
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            Lm = (
+                np.conjugate(data[i_time, i_mode - 1])
+                * datadot[i_time, i_mode]
+                * ladder(L, -M)
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
             Lz = np.conjugate(data[i_time, i_mode]) * datadot[i_time, i_mode] * M
 
             # Convert into (x,y,z) basis
@@ -54,7 +62,7 @@ def LdtVector(W):
     return Ldt
 
 
-@njit('void(c16[:,:], c16[:,:], i8[:,:], c16[:,:])')
+@njit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:])")
 def _LVector(data1, data2, lm, Lvec):
     """Helper function for the LVector function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -67,12 +75,20 @@ def _LVector(data1, data2, lm, Lvec):
         M = lm[i_mode, 1]
         for i_time in xrange(data1.shape[0]):
             # Compute first in (+,-,z) basis
-            Lp = (np.conjugate(data1[i_time, i_mode + 1]) * data2[i_time, i_mode] * ladder(L, M)
-                  if M + 1 <= L
-                  else 0.0 + 0.0j)
-            Lm = (np.conjugate(data1[i_time, i_mode - 1]) * data2[i_time, i_mode] * ladder(L, -M)
-                  if M - 1 >= -L
-                  else 0.0 + 0.0j)
+            Lp = (
+                np.conjugate(data1[i_time, i_mode + 1])
+                * data2[i_time, i_mode]
+                * ladder(L, M)
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            Lm = (
+                np.conjugate(data1[i_time, i_mode - 1])
+                * data2[i_time, i_mode]
+                * ladder(L, -M)
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
             Lz = np.conjugate(data1[i_time, i_mode]) * data2[i_time, i_mode] * M
 
             # Convert into (x,y,z) basis
@@ -96,7 +112,7 @@ def LVector(W1, W2):
     return L
 
 
-@njit('void(c16[:,:], c16[:,:], i8[:,:], c16[:,:,:])')
+@njit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:,:])")
 def _LLComparisonMatrix(data1, data2, lm, LL):
     """Helper function for the LLComparisonMatrix function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -119,31 +135,62 @@ def _LLComparisonMatrix(data1, data2, lm, LL):
         M = lm[i_mode, 1]
         for i_time in xrange(data1.shape[0]):
             # Compute first in (+,-,z) basis
-            LpLp = (np.conjugate(data1[i_time, i_mode + 2]) * data2[i_time, i_mode] * (ladder(L, M + 1) * ladder(L, M))
-                    if M + 2 <= L
-                    else 0.0 + 0.0j)
-            LpLm = (np.conjugate(data1[i_time, i_mode]) * data2[i_time, i_mode] * (ladder(L, M - 1) * ladder(L, -M))
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
-            LmLp = (np.conjugate(data1[i_time, i_mode]) * data2[i_time, i_mode] * (ladder(L, -(M + 1)) * ladder(L, M))
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
+            LpLp = (
+                np.conjugate(data1[i_time, i_mode + 2])
+                * data2[i_time, i_mode]
+                * (ladder(L, M + 1) * ladder(L, M))
+                if M + 2 <= L
+                else 0.0 + 0.0j
+            )
+            LpLm = (
+                np.conjugate(data1[i_time, i_mode])
+                * data2[i_time, i_mode]
+                * (ladder(L, M - 1) * ladder(L, -M))
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
+            LmLp = (
+                np.conjugate(data1[i_time, i_mode])
+                * data2[i_time, i_mode]
+                * (ladder(L, -(M + 1)) * ladder(L, M))
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
             LmLm = (
-                np.conjugate(data1[i_time, i_mode - 2]) * data2[i_time, i_mode] * (ladder(L, -(M - 1)) * ladder(L, -M))
+                np.conjugate(data1[i_time, i_mode - 2])
+                * data2[i_time, i_mode]
+                * (ladder(L, -(M - 1)) * ladder(L, -M))
                 if M - 2 >= -L
-                else 0.0 + 0.0j)
-            LpLz = (np.conjugate(data1[i_time, i_mode + 1]) * data2[i_time, i_mode] * (ladder(L, M) * M)
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
-            LzLp = (np.conjugate(data1[i_time, i_mode + 1]) * data2[i_time, i_mode] * ((M + 1) * ladder(L, M))
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
-            LmLz = (np.conjugate(data1[i_time, i_mode - 1]) * data2[i_time, i_mode] * (ladder(L, -M) * M)
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
-            LzLm = (np.conjugate(data1[i_time, i_mode - 1]) * data2[i_time, i_mode] * ((M - 1) * ladder(L, -M))
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
+                else 0.0 + 0.0j
+            )
+            LpLz = (
+                np.conjugate(data1[i_time, i_mode + 1])
+                * data2[i_time, i_mode]
+                * (ladder(L, M) * M)
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            LzLp = (
+                np.conjugate(data1[i_time, i_mode + 1])
+                * data2[i_time, i_mode]
+                * ((M + 1) * ladder(L, M))
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            LmLz = (
+                np.conjugate(data1[i_time, i_mode - 1])
+                * data2[i_time, i_mode]
+                * (ladder(L, -M) * M)
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
+            LzLm = (
+                np.conjugate(data1[i_time, i_mode - 1])
+                * data2[i_time, i_mode]
+                * ((M - 1) * ladder(L, -M))
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
             LzLz = np.conjugate(data1[i_time, i_mode]) * data2[i_time, i_mode] * M ** 2
 
             # Convert into (x,y,z) basis
@@ -184,7 +231,7 @@ def LLComparisonMatrix(W1, W2):
     return LL
 
 
-@njit('void(c16[:,:], i8[:,:], f8[:,:,:])')
+@njit("void(c16[:,:], i8[:,:], f8[:,:,:])")
 def _LLMatrix(data, lm, LL):
     """Helper function for the LLMatrix function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -207,31 +254,62 @@ def _LLMatrix(data, lm, LL):
         M = lm[i_mode, 1]
         for i_time in xrange(data.shape[0]):
             # Compute first in (+,-,z) basis
-            LpLp = (np.conjugate(data[i_time, i_mode + 2]) * data[i_time, i_mode] * (ladder(L, M + 1) * ladder(L, M))
-                    if M + 2 <= L
-                    else 0.0 + 0.0j)
-            LpLm = (np.conjugate(data[i_time, i_mode]) * data[i_time, i_mode] * (ladder(L, M - 1) * ladder(L, -M))
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
-            LmLp = (np.conjugate(data[i_time, i_mode]) * data[i_time, i_mode] * (ladder(L, -(M + 1)) * ladder(L, M))
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
+            LpLp = (
+                np.conjugate(data[i_time, i_mode + 2])
+                * data[i_time, i_mode]
+                * (ladder(L, M + 1) * ladder(L, M))
+                if M + 2 <= L
+                else 0.0 + 0.0j
+            )
+            LpLm = (
+                np.conjugate(data[i_time, i_mode])
+                * data[i_time, i_mode]
+                * (ladder(L, M - 1) * ladder(L, -M))
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
+            LmLp = (
+                np.conjugate(data[i_time, i_mode])
+                * data[i_time, i_mode]
+                * (ladder(L, -(M + 1)) * ladder(L, M))
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
             LmLm = (
-                np.conjugate(data[i_time, i_mode - 2]) * data[i_time, i_mode] * (ladder(L, -(M - 1)) * ladder(L, -M))
+                np.conjugate(data[i_time, i_mode - 2])
+                * data[i_time, i_mode]
+                * (ladder(L, -(M - 1)) * ladder(L, -M))
                 if M - 2 >= -L
-                else 0.0 + 0.0j)
-            LpLz = (np.conjugate(data[i_time, i_mode + 1]) * data[i_time, i_mode] * (ladder(L, M) * M)
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
-            LzLp = (np.conjugate(data[i_time, i_mode + 1]) * data[i_time, i_mode] * ((M + 1) * ladder(L, M))
-                    if M + 1 <= L
-                    else 0.0 + 0.0j)
-            LmLz = (np.conjugate(data[i_time, i_mode - 1]) * data[i_time, i_mode] * (ladder(L, -M) * M)
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
-            LzLm = (np.conjugate(data[i_time, i_mode - 1]) * data[i_time, i_mode] * ((M - 1) * ladder(L, -M))
-                    if M - 1 >= -L
-                    else 0.0 + 0.0j)
+                else 0.0 + 0.0j
+            )
+            LpLz = (
+                np.conjugate(data[i_time, i_mode + 1])
+                * data[i_time, i_mode]
+                * (ladder(L, M) * M)
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            LzLp = (
+                np.conjugate(data[i_time, i_mode + 1])
+                * data[i_time, i_mode]
+                * ((M + 1) * ladder(L, M))
+                if M + 1 <= L
+                else 0.0 + 0.0j
+            )
+            LmLz = (
+                np.conjugate(data[i_time, i_mode - 1])
+                * data[i_time, i_mode]
+                * (ladder(L, -M) * M)
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
+            LzLm = (
+                np.conjugate(data[i_time, i_mode - 1])
+                * data[i_time, i_mode]
+                * ((M - 1) * ladder(L, -M))
+                if M - 1 >= -L
+                else 0.0 + 0.0j
+            )
             LzLz = np.conjugate(data[i_time, i_mode]) * data[i_time, i_mode] * M ** 2
 
             # Convert into (x,y,z) basis
@@ -276,21 +354,28 @@ def LLMatrix(W):
     return LL
 
 
-@njit('void(f8[:,:], f8[:], i8)')
+@njit("void(f8[:,:], f8[:], i8)")
 def _LLDominantEigenvector(dpa, dpa_i, i_index):
     """Jitted helper function for LLDominantEigenvector"""
     # Make the initial direction closer to RoughInitialEllDirection than not
-    if (dpa_i[0] * dpa[i_index, 0] + dpa_i[1] * dpa[i_index, 1] + dpa_i[2] * dpa[i_index, 2]) < 0.:
+    if (
+        dpa_i[0] * dpa[i_index, 0]
+        + dpa_i[1] * dpa[i_index, 1]
+        + dpa_i[2] * dpa[i_index, 2]
+    ) < 0.0:
         dpa[i_index, 0] *= -1
         dpa[i_index, 1] *= -1
         dpa[i_index, 2] *= -1
     # Now, go through and make the vectors reasonably continuous.
     d = -1
     LastNorm = sqrt(dpa[i_index, 0] ** 2 + dpa[i_index, 1] ** 2 + dpa[i_index, 2] ** 2)
-    for i in xrange(i_index-1, -1, -1):
+    for i in xrange(i_index - 1, -1, -1):
         Norm = dpa[i, 0] ** 2 + dpa[i, 1] ** 2 + dpa[i, 2] ** 2
-        dNorm = ((dpa[i, 0] - dpa[i - d, 0]) ** 2 + (dpa[i, 1] - dpa[i - d, 1]) ** 2
-                 + (dpa[i, 2] - dpa[i - d, 2]) ** 2)
+        dNorm = (
+            (dpa[i, 0] - dpa[i - d, 0]) ** 2
+            + (dpa[i, 1] - dpa[i - d, 1]) ** 2
+            + (dpa[i, 2] - dpa[i - d, 2]) ** 2
+        )
         if dNorm > Norm:
             dpa[i, 0] *= -1
             dpa[i, 1] *= -1
@@ -307,10 +392,13 @@ def _LLDominantEigenvector(dpa, dpa_i, i_index):
         dpa[0, 2] /= LastNorm
     d = 1
     LastNorm = sqrt(dpa[i_index, 0] ** 2 + dpa[i_index, 1] ** 2 + dpa[i_index, 2] ** 2)
-    for i in xrange(i_index+1, dpa.shape[0]):
+    for i in xrange(i_index + 1, dpa.shape[0]):
         Norm = dpa[i, 0] ** 2 + dpa[i, 1] ** 2 + dpa[i, 2] ** 2
-        dNorm = ((dpa[i, 0] - dpa[i - d, 0]) ** 2 + (dpa[i, 1] - dpa[i - d, 1]) ** 2
-                 + (dpa[i, 2] - dpa[i - d, 2]) ** 2)
+        dNorm = (
+            (dpa[i, 0] - dpa[i - d, 0]) ** 2
+            + (dpa[i, 1] - dpa[i - d, 1]) ** 2
+            + (dpa[i, 2] - dpa[i - d, 2]) ** 2
+        )
         if dNorm > Norm:
             dpa[i, 0] *= -1
             dpa[i, 1] *= -1
@@ -328,7 +416,9 @@ def _LLDominantEigenvector(dpa, dpa_i, i_index):
     return
 
 
-def LLDominantEigenvector(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=0):
+def LLDominantEigenvector(
+    W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=0
+):
     """Calculate the principal axis of the LL matrix
 
     \param Lmodes L modes to evaluate (optional)
@@ -364,7 +454,7 @@ def LLDominantEigenvector(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
     return dpa
 
 
-#@jit
+# @jit
 def angular_velocity(W, include_frame_velocity=False):
     """Angular velocity of Waveform
 
@@ -387,16 +477,19 @@ def angular_velocity(W, include_frame_velocity=False):
     # Solve <Ldt> = - <LL> . omega
     omega = -np.linalg.solve(ll, l)
 
-    if include_frame_velocity and len(W.frame)==W.n_times:
+    if include_frame_velocity and len(W.frame) == W.n_times:
         from quaternion import derivative, as_quat_array, as_float_array
+
         Rdot = as_quat_array(derivative(as_float_array(W.frame), W.t))
         omega += as_float_array(2 * Rdot * W.frame.conjugate())[:, 1:]
 
     return omega
 
 
-#def corotating_frame(W, Ri=quaternion.one, ti=0.0, tolerance=1e-12):
-def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
+# def corotating_frame(W, Ri=quaternion.one, ti=0.0, tolerance=1e-12):
+def corotating_frame(
+    W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False
+):
     """Return rotor taking current mode frame into corotating frame
 
     This function simply evaluates the angular velocity of the waveform, and
@@ -426,25 +519,36 @@ def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=N
 
     """
     from quaternion.quaternion_time_series import integrate_angular_velocity, squad
+
     omega = angular_velocity(W)
-    t, frame = integrate_angular_velocity((W.t, omega), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance)
+    t, frame = integrate_angular_velocity(
+        (W.t, omega), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance
+    )
     if z_alignment_region is None:
         correction_rotor = quaternion.one
     else:
         initial_time = W.t[0]
         inspiral_time = W.max_norm_time() - initial_time
-        t1 = initial_time + z_alignment_region[0]*inspiral_time
-        t2 = initial_time + z_alignment_region[1]*inspiral_time
-        i1 = np.argmin(np.abs(W.t-t1))
-        i2 = np.argmin(np.abs(W.t-t2))
+        t1 = initial_time + z_alignment_region[0] * inspiral_time
+        t2 = initial_time + z_alignment_region[1] * inspiral_time
+        i1 = np.argmin(np.abs(W.t - t1))
+        i2 = np.argmin(np.abs(W.t - t2))
         R = frame[i1:i2]
-        i1m = max(0, i1-10)
+        i1m = max(0, i1 - 10)
         i1p = i1m + 21
         RoughDirection = W[i1m:i1p].angular_velocity()[10]
-        Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
-        Vhat_corot = np.array([(Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
-                               for Ri, Vhati in zip(R, Vhat)])
-        Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
+        Vhat = W[i1:i2].LLDominantEigenvector(
+            RoughDirection=RoughDirection, RoughDirectionIndex=0
+        )
+        Vhat_corot = np.array(
+            [
+                (Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
+                for Ri, Vhati in zip(R, Vhat)
+            ]
+        )
+        Vhat_corot_mean = quaternion.quaternion(
+            *np.mean(Vhat_corot, axis=0)
+        ).normalized()
         # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
         correction_rotor = np.sqrt_of_rotor(-quaternion.z * Vhat_corot_mean).inverse()
     # R = squad(R, t, W.t)
