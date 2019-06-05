@@ -556,3 +556,46 @@ def corotating_frame(
         return (frame * correction_rotor, omega)
     else:
         return frame * correction_rotor
+
+
+def inner_product(t, abar, b, axis=-1, apply_conjugate=False):
+    """Perform a time-domain complex inner product between two waveforms <a, b>.
+
+    This is implemented using Simpson's rule for numerical quadrature,
+    from scipy.integrate
+
+    Parameters
+    ----------
+    t : array_like
+        Time samples for waveforms abar and b.
+    abar : array_like
+        The conjugate of the 'a' waveform in the inner product (or
+        simply a, if apply_conjugate=True is been passed).  Must have the
+        same shape as b.
+    b : array_like
+        The 'b' waveform in the inner product.  Must have the same
+        shape as a.
+    axis : int, optional
+        When abar and b are multidimensional, the inner product will
+        be computed over this axis and the result will be one
+        dimension lower.  Default is -1.
+    apply_conjugate : bool, optional
+        Whether or not to conjugate the abar argument before
+        computing.  True means inner_product will perform the conjugation
+        for you.  Default is False, meaning you have already
+        performed the conjugation.
+
+    Returns
+    -------
+    inner_product : ndarray
+        The integral along 'axis'
+    """
+
+    from scipy.integrate import simps
+
+    if not apply_conjugate:
+        integrand = abar*b
+    else:
+        integrand = np.conjugate(abar)*b
+
+    return simps(integrand, t, axis=axis)
