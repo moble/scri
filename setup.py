@@ -67,4 +67,7 @@ if __name__ == "__main__":
           package_dir={'scri': '.'},
           packages=['scri', 'scri.pn', 'scri.SpEC', 'scri.LVC'],
           requires=['numpy', 'scipy', 'quaternion', 'spinsfast', 'spherical_functions', 'sxs'],
+          install_requires=[
+            'quaternion>=2019.5.24.11.54.47',
+          ],
     )
