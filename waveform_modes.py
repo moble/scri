@@ -315,6 +315,97 @@ class WaveformModes(WaveformBase):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
+
+    def inner_product(self, b,
+                      t0=None, t1=None,
+                      allow_LM_differ=False, allow_times_differ=False):
+        """Compute the all-angles inner product <self, b>.
+
+        self and b should have the same spin-weight, set of (ell,m)
+        modes, and times.  Differing sets of modes and times can
+        optionally be turned on.
+
+        Parameters
+        ----------
+        b : WaveformModes object
+            The other set of modes to inner product with.
+
+        t0 : float, optional [default: None]
+        t1 : float, optional [default: None]
+            Lower and higher bounds of time integration
+
+        allow_LM_differ : bool, optional [default: False]
+            If True and if the set of (ell,m) modes between self and b
+            differ, then the inner product will be computed using the
+            intersection of the set of modes.
+
+        allow_times_differ: bool, optional [default: False]
+            If True and if the set of times between self and b differ,
+            then both WaveformModes will be interpolated to the
+            intersection of the set of times.
+
+        Returns
+        -------
+        inner_product : complex
+            <self, b>
+        """
+
+        from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+
+        from .extrapolation import intersection
+
+        if (self.spin_weight != b.spin_weight):
+            raise ValueError("Spin weights must match in inner_product")
+
+        LM_clip = None
+        if ((self.ell_min != b.ell_min) or (self.ell_max != b.ell_max)):
+            if (allow_LM_differ):
+                LM_clip = slice( max(self.ell_min, b.ell_min),
+                                 min(self.ell_max, b.ell_max) + 1 )
+                if (LM_clip.start >= LM_clip.stop):
+                    raise ValueError("Intersection of (ell,m) modes is "
+                                     "empty.  Assuming this is not desired.")
+            else:
+                raise ValueError("ell_min and ell_max must match in inner_product "
+                                 "(use allow_LM_differ=True to override)")
+
+        t_clip = None
+        if not np.array_equal(self.t, b.t):
+            if (allow_times_differ):
+                t_clip = intersection(self.t, b.t)
+            else:
+                raise ValueError("Time samples must match in inner_product "
+                                 "(use allow_times_differ=True to override)")
+
+        ##########
+
+        times = self.t
+        A = self
+        B = b
+
+        if (LM_clip is not None):
+            A = A[:,LM_clip]
+            B = B[:,LM_clip]
+
+        if (t_clip is not None):
+            times = t_clip
+            A = A.interpolate(t_clip)
+            B = B.interpolate(t_clip)
+
+        if (t0 is None):
+            t0 = times[0]
+
+        if (t1 is None):
+            t1 = times[-1]
+
+        integrand = np.sum(np.conj(A.data) * B.data, axis=1)
+
+        integrand_spline_r = IUS(times, integrand.real, bbox=[t0, t1])
+        integrand_spline_i = IUS(times, integrand.imag, bbox=[t0, t1])
+
+        return (integrand_spline_r.integral(t0, t1)
+                + 1.j * integrand_spline_i.integral(t0, t1) )
+
     # Involutions
     @property
     @waveform_alterations
