@@ -558,11 +558,11 @@ def corotating_frame(
         return frame * correction_rotor
 
 
-def inner_product(t, abar, b, axis=-1, apply_conjugate=False):
+def inner_product(t, abar, b, axis=None, apply_conjugate=False):
     """Perform a time-domain complex inner product between two waveforms <a, b>.
 
-    This is implemented using Simpson's rule for numerical quadrature,
-    from scipy.integrate
+    This is implemented using spline interpolation, calling
+    quaternion.calculus.spline_definite_integral
 
     Parameters
     ----------
@@ -578,7 +578,8 @@ def inner_product(t, abar, b, axis=-1, apply_conjugate=False):
     axis : int, optional
         When abar and b are multidimensional, the inner product will
         be computed over this axis and the result will be one
-        dimension lower.  Default is -1.
+        dimension lower.  Default is None, will be inferred by
+        `spline_definite_integral`.
     apply_conjugate : bool, optional
         Whether or not to conjugate the abar argument before
         computing.  True means inner_product will perform the conjugation
@@ -591,11 +592,11 @@ def inner_product(t, abar, b, axis=-1, apply_conjugate=False):
         The integral along 'axis'
     """
 
-    from scipy.integrate import simps
+    from quaternion.calculus import spline_definite_integral as sdi
 
     if not apply_conjugate:
         integrand = abar*b
     else:
         integrand = np.conjugate(abar)*b
 
-    return simps(integrand, t, axis=axis)
+    return sdi(integrand, t, axis=axis)
