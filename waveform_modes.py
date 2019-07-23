@@ -317,7 +317,7 @@ class WaveformModes(WaveformBase):
 
 
     def inner_product(self, b,
-                      t0=None, t1=None,
+                      t1=None, t2=None,
                       allow_LM_differ=False, allow_times_differ=False):
         """Compute the all-angles inner product <self, b>.
 
@@ -330,8 +330,8 @@ class WaveformModes(WaveformBase):
         b : WaveformModes object
             The other set of modes to inner product with.
 
-        t0 : float, optional [default: None]
         t1 : float, optional [default: None]
+        t2 : float, optional [default: None]
             Lower and higher bounds of time integration
 
         allow_LM_differ : bool, optional [default: False]
@@ -350,7 +350,7 @@ class WaveformModes(WaveformBase):
             <self, b>
         """
 
-        from scipy.interpolate import InterpolatedUnivariateSpline as IUS
+        from quaternion.calculus import spline_definite_integral as sdi
 
         from .extrapolation import intersection
 
@@ -392,19 +392,15 @@ class WaveformModes(WaveformBase):
             A = A.interpolate(t_clip)
             B = B.interpolate(t_clip)
 
-        if (t0 is None):
-            t0 = times[0]
-
         if (t1 is None):
-            t1 = times[-1]
+            t1 = times[0]
+
+        if (t2 is None):
+            t2 = times[-1]
 
         integrand = np.sum(np.conj(A.data) * B.data, axis=1)
 
-        integrand_spline_r = IUS(times, integrand.real, bbox=[t0, t1])
-        integrand_spline_i = IUS(times, integrand.imag, bbox=[t0, t1])
-
-        return (integrand_spline_r.integral(t0, t1)
-                + 1.j * integrand_spline_i.integral(t0, t1) )
+        return sdi(integrand, times, t1=t1, t2=t2)
 
     # Involutions
     @property
