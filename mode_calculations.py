@@ -9,6 +9,7 @@ import numpy as np
 import quaternion
 
 from spherical_functions import ladder_operator_coefficient as ladder
+from spherical_functions import clebsch_gordan as CG
 from quaternion.numba_wrapper import jit, njit, xrange
 
 
@@ -703,10 +704,15 @@ def matrix_expect_val(a, M, b,
     ell_max = LM_clip.stop - 1
 
     for ellp, mp, ell, m, M_el in M(ell_min, ell_max):
+        # QUESTION: Should we test if M_el is very close to 0, and
+        # continue to the next element if it's close enough?
+
         i_a = LM_index(ellp, mp, A.ell_min)
         i_b = LM_index(ell , m , B.ell_min)
 
-        expect_val += Abar_data[:, i_a] * M_el * B_data[:, i_b]
+        # QUESTION: Do any python implementations short-circuit the
+        # multiplication if M_el is 0?
+        expect_val += M_el * Abar_data[:, i_a] * B_data[:, i_b]
 
     return times, expect_val
 
@@ -733,7 +739,7 @@ def j_z_M(ell_min, ell_max):
         for m in xrange(-ell, ell+1):
             yield ell, m, ell, m, (1.j * m)
 
-def make_j_plus_minus(sign):
+def _make_j_plus_minus(sign):
     """Produce the function j_plus_M or j_minus_M, based on sign.
 
     The conventions for these matrix elements, to agree with Ruiz+
@@ -744,7 +750,7 @@ def make_j_plus_minus(sign):
     The spinsfast function ladder_operator_coefficient gives
     ladder_operator_coefficient(l,m) = np.sqrt((l-m)(l+m+1))
 
-    TODO
+    TODO maybe make a docstring for the emitted function?
     """
 
     sign = float(sign)
@@ -755,12 +761,103 @@ def make_j_plus_minus(sign):
     def j_pm_M(ell_min, ell_max):
         for ell in xrange(ell_min, ell_max+1):
             for mp in xrange(-ell, ell+1):
-                m = mp + 1. * sign
+                m = round(mp + 1 * sign)
                 if ((m < -ell) or (m > ell)):
                     continue
                 yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
 
     return j_pm_M
 
-j_plus_M  = make_j_plus_minus(1.)
-j_minus_M = make_j_plus_minus(-1.)
+j_plus_M  = _make_j_plus_minus(1.)
+j_minus_M = _make_j_plus_minus(-1.)
+
+def _swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
+    """Compute a matrix element treating Y_{\ell, m} as a linear operator
+
+    From the rules for the Wigner D matrices, we get the result that
+    <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
+      \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
+      < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
+    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
+    See e.g. Campbell and Morgan (1971).
+    """
+
+    cg1 = CG(l1, m1, l2, m2, l3, m3)
+    cg2 = CG(l1, 0., l2, -s, l3, -s)
+
+    return np.sqrt( (2.*l1 + 1.) * (2.*l2 + 1.) / (4. * np.pi * (2.*l3 + 1)) ) * cg1 * cg2
+
+def p_z_M_for_s_minus_2(ell_min, ell_max):
+    """Generator for p^z matrix elements (for use with matrix_expect_val)
+
+    This function is specific to the case where waveforms have s=-2.
+
+    p^z = \cos\theta = 2 \sqrt{\pi/3} Y_{1,0}
+    This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
+
+    The matrix elements yielded are
+    < s, ellp, mp | \cos\theta | s, ell, m > =
+      \sqrt{ \frac{2*ell+1}{2*ellp+1} } *
+      < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
+    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
+    Because of the magnetic selection rules, we only have mp == m
+
+    We could have used `_swsh_Y_mat_el` but I am just preemptively
+    combining the prefactors.
+    """
+
+    s = -2
+
+    for ell in xrange(ell_min, ell_max+1):
+        ellp_min = max(ell_min, ell - 1)
+        ellp_max = min(ell_max, ell + 1)
+        for ellp in xrange(ellp_min, ellp_max+1):
+            for m in xrange(-ell, ell+1):
+                if ((m < -ellp) or (m > ellp)):
+                    continue
+                cg1 = CG(ell, m,  1, 0, ellp, m)
+                cg2 = CG(ell, -s, 1, 0, ellp, -s)
+                prefac = np.sqrt( (2.*ell + 1.) / (2.*ellp + 1.) )
+                yield ellp, m, ell, m, (prefac * cg1 * cg2)
+
+def _make_p_plus_minus_for_s_minus_2(sign):
+    u"""Produce the function p_plus_M_for_s_minus_2 or p_minus_M_for_s_minus_2, based on sign.
+
+    This function is specific to the case where waveforms have s=-2.
+
+    p^+ = -\sqrt{8 \pi / 3} Y_{1,+1} = \sin\theta e^{+i\phi}
+    p^- = +\sqrt{8 \pi / 3} Y_{1,-1} = \sin\theta e^{-i\phi}
+    This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a bad name.
+
+    We use `_swsh_Y_mat_el` to compute the matrix elements.
+    Notice that since the operator has definite m = ±1, we only have
+    mp == m ± 1 nonvanishing in the matrix elements.
+
+    TODO maybe make a docstring for the emitted function?
+    """
+
+    sign = float(sign)
+
+    if (sign != 1.) and (sign != -1.):
+        raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
+
+    s = -2
+    prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
+
+    def p_pm_M(ell_min, ell_max):
+        for ell in xrange(ell_min, ell_max+1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in xrange(ellp_min, ellp_max+1):
+                for m in xrange(-ell, ell+1):
+                    mp = round(m + 1 * sign)
+                    if ((mp < -ellp) or (mp > ellp)):
+                        continue
+                    yield (ellp, mp, ell, m,
+                           (prefac *
+                            _swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
+
+    return p_pm_M
+
+p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
+p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
