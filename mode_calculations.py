@@ -600,3 +600,167 @@ def inner_product(t, abar, b, axis=None, apply_conjugate=False):
         integrand = np.conjugate(abar)*b
 
     return sdi(integrand, t, axis=axis)
+
+
+def matrix_expect_val(a, M, b,
+                      allow_LM_differ=False, allow_times_differ=False):
+    """The matrix expectation value <a|M|b>(u), where M is a linear operator.
+
+    Treat two spin-s waveforms a, b (in the modal representation) as vectors.
+    Then we can form the 'expectation value'
+
+    .. math:: <a|M|b>(u) \equiv \sum_{\ell', m', \ell, m} a^*_{\ell' m'}(u) M_{\ell' m' \ell m} b_{\ell m}(u) \,.
+
+    For efficiency with sparse matrices, M should be implemented as a
+    generator which yields tuples (ellp, mp, ell, m, M_{ellp mp ell m})
+    for only the non-vanishing matrix elements.
+
+    Parameters
+    ----------
+    a : WaveformModes object
+        The waveform |a>. This function is "antilinear" in `a`.
+
+    M : evaluable
+        M will be called like
+        `for ellp, mp, ell, m, M_el in M(ell_min, ell_max):`
+        This is best implemented as a generator yielding tuples
+        `(ellp, mp, ell, m, M_{ellp mp ell m})`
+        which range over ell, ellp values up to and including ell_max,
+        for only the non-vanishing matrix elements of M.
+
+    b : WaveformModes object
+        The waveform |b>. This function is linear in `b`.
+
+    allow_LM_differ : bool, optional [default: False]
+        If True and if the set of (ell,m) modes between a and b
+        differ, then the inner product will be computed using the
+        intersection of the set of modes.
+
+    allow_times_differ: bool, optional [default: False]
+        If True and if the set of times between a and b differ,
+        then both WaveformModes will be interpolated to the
+        intersection of the set of times.
+
+    Returns
+    -------
+    times, expect_val : ndarray, complex ndarray
+        Resulting tuple has length two.  The first element is the set
+        of times u for the timeseries.  The second element is the
+        timeseries of <a|M|b>(u).
+
+    """
+
+    from .extrapolation import intersection
+    from spherical_functions import LM_index
+
+    if (a.spin_weight != b.spin_weight):
+        raise ValueError("Spin weights must match in matrix_expect_val")
+
+    LM_clip = slice(a.ell_min, a.ell_max + 1)
+    if ((a.ell_min != b.ell_min) or (a.ell_max != b.ell_max)):
+        if (allow_LM_differ):
+            LM_clip = slice( max(a.ell_min, b.ell_min),
+                             min(a.ell_max, b.ell_max) + 1 )
+            if (LM_clip.start >= LM_clip.stop):
+                raise ValueError("Intersection of (ell,m) modes is "
+                                 "empty.  Assuming this is not desired.")
+        else:
+            raise ValueError("ell_min and ell_max must match in matrix_expect_val "
+                             "(use allow_LM_differ=True to override)")
+
+    t_clip = None
+    if not np.array_equal(a.t, b.t):
+        if (allow_times_differ):
+            t_clip = intersection(a.t, b.t)
+        else:
+            raise ValueError("Time samples must match in matrix_expect_val "
+                             "(use allow_times_differ=True to override)")
+
+    ##########
+
+    times = a.t
+    A = a
+    B = b
+
+    if (LM_clip is not None):
+        A = A[:,LM_clip]
+        B = B[:,LM_clip]
+
+    if (t_clip is not None):
+        times = t_clip
+        A = A.interpolate(t_clip)
+        B = B.interpolate(t_clip)
+
+    ##########
+    ## Time for actual math!
+
+    Abar_data  = np.conj(A.data)
+    B_data     = B.data
+
+    expect_val = np.zeros(times.size, dtype=np.complex)
+
+    ell_min = LM_clip.start
+    ell_max = LM_clip.stop - 1
+
+    for ellp, mp, ell, m, M_el in M(ell_min, ell_max):
+        i_a = LM_index(ellp, mp, A.ell_min)
+        i_b = LM_index(ell , m , B.ell_min)
+
+        expect_val += Abar_data[:, i_a] * M_el * B_data[:, i_b]
+
+    return times, expect_val
+
+def id_M(ell_min, ell_max):
+    """Generator for identity matrix elements (for use with matrix_expect_val)
+
+    Matrix elements yielded are
+    <ellp, mp|I|ell, m> = \delta_{ellp ell} \delta_{mp, m}
+    """
+
+    for ell in xrange(ell_min, ell_max+1):
+        for m in xrange(-ell, ell+1):
+            yield ell, m, ell, m, 1.
+
+def j_z_M(ell_min, ell_max):
+    """Generator for j^z matrix elements (for use with matrix_expect_val)
+
+    Matrix elements yielded are
+    <ellp, mp|j^z|ell, m> = 1.j * m \delta_{ellp ell} \delta_{mp, m}
+    This follows the convention for j^z from Ruiz+ (2008) [0707.4654]
+    """
+
+    for ell in xrange(ell_min, ell_max+1):
+        for m in xrange(-ell, ell+1):
+            yield ell, m, ell, m, (1.j * m)
+
+def make_j_plus_minus(sign):
+    """Produce the function j_plus_M or j_minus_M, based on sign.
+
+    The conventions for these matrix elements, to agree with Ruiz+
+    (2008) [0707.4654], should be:
+    <ellp, mp|j^+|ell, m> = 1.j * np.sqrt((l-m)(l+m+1)) \delta{ellp ell} \delta{mp (m+1)}
+    <ellp, mp|j^-|ell, m> = 1.j * np.sqrt((l+m)(l-m+1)) \delta{ellp ell} \delta{mp (m-1)}
+
+    The spinsfast function ladder_operator_coefficient gives
+    ladder_operator_coefficient(l,m) = np.sqrt((l-m)(l+m+1))
+
+    TODO
+    """
+
+    sign = float(sign)
+
+    if (sign != 1.) and (sign != -1.):
+        raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
+
+    def j_pm_M(ell_min, ell_max):
+        for ell in xrange(ell_min, ell_max+1):
+            for mp in xrange(-ell, ell+1):
+                m = mp + 1. * sign
+                if ((m < -ell) or (m > ell)):
+                    continue
+                yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
+
+    return j_pm_M
+
+j_plus_M  = make_j_plus_minus(1.)
+j_minus_M = make_j_plus_minus(-1.)
