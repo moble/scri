@@ -862,9 +862,39 @@ def _make_p_plus_minus_for_s_minus_2(sign):
 p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
 p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
 
+def energy_flux(h):
+    """Compute energy flux from waveform
+
+    This implements Eq. (2.8) from Ruiz+ (2008) [0707.4654] by using
+    `matrix_expect_val` with `id_M`
+    """
+    from .waveform_modes import WaveformModes
+    from . import h as htype
+    from . import hdot as hdottype
+    if not isinstance(h, WaveformModes):
+        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
+                         +"this object is of type `{0}`.".format(type(h)))
+    if h.dataType == hdottype:
+        hdot = h
+    elif h.dataType == htype:
+        hdot = h.copy()
+        hdot.dataType = hdottype
+        hdot.data = h.data_dot
+    else:
+        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
+                         +"this waveform data has type `{0}`".format(h.data_type_string))
+
+    _, Edot  = matrix_expect_val( hdot, id_M,  hdot )
+
+    Edot = Edot.real
+
+    Edot /= 16.*np.pi
+
+    return Edot
+
 def momentum_flux(h):
     """Compute momentum flux from waveform
-    
+
     This implements Eq. (2.11) from Ruiz+ (2008) [0707.4654] by using
     `matrix_expect_val` with `p_z_M_for_s_minus_2`,
     `p_plus_M_for_s_minus_2`, and `p_minus_M_for_s_minus_2`.
@@ -896,6 +926,41 @@ def momentum_flux(h):
     pdot[:,1] = 0.5 * ( p_plus_dot.imag - p_minus_dot.imag )
     pdot[:,2] = p_z_dot.real
 
-    pdot /= 16*np.pi
+    pdot /= 16.*np.pi
 
     return pdot
+
+def angular_momentum_flux(h):
+    """Compute angular momentum flux from waveform
+
+    This implements Eq. (2.24) from Ruiz+ (2008) [0707.4654] by using
+    `matrix_expect_val` with `j_z_M`, `j_plus_M`, and `j_minus_M`.
+    """
+    from .waveform_modes import WaveformModes
+    from . import h as htype
+    from . import hdot as hdottype
+    if not isinstance(h, WaveformModes):
+        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
+                         +"this object is of type `{0}`.".format(type(h)))
+    if h.dataType == htype:
+        hdot = h.copy()
+        hdot.dataType = hdottype
+        hdot.data = h.data_dot
+    else:
+        raise ValueError("Input argument is expected to have data of type `h`; "
+                         +"this waveform data has type `{0}`".format(h.data_type_string))
+
+    jdot = np.zeros((hdot.n_times, 3), dtype=float)
+
+    _, j_plus_dot  = matrix_expect_val( hdot, j_plus_M,  h )
+    _, j_minus_dot = matrix_expect_val( hdot, j_minus_M, h )
+    _, j_z_dot     = matrix_expect_val( hdot, j_z_M,     h )
+
+    # Convert into (x,y,z) basis
+    jdot[:,0] = 0.5 * ( j_plus_dot.real + j_minus_dot.real )
+    jdot[:,1] = 0.5 * ( j_plus_dot.imag - j_minus_dot.imag )
+    jdot[:,2] = j_z_dot.real
+
+    jdot /= -16.*np.pi
+
+    return jdot
