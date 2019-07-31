@@ -784,9 +784,9 @@ def _make_j_plus_minus(sign):
 
     def j_pm_M(ell_min, ell_max):
         for ell in range(ell_min, ell_max+1):
-            for mp in range(-ell, ell+1):
-                m = round(mp + 1 * sign)
-                if ((m < -ell) or (m > ell)):
+            for m in range(-ell, ell+1):
+                mp = round(m + 1 * sign)
+                if ((mp < -ell) or (mp > ell)):
                     continue
                 yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
 
