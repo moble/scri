@@ -315,6 +315,30 @@ class WaveformModes(WaveformBase):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
+    def apply_eth(self, N_eth=0, N_ethbar=0, eth_convention='NP'):
+
+        import spherical_functions as sf
+        if eth_convention == 'NP':
+            operator = sf.eth_NP
+            antioperator = sf.ethbar_NP
+        elif eth_convention == 'GHP':
+            operator = sf.eth_GHP
+            antioperator = sf.ethbar_GHP
+        s = self.spin_weight
+        mode_data = self.data.transpose()
+        for n_eth in range(N_eth):
+            mode_data = operator(mode_data, s, self.ell_min)
+            s += 1
+        for n_ethbar in range(N_ethbar):
+            mode_data = antioperator(mode_data, s, self.ell_min)
+            s -= 1
+        return mode_data.transpose()
+
+    def eth(self):
+        return self.apply_eth(N_eth=1)
+    
+    def ethbar(self):
+        return self.apply_eth(N_ethbar=1)
 
     def inner_product(self, b,
                       t1=None, t2=None,
