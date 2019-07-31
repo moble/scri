@@ -88,7 +88,8 @@ from .waveform_modes import WaveformModes
 from .mode_calculations import (LdtVector, LVector, LLComparisonMatrix, LLMatrix,
                                 inner_product,
                                 LLDominantEigenvector, angular_velocity, corotating_frame,
-                                energy_flux, momentum_flux, angular_momentum_flux)
+                                energy_flux, momentum_flux, angular_momentum_flux,
+                                poincare_fluxes)
 
 WaveformModes.LdtVector = LdtVector
 WaveformModes.LVector = LVector
@@ -110,6 +111,7 @@ WaveformModes.align_decomposition_frame_to_modes = align_decomposition_frame_to_
 WaveformModes.energy_flux = energy_flux
 WaveformModes.momentum_flux = momentum_flux
 WaveformModes.angular_momentum_flux = angular_momentum_flux
+WaveformModes.poincare_fluxes = poincare_fluxes
 
 from .waveform_grid import WaveformGrid
 # from .waveform_in_detector import WaveformInDetector
