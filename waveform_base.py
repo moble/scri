@@ -669,6 +669,10 @@ class WaveformBase(_object):
     def data_dot(self):
         return quaternion.calculus.derivative(self.data, self.t)
 
+    @property
+    def data_ddot(self):
+        return quaternion.calculus.derivative(self.data, self.t, derivative_order=2)
+
     # Data representations
     def _append_history(self, hist, additional_depth=0):
         """Add to the object's history log
