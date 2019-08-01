@@ -898,17 +898,15 @@ def energy_flux(h):
         raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
                          +"this object is of type `{0}`.".format(type(h)))
     if h.dataType == hdottype:
-        hdot = h
+        hdot = h.data
     elif h.dataType == htype:
-        hdot = h.copy()
-        hdot.dataType = hdottype
-        hdot.data = h.data_dot
+        hdot = h.data_dot
     else:
         raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
                          +"this waveform data has type `{0}`".format(h.data_type_string))
 
     # No need to use matrix_expectation_value here
-    Edot = np.einsum('ij, ij -> i', hdot.data.conjugate(), hdot.data).real
+    Edot = np.einsum('ij, ij -> i', hdot.conjugate(), hdot).real
 
     Edot /= 16.*np.pi
 
