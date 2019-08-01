@@ -751,141 +751,6 @@ def matrix_expectation_value(a, M, b,
     return (times,
             sparse_expectation_value(Abar_data, rows, columns, M_values, B_data))
 
-def j_z_M(ell_min, ell_max):
-    """Generator for j^z matrix elements (for use with matrix_expectation_value)
-
-    Matrix elements yielded are
-    <ellp, mp|j^z|ell, m> = 1.j * m \delta_{ellp ell} \delta_{mp, m}
-    This follows the convention for j^z from Ruiz+ (2008) [0707.4654]
-    """
-
-    for ell in range(ell_min, ell_max+1):
-        for m in range(-ell, ell+1):
-            yield ell, m, ell, m, (1.j * m)
-
-def _make_j_plus_minus(sign):
-    """Produce the function j_plus_M or j_minus_M, based on sign.
-
-    The conventions for these matrix elements, to agree with Ruiz+
-    (2008) [0707.4654], should be:
-    <ellp, mp|j^+|ell, m> = 1.j * np.sqrt((l-m)(l+m+1)) \delta{ellp ell} \delta{mp (m+1)}
-    <ellp, mp|j^-|ell, m> = 1.j * np.sqrt((l+m)(l-m+1)) \delta{ellp ell} \delta{mp (m-1)}
-
-    The spinsfast function ladder_operator_coefficient gives
-    ladder_operator_coefficient(l,m) = np.sqrt((l-m)(l+m+1))
-
-    TODO maybe make a docstring for the emitted function?
-    """
-
-    sign = float(sign)
-
-    if (sign != 1.) and (sign != -1.):
-        raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
-
-    def j_pm_M(ell_min, ell_max):
-        for ell in range(ell_min, ell_max+1):
-            for m in range(-ell, ell+1):
-                mp = round(m + 1 * sign)
-                if ((mp < -ell) or (mp > ell)):
-                    continue
-                yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
-
-    return j_pm_M
-
-j_plus_M  = _make_j_plus_minus(1.)
-j_minus_M = _make_j_plus_minus(-1.)
-
-def _swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
-    """Compute a matrix element treating Y_{\ell, m} as a linear operator
-
-    From the rules for the Wigner D matrices, we get the result that
-    <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
-      \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
-      < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
-    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
-    See e.g. Campbell and Morgan (1971).
-    """
-
-    cg1 = CG(l1, m1, l2, m2, l3, m3)
-    cg2 = CG(l1, 0., l2, -s, l3, -s)
-
-    return np.sqrt( (2.*l1 + 1.) * (2.*l2 + 1.) / (4. * np.pi * (2.*l3 + 1)) ) * cg1 * cg2
-
-def p_z_M_for_s_minus_2(ell_min, ell_max):
-    """Generator for p^z matrix elements (for use with matrix_expectation_value)
-
-    This function is specific to the case where waveforms have s=-2.
-
-    p^z = \cos\theta = 2 \sqrt{\pi/3} Y_{1,0}
-    This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
-
-    The matrix elements yielded are
-    < s, ellp, mp | \cos\theta | s, ell, m > =
-      \sqrt{ \frac{2*ell+1}{2*ellp+1} } *
-      < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
-    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
-    Because of the magnetic selection rules, we only have mp == m
-
-    We could have used `_swsh_Y_mat_el` but I am just preemptively
-    combining the prefactors.
-    """
-
-    s = -2
-
-    for ell in range(ell_min, ell_max+1):
-        ellp_min = max(ell_min, ell - 1)
-        ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max+1):
-            for m in range(-ell, ell+1):
-                if ((m < -ellp) or (m > ellp)):
-                    continue
-                cg1 = CG(ell, m,  1, 0, ellp, m)
-                cg2 = CG(ell, -s, 1, 0, ellp, -s)
-                prefac = np.sqrt( (2.*ell + 1.) / (2.*ellp + 1.) )
-                yield ellp, m, ell, m, (prefac * cg1 * cg2)
-
-def _make_p_plus_minus_for_s_minus_2(sign):
-    u"""Produce the function p_plus_M_for_s_minus_2 or p_minus_M_for_s_minus_2, based on sign.
-
-    This function is specific to the case where waveforms have s=-2.
-
-    p^+ = -\sqrt{8 \pi / 3} Y_{1,+1} = \sin\theta e^{+i\phi}
-    p^- = +\sqrt{8 \pi / 3} Y_{1,-1} = \sin\theta e^{-i\phi}
-    This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a bad name.
-
-    We use `_swsh_Y_mat_el` to compute the matrix elements.
-    Notice that since the operator has definite m = ±1, we only have
-    mp == m ± 1 nonvanishing in the matrix elements.
-
-    TODO maybe make a docstring for the emitted function?
-    """
-
-    sign = float(sign)
-
-    if (sign != 1.) and (sign != -1.):
-        raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
-
-    s = -2
-    prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
-
-    def p_pm_M(ell_min, ell_max):
-        for ell in range(ell_min, ell_max+1):
-            ellp_min = max(ell_min, ell - 1)
-            ellp_max = min(ell_max, ell + 1)
-            for ellp in range(ellp_min, ellp_max+1):
-                for m in range(-ell, ell+1):
-                    mp = round(m + 1 * sign)
-                    if ((mp < -ellp) or (mp > ellp)):
-                        continue
-                    yield (ellp, mp, ell, m,
-                           (prefac *
-                            _swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
-
-    return p_pm_M
-
-p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
-p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
-
 def energy_flux(h):
     """Compute energy flux from waveform
 
@@ -912,13 +777,112 @@ def energy_flux(h):
 
     return Edot
 
+def _swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
+    """Compute a matrix element treating Y_{\ell, m} as a linear operator
+
+    From the rules for the Wigner D matrices, we get the result that
+    <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
+      \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
+      < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
+    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
+    See e.g. Campbell and Morgan (1971).
+    """
+
+    cg1 = CG(l1, m1, l2, m2, l3, m3)
+    cg2 = CG(l1, 0., l2, -s, l3, -s)
+
+    return np.sqrt( (2.*l1 + 1.) * (2.*l2 + 1.) / (4. * np.pi * (2.*l3 + 1)) ) * cg1 * cg2
+
 def momentum_flux(h):
     """Compute momentum flux from waveform
 
     This implements Eq. (2.11) from Ruiz+ (2008) [0707.4654] by using
-    `matrix_expectation_value` with `p_z_M_for_s_minus_2`,
-    `p_plus_M_for_s_minus_2`, and `p_minus_M_for_s_minus_2`.
+    `matrix_expectation_value` with (internal) helper functions
+    `p_z_M_for_s_minus_2`, `p_plus_M_for_s_minus_2`, and
+    `p_minus_M_for_s_minus_2`.
     """
+
+    ##############################
+    # First, we need to define some helper functions to go into
+    # `matrix_expectation_value`
+
+    def p_z_M_for_s_minus_2(ell_min, ell_max):
+        """Generator for p^z matrix elements (for use with matrix_expectation_value)
+
+        This function is specific to the case where waveforms have s=-2.
+
+        p^z = \cos\theta = 2 \sqrt{\pi/3} Y_{1,0}
+        This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
+
+        The matrix elements yielded are
+        < s, ellp, mp | \cos\theta | s, ell, m > =
+          \sqrt{ \frac{2*ell+1}{2*ellp+1} } *
+          < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
+        where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
+        Because of the magnetic selection rules, we only have mp == m
+
+        We could have used `_swsh_Y_mat_el` but I am just preemptively
+        combining the prefactors.
+        """
+
+        s = -2
+
+        for ell in range(ell_min, ell_max+1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in range(ellp_min, ellp_max+1):
+                for m in range(-ell, ell+1):
+                    if ((m < -ellp) or (m > ellp)):
+                        continue
+                    cg1 = CG(ell, m,  1, 0, ellp, m)
+                    cg2 = CG(ell, -s, 1, 0, ellp, -s)
+                    prefac = np.sqrt( (2.*ell + 1.) / (2.*ellp + 1.) )
+                    yield ellp, m, ell, m, (prefac * cg1 * cg2)
+
+    def _make_p_plus_minus_for_s_minus_2(sign):
+        u"""Produce the function p_plus_M_for_s_minus_2 or p_minus_M_for_s_minus_2, based on sign.
+
+        This function is specific to the case where waveforms have s=-2.
+
+        p^+ = -\sqrt{8 \pi / 3} Y_{1,+1} = \sin\theta e^{+i\phi}
+        p^- = +\sqrt{8 \pi / 3} Y_{1,-1} = \sin\theta e^{-i\phi}
+        This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a bad name.
+
+        We use `_swsh_Y_mat_el` to compute the matrix elements.
+        Notice that since the operator has definite m = ±1, we only have
+        mp == m ± 1 nonvanishing in the matrix elements.
+        """
+
+        sign = float(sign)
+
+        if (sign != 1.) and (sign != -1.):
+            raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
+
+        s = -2
+        prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
+
+        def p_pm_M(ell_min, ell_max):
+            for ell in range(ell_min, ell_max+1):
+                ellp_min = max(ell_min, ell - 1)
+                ellp_max = min(ell_max, ell + 1)
+                for ellp in range(ellp_min, ellp_max+1):
+                    for m in range(-ell, ell+1):
+                        mp = round(m + 1 * sign)
+                        if ((mp < -ellp) or (mp > ellp)):
+                            continue
+                        yield (ellp, mp, ell, m,
+                               (prefac *
+                                _swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
+
+        return p_pm_M
+
+    p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
+    p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
+
+    ##############################
+    # Now we can use `matrix_expectation_value` to evaluate the
+    # momentum flux. First some plumbing.
+
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
@@ -934,6 +898,9 @@ def momentum_flux(h):
     else:
         raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
                          +"this waveform data has type `{0}`".format(h.data_type_string))
+
+    ##############################
+    # Finally do the calculation
 
     pdot = np.zeros((hdot.n_times, 3), dtype=float)
 
@@ -954,8 +921,60 @@ def angular_momentum_flux(h, hdot=None):
     """Compute angular momentum flux from waveform
 
     This implements Eq. (2.24) from Ruiz+ (2008) [0707.4654] by using
-    `matrix_expectation_value` with `j_z_M`, `j_plus_M`, and `j_minus_M`.
+    `matrix_expectation_value` with (internal) helper functions
+    `j_z_M`, `j_plus_M`, and `j_minus_M`.
     """
+
+    ##############################
+    # First, we need to define some helper functions to go into
+    # `matrix_expectation_value`
+
+    def j_z_M(ell_min, ell_max):
+        """Generator for j^z matrix elements (for use with matrix_expectation_value)
+
+        Matrix elements yielded are
+        <ellp, mp|j^z|ell, m> = 1.j * m \delta_{ellp ell} \delta_{mp, m}
+        This follows the convention for j^z from Ruiz+ (2008) [0707.4654]
+        """
+
+        for ell in range(ell_min, ell_max+1):
+            for m in range(-ell, ell+1):
+                yield ell, m, ell, m, (1.j * m)
+
+    def _make_j_plus_minus(sign):
+        """Produce the function j_plus_M or j_minus_M, based on sign.
+
+        The conventions for these matrix elements, to agree with Ruiz+
+        (2008) [0707.4654], should be:
+        <ellp, mp|j^+|ell, m> = 1.j * np.sqrt((l-m)(l+m+1)) \delta{ellp ell} \delta{mp (m+1)}
+        <ellp, mp|j^-|ell, m> = 1.j * np.sqrt((l+m)(l-m+1)) \delta{ellp ell} \delta{mp (m-1)}
+
+        The spinsfast function ladder_operator_coefficient gives
+        ladder_operator_coefficient(l,m) = np.sqrt((l-m)(l+m+1))
+        """
+
+        sign = float(sign)
+
+        if (sign != 1.) and (sign != -1.):
+            raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
+
+        def j_pm_M(ell_min, ell_max):
+            for ell in range(ell_min, ell_max+1):
+                for m in range(-ell, ell+1):
+                    mp = round(m + 1 * sign)
+                    if ((mp < -ell) or (mp > ell)):
+                        continue
+                    yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
+
+        return j_pm_M
+
+    j_plus_M  = _make_j_plus_minus(1.)
+    j_minus_M = _make_j_plus_minus(-1.)
+
+    ##############################
+    # Now we can use `matrix_expectation_value` to evaluate the
+    # angular momentum flux. First some plumbing.
+
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
@@ -977,6 +996,9 @@ def angular_momentum_flux(h, hdot=None):
         raise ValueError("Input argument `h` is expected to have data of type `h`; "
                          +"this `h` waveform data has type `{0}`".format(h.data_type_string))
 
+    ##############################
+    # Finally do the calculation
+
     jdot = np.zeros((hdot.n_times, 3), dtype=float)
 
     _, j_plus_dot  = matrix_expectation_value( hdot, j_plus_M,  h )
@@ -993,7 +1015,26 @@ def angular_momentum_flux(h, hdot=None):
     return jdot
 
 def poincare_fluxes(h, hdot=None):
-    """Compute fluxes of energy, momentum, and angular momemntum"""
+    """Compute fluxes of energy, momentum, and angular momemntum. This
+    function will compute the time derivative 1 or 0 times (if an
+    optional argument is passed) so is more efficient than separate
+    calls to `energy_flux`, `momentum_flux`, and
+    `angular_momentum_flux`.
+
+    Parameters
+    ----------
+    h : WaveformModes object
+        Must have type `h`
+
+    hdot : WaveformModes object, optional [default: None]
+        The time derivative of h.  If None, computed from h.  Must
+        have type `hdot`.
+
+    Returns
+    -------
+    edot, pdot, jdot : ndarray, ndarray, ndarray
+
+    """
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
