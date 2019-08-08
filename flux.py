@@ -1,6 +1,7 @@
 # Copyright (c) 2019, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
+import numpy as np
 from quaternion.numba_wrapper import njit
 
 
@@ -22,9 +23,9 @@ def swsh_indices_to_matrix_indices(matrix_iterator):
     def wrapper(ell_min, ell_max):
         rows, columns, values = zip(*(  # zip* is the inverse of zip
             (LM_index(ellp, mp, ell_min), LM_index(ell, m, ell_min), value)
-            for ellp, mp, ell, m, value in j_pm_M(ell_min, ell_max)
+            for ellp, mp, ell, m, value in matrix_iterator(ell_min, ell_max)
         ))
-        return rows, columns, values
+        return np.array(rows, dtype=int), np.array(columns, dtype=int), np.array(values)
 
     update_wrapper(wrapper, matrix_iterator)  # Copy over the name, docstring, and such
 
@@ -61,10 +62,8 @@ def sparse_expectation_value(abar, rows, columns, values, b):
     expectation_value : ndarray
 
     """
-    import numpy as np
-
     n_times = abar.shape[0]
-    n_elements = len(rows)
+    n_elements = rows.shape[0]
     expectation_value = np.zeros(n_times, dtype=np.complex_)
     for i_time in range(n_times):
         for i_element in range(n_elements):
@@ -174,17 +173,19 @@ def matrix_expectation_value(a, M, b,
     ell_min = LM_clip.start
     ell_max = LM_clip.stop - 1
 
-    rows      = []
-    columns   = []
-    M_values  = []
+    # rows      = []
+    # columns   = []
+    # M_values  = []
 
-    for ellp, mp, ell, m, M_el in M(ell_min, ell_max):
-        rows.append(LM_index(ellp, mp, ell_min))
-        columns.append(LM_index(ell , m , ell_min))
-        M_values.append(M_el)
+    # for ellp, mp, ell, m, M_el in M(ell_min, ell_max):
+    #     rows.append(LM_index(ellp, mp, ell_min))
+    #     columns.append(LM_index(ell , m , ell_min))
+    #     M_values.append(M_el)
+
+    rows, columns, values = M(ell_min, ell_max)
 
     return (times,
-            sparse_expectation_value(Abar_data, rows, columns, M_values, B_data))
+            sparse_expectation_value(Abar_data, rows, columns, values, B_data))
 
 
 def energy_flux(h):
@@ -228,6 +229,7 @@ def momentum_flux(h):
     # First, we need to define some helper functions to go into
     # `matrix_expectation_value`
 
+    @swsh_indices_to_matrix_indices
     def p_z_M_for_s_minus_2(ell_min, ell_max):
         """Generator for p^z matrix elements (for use with matrix_expectation_value)
 
@@ -263,7 +265,7 @@ def momentum_flux(h):
                     prefac = np.sqrt( (2.*ell + 1.) / (2.*ellp + 1.) )
                     yield ellp, m, ell, m, (prefac * cg1 * cg2)
 
-    def _make_p_plus_minus_for_s_minus_2(sign):
+    def make_p_plus_minus_for_s_minus_2(sign):
         u"""Produce the function p_plus_M_for_s_minus_2 or p_minus_M_for_s_minus_2, based on sign.
 
         This function is specific to the case where waveforms have s=-2.
@@ -286,7 +288,7 @@ def momentum_flux(h):
         s = -2
         prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
 
-        def _swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
+        def swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
             """Compute a matrix element treating Y_{\ell, m} as a linear operator
 
             From the rules for the Wigner D matrices, we get the result that
@@ -303,6 +305,7 @@ def momentum_flux(h):
 
             return np.sqrt( (2.*l1 + 1.) * (2.*l2 + 1.) / (4. * np.pi * (2.*l3 + 1)) ) * cg1 * cg2
 
+        @swsh_indices_to_matrix_indices
         def p_pm_M(ell_min, ell_max):
             for ell in range(ell_min, ell_max+1):
                 ellp_min = max(ell_min, ell - 1)
@@ -314,12 +317,12 @@ def momentum_flux(h):
                             continue
                         yield (ellp, mp, ell, m,
                                (prefac *
-                                _swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
+                                swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
 
         return p_pm_M
 
-    p_plus_M_for_s_minus_2  = _make_p_plus_minus_for_s_minus_2(1.)
-    p_minus_M_for_s_minus_2 = _make_p_plus_minus_for_s_minus_2(-1.)
+    p_plus_M_for_s_minus_2  = make_p_plus_minus_for_s_minus_2(1.)
+    p_minus_M_for_s_minus_2 = make_p_plus_minus_for_s_minus_2(-1.)
 
     ##############################
     # Now we can use `matrix_expectation_value` to evaluate the
@@ -372,6 +375,7 @@ def angular_momentum_flux(h, hdot=None):
     # First, we need to define some helper functions to go into
     # `matrix_expectation_value`
 
+    @swsh_indices_to_matrix_indices
     def j_z_M(ell_min, ell_max):
         """Generator for j^z matrix elements (for use with matrix_expectation_value)
 
@@ -384,7 +388,7 @@ def angular_momentum_flux(h, hdot=None):
             for m in range(-ell, ell+1):
                 yield ell, m, ell, m, (1.j * m)
 
-    def _make_j_plus_minus(sign):
+    def make_j_plus_minus(sign):
         """Produce the function j_plus_M or j_minus_M, based on sign.
 
         The conventions for these matrix elements, to agree with Ruiz+
@@ -403,6 +407,7 @@ def angular_momentum_flux(h, hdot=None):
         if (sign != 1.) and (sign != -1.):
             raise ValueError("sign must be either 1. or -1. in make_j_plus_minus")
 
+        @swsh_indices_to_matrix_indices
         def j_pm_M(ell_min, ell_max):
             for ell in range(ell_min, ell_max+1):
                 for m in range(-ell, ell+1):
@@ -413,8 +418,8 @@ def angular_momentum_flux(h, hdot=None):
 
         return j_pm_M
 
-    j_plus_M  = _make_j_plus_minus(1.)
-    j_minus_M = _make_j_plus_minus(-1.)
+    j_plus_M  = make_j_plus_minus(1.)
+    j_minus_M = make_j_plus_minus(-1.)
 
     ##############################
     # Now we can use `matrix_expectation_value` to evaluate the

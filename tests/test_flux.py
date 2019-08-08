@@ -55,7 +55,7 @@ def silly_momentum_flux(h):
 def test_momentum_flux():
     import numpy as np
     import scri
-    h = scri.sample_waveforms.fake_precessing_waveform(t_1=15_000.0)
+    h = scri.sample_waveforms.fake_precessing_waveform(t_1=1_000.0)
     pdot1 = silly_momentum_flux(h)
     pdot2 = scri.momentum_flux(h)
 
