@@ -28,7 +28,7 @@ def translate_data_types_waveforms_to_GWFrames(d):
 @jit
 def index_is_monotonic(y):
     length = y.size
-    monotonic = np.ones_like(y, dtype=bool)
+    monotonic = np.ones_like(y, dtype=np.bool_)
     direction = y[-1] - y[0]
     if direction > 0.0:
         max_value = y[0]
