@@ -21,8 +21,8 @@ def modes_constructor(constructor_statement, data_functor, **kwargs):
     constructor_statement : str
         This is a string form of the function call used to create the object.  This is passed to the WaveformBase
         initializer as the parameter of the same name.  See the docstring for more information.
-    data_function : function
-        Takes a 1-d array of time values and an array of (ell, m) values and returns
+    data_functor : function
+        Takes a 1-d array of time values and an array of (ell, m) values and returns the complex array of data.
     t : float array, optional
         Time values of the data.  Default is `np.linspace(-10., 100., num=1101))`.
     ell_min, ell_max : int, optional
@@ -334,3 +334,172 @@ def single_mode_proportional_to_time_supertranslated(**kwargs):
     return scri.WaveformModes(t=t, data=data, ell_min=ell_min, ell_max=ell_max,
                               frameType=scri.Inertial, dataType=data_type,
                               r_is_scaled_out=True, m_is_scaled_out=True)
+
+
+def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
+                             mass_ratio=2.0,
+                             precession_opening_angle=np.pi/6.0,
+                             precession_opening_angle_dot=None,
+                             precession_relative_rate=0.1,
+                             precession_nutation_angle=None,
+                             inertial=True):
+    """Construct a strain waveform with realistic precession effects.
+
+    This model is intended to be weird enough that it breaks any overly simplistic assumptions about
+    waveform symmetries while still being (mostly) realistic.
+
+    This waveform uses only the very lowest-order terms from PN theory to evolve the orbital
+    frequency up to a typical constant value (with a smooth transition), and to construct modes that
+    have very roughly the correct amplitudes as a function of the orbital frequency.  Modes with
+    equal ell values but opposite m values are modulated antisymmetrically, though this modulation
+    decays quickly after merger -- roughly as it would behave in a precessing system.  The modes are
+    then smoothly transitioned to an exponential decay after merger.  The frame is a simulated
+    precession involving the basic orbital rotation precessing about a cone of increasing opening
+    angle and nutating about that cone on the orbital time scale, but settling down to a constant
+    direction shortly after merger.  (Though there is little precise physical content, these
+    features are all found in real waveforms.)  If the input argument `inertial` is `True` (the
+    default), the waveform is transformed back to the inertial frame before returning.
+
+    Parameters
+    ==========
+    t_0: float [defaults to -20.0]
+    t_1: float [defaults to 20_000.0]
+        The initial and final times in the output waveform.  Note that the merger is placed 100.0
+        time units before `t_1`, and several transitions are made before this, so `t_0` must be that
+        far ahead of `t_1`.
+    dt: float [defaults to 0.1]
+        Spacing of output time series.
+    ell_max: int [defaults to 8]
+        Largest ell value in the output modes.
+    mass_ratio: float [defaults to 2.0]
+        Ratio of BH masses to use as input to rough approximations for orbital evolution and mode
+        amplitudes.
+    precession_opening_angle: float [defaults to pi/6]
+        Opening angle of the precession cone.
+    precession_opening_angle_dot: float [defaults to 2*precession_opening_angle/(t_merger-t_0)]
+        Rate at which precession cone opens.
+    precession_relative_rate: float [defaults to 0.1]
+        Fraction of the magnitude of the orbital angular velocity at which it precesses.
+    precession_nutation_angle: float [defaults to precession_opening_angle/10]
+        Angle (relative to precession_opening_angle) by which the orbital angular velocity nutates.
+
+    """
+    import warnings
+    import numpy as np
+    import quaternion
+    from quaternion.calculus import indefinite_integral
+    from .utilities import transition_function
+
+    if mass_ratio < 1.0:
+        mass_ratio = 1.0/mass_ratio
+
+    s = -2
+    ell_min = abs(s)
+    data_type = scri.h
+
+    nu = mass_ratio / (1 + mass_ratio)**2
+    t = np.arange(t_0, t_1+0.99*dt, dt)
+    t_merger = t_1 - 100.0
+    i_merger = np.argmin(abs(t-t_merger))
+    if i_merger < 20:
+        raise ValueError("Insufficient space between initial time (t={1}) and merger (t={0}).".format(t_0, t_merger))
+    n_times = t.size
+    data = np.zeros((n_times, sf.LM_total_size(ell_min, ell_max)), dtype=complex)
+
+    # Get a rough approximation to the phasing through merger
+    tau = nu * (t_merger - t) / 5
+    with warnings.catch_warnings():  # phi and omega will have NaNs after t_merger for now
+        warnings.simplefilter("ignore")
+        phi = - 4 * tau**(5/8)
+        omega = (nu/2) * tau**(-3/8)
+
+    # Now, transition omega smoothly up to a constant value of 0.25
+    omega_transition_width = 5.0
+    i1 = np.argmin(np.abs(omega[~np.isnan(omega)] - 0.25))
+    i0 = np.argmin(np.abs(t-(t[i1]-omega_transition_width)))
+    transition = transition_function(t, t[i0], t[i1])
+    zero_point_two_five = 0.25 * np.ones_like(t)
+    omega[:i1] = omega[:i1]*(1-transition[:i1]) + zero_point_two_five[:i1]*transition[:i1]
+    omega[i1:] = 0.25
+
+    # Integrate phi after i0 to agree with the new omega
+    phi[i0:] = phi[i0] + indefinite_integral(omega[i0:], t[i0:])
+
+    # Construct ringdown-transition function
+    ringdown_transition_width = 20
+    i0 = np.argmin(np.abs(t-t_merger))
+    i1 = np.argmin(np.abs(t-(t[i0]+ringdown_transition_width)))
+    transition = transition_function(t, t[i0], t[i1])
+    ringdown = np.ones_like(t)
+    ringdown[i0:] = ringdown[i0:] * (1 - transition[i0:]) + 2.25 * np.exp(-(t[i0:]-t_merger)/11.5) * transition[i0:]
+    
+    # Construct frame
+    if precession_opening_angle_dot is None:
+        precession_opening_angle_dot = 2.0 * precession_opening_angle / (t[i1] - t[0])
+    if precession_nutation_angle is None:
+        precession_nutation_angle = precession_opening_angle/10.0
+    R_orbital = np.exp(phi * quaternion.z / 2)
+    R_opening = np.exp((precession_opening_angle + precession_opening_angle_dot * t) * quaternion.x / 2)
+    R_precession = np.exp((phi/precession_relative_rate) * quaternion.z / 2)
+    R_nutation = np.exp(precession_nutation_angle * quaternion.x / 2)
+    frame = R_nutation * R_orbital.conjugate() * R_precession * R_opening * R_precession.conjugate() * R_orbital
+    frame = frame[0].conjugate() * frame
+
+    # Construct the modes
+    x = omega**(2/3)
+    modulation = transition_function(t, t[i0], t[i1], 1, 0) * np.cos(phi) / 40.0
+    for ell in range(ell_min, ell_max+1):
+        for m in range(-ell, ell+1):
+            data[:, sf.LM_index(ell, m, ell_min)] = (
+                pn_leading_order_amplitude(ell, m, x, mass_ratio=mass_ratio)
+                * (1 + np.sign(m) * modulation)
+            )
+
+    # Apply ringdown (mode amplitudes are constant after t_merger)
+    data *= ringdown[:, np.newaxis]
+
+    h_corot = scri.WaveformModes(t=t, frame=frame, data=data, ell_min=ell_min, ell_max=ell_max,
+                                 frameType=scri.Corotating, dataType=data_type,
+                                 r_is_scaled_out=True, m_is_scaled_out=True)
+
+    if inertial:
+        return h_corot.to_inertial_frame()
+    else:
+        return h_corot
+
+
+def pn_leading_order_amplitude(ell, m, x, mass_ratio=1.0):
+    """Return the leading-order amplitude of r*h/M in PN theory
+
+    These expressions are from Eqs. (330) of Blanchet's Living Review (2014).
+
+    Note that `x` is just the orbital angular velocity to the (2/3) power.
+
+    """
+    from scipy.special import factorial, factorial2
+    if m < 0:
+        return (-1)**ell * np.conjugate(pn_leading_order_amplitude(ell, -m, x, mass_ratio=mass_ratio))
+
+    if mass_ratio < 1.0:
+        mass_ratio = 1.0 / mass_ratio
+    nu = mass_ratio / (1 + mass_ratio)**2
+    X1 = mass_ratio / (mass_ratio + 1)
+    X2 = 1 / (mass_ratio + 1)
+
+    def sigma(ell):
+        return X2**(ell-1) + (-1)**ell * X1**(ell-1)
+
+    if (ell+m) % 2 == 0:
+        amplitude = (
+            ((-1)**((ell-m+2)/2) / (2**(ell+1) * factorial((ell+m)//2) * factorial((ell-m)//2) * factorial2(2*ell-1)))
+            * np.sqrt((5*(ell+1)*(ell+2)*factorial(ell+m)*factorial(ell-m)) / (ell*(ell-1)*(2*ell+1)))
+            * sigma(ell) * (1j*m)**ell * x**(ell/2 - 1)
+        )
+    else:
+        amplitude = (
+            ((-1)**((ell-m-1)/2) / (2**(ell-1) * factorial((ell+m-1)//2) * factorial((ell-m-1)//2) * factorial2(2*ell+1)))
+            * np.sqrt((5*(ell+2)*(2*ell+1)*factorial(ell+m)*factorial(ell-m)) / (ell*(ell-1)*(ell+1)))
+            * sigma(ell+1) * 1j * (1j*m)**ell * x**((ell-1)/2)
+        )
+
+    return 8 * np.sqrt(np.pi/5) * nu * x * amplitude
