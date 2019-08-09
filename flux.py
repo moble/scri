@@ -173,15 +173,6 @@ def matrix_expectation_value(a, M, b,
     ell_min = LM_clip.start
     ell_max = LM_clip.stop - 1
 
-    # rows      = []
-    # columns   = []
-    # M_values  = []
-
-    # for ellp, mp, ell, m, M_el in M(ell_min, ell_max):
-    #     rows.append(LM_index(ellp, mp, ell_min))
-    #     columns.append(LM_index(ell , m , ell_min))
-    #     M_values.append(M_el)
-
     rows, columns, values = M(ell_min, ell_max)
 
     return (times,
@@ -214,6 +205,7 @@ def energy_flux(h):
     Edot /= 16.*np.pi
 
     return Edot
+
 
 def momentum_flux(h):
     """Compute momentum flux from waveform
@@ -429,10 +421,10 @@ def angular_momentum_flux(h, hdot=None):
     from . import h as htype
     from . import hdot as hdottype
     if not isinstance(h, WaveformModes):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
+        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
                          +"`h` is of type `{0}`.".format(type(h)))
     if (hdot is not None) and (not isinstance(hdot, WaveformModes)):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
+        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
                          +"`hdot` is of type `{0}`.".format(type(hdot)))
     if (h.dataType == htype):
         if (hdot is None):
