@@ -350,6 +350,18 @@ class WaveformGrid(WaveformBase):
         boost_velocity : float array of length 3, optional
             This is the three-velocity vector of the grid frame relative to the mode frame.  The norm of this vector
             is checked to ensure that it is smaller than 1.  Defaults to [], corresponding to no boost.
+        psi4_modes : WaveformModes
+            The object storing the modes of a Psi4 waveform. This is only used to compute a supertranslation of a psi3,
+            psi2, psi1, or psi0 waveform. 
+        psi3_modes : WaveformModes
+            The object storing the modes of a Psi4 waveform. This is only used to compute a supertranslation of a psi2, 
+            psi1, or psi0 waveform. 
+        psi2_modes : WaveformModes
+            The object storing the modes of a Psi4 waveform. This is only used to compute a supertranslation of a psi1 
+            or psi0 waveform. 
+        psi1_modes : WaveformModes
+            The object storing the modes of a Psi4 waveform. This is only used to compute a supertranslation of a psi0 
+            waveform. 
 
         Returns
         -------
@@ -484,7 +496,7 @@ class WaveformGrid(WaveformBase):
         gamma = 1 / math.sqrt(1 - beta**2)
         varphi = math.atanh(beta)
 
-        if kwargs:
+        if kwargs and w_modes.dataType not in [psi3, psi2, psi1, psi0]:
             import pprint
             warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
 
@@ -542,6 +554,7 @@ class WaveformGrid(WaveformBase):
         r_j_k = np.array([(R*quaternion.z*R.inverse()).vec for R in R_j_k.flat]).T
         kconformal_j_k = 1. / (gamma*(1-np.dot(boost_velocity, r_j_k).reshape(R_j_k.shape)))
         alphasupertranslation_j_k = np.tensordot(supertranslation, SH_j_k, axes=([0], [2])).real
+
         fprm_i_j_k = np.tensordot(
             w_modes.data, SWSH_j_k[:, :, sf.LM_index(w_modes.ell_min, -w_modes.ell_min, 0)
                                          :sf.LM_index(w_modes.ell_max, w_modes.ell_max, 0)+1],
@@ -562,12 +575,44 @@ class WaveformGrid(WaveformBase):
                 SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
                 axes=([0], [2]))
             fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
-        elif w_modes.dataType in [psi0, psi1, psi2, psi3]:
-            warning = ("\nTechnically, waveforms of dataType `{0}` ".format(w_modes.data_type_string)
-                       + "do not transform among themselves;\n there is mixing from psi_n, for each n greater than "
-                       + "this waveform's.\nProceeding on the assumption other contributions are small.  However,\n"
-                       + "note that it is possible to construct a `psin` data type containing all necessary modes.")
-            warnings.warn(warning)
+        elif w_modes.dataType in [psi3, psi2, psi1, psi0]:
+            from scipy.special import comb
+            
+            uprime_grid = kconformal_j_k * (w_modes.t[:,np.newaxis,np.newaxis] - alphasupertranslation_j_k)
+            uprime_modes = spinsfast.map2salm(uprime_grid, 0, ell_max)
+            eth_uprime_modes = sf.ethbar_GHP(uprime_modes, 0, 0)
+            eth_uprime_grid = spinsfast.salm2map(eth_uprime_modes, -1, ell_max, n_theta, n_phi)
+            eth_uprime_over_k = eth_uprime_grid / kconformal_j_k 
+
+            for i in range(5-w_modes.dataType):
+                if i == 0:
+                    if 'psi4_modes' in kwargs:
+                        psin_modes = kwargs.pop('psi4_modes')
+                    else:
+                        raise Exception('A supertranslation of Psi3 requires mode data from Psi4.')
+                elif i == 1:
+                    if 'psi3_modes' in kwargs:
+                        psin_modes = kwargs.pop('psi3_modes')
+                    else:
+                        raise Exception('A supertranslation of Psi2 requires mode data from Psi4 and Psi3.')
+                elif i == 2:
+                    if 'psi2_modes' in kwargs:
+                        psin_modes = kwargs.pop('psi2_modes')
+                    else:
+                        raise Exception('A supertranslation of Psi1 requires mode data from Psi4, Psi3, and Psi2.')
+                elif i == 3:
+                    if 'psi1_modes' in kwargs:
+                        psin_modes = kwargs.pop('psi1_modes')
+                    else:
+                        raise Exception('A supertranslation of Psi0 requires mode data from Psi4, Psi3, Psi2, and Psi1.')
+
+                psin_modes = psin_modes.interpolate(w_modes.t)
+                psin_SWSH_j_k = sf.SWSH_grid(R_j_k, psin_modes.spin_weight, ell_max)
+                psin_j_k = np.tensordot(
+                    psin_modes.data, psin_SWSH_j_k[:, :, sf.LM_index(psin_modes.ell_min, -psin_modes.ell_min, 0)
+                                                         :sf.LM_index(psin_modes.ell_max, psin_modes.ell_max, 0)+1],
+                    axes=([1], [2]))
+                fprm_i_j_k += comb(5-w_modes.dataType, i) * psin_j_k * (-1*eth_uprime_over_k)**(5 - w_modes.dataType - i) 
 
         fprm_i_j_k *= (gamma**w_modes.gamma_weight
                        * kconformal_j_k**w_modes.conformal_weight)[np.newaxis, :, :]
