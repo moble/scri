@@ -13,7 +13,7 @@ class WaveformTimeScale(mscale.ScaleBase):
     name = 'merger_zoom'
 
     def __init__(self, axis, **kwargs):
-        mscale.ScaleBase.__init__(self)
+        mscale.ScaleBase.__init__(self, axis)
         self.t_initial = float(kwargs.pop("t_initial", 0.0))
         self.t_merger = float(kwargs.pop("t_merger"))
         self.t_ringdown = float(kwargs.pop("t_ringdown"))
