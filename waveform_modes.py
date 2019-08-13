@@ -316,7 +316,23 @@ class WaveformModes(WaveformBase):
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
     def apply_eth(self, N_eth=0, N_ethbar=0, eth_convention='NP'):
+        """Apply spin raising/lowering operators to waveform mode data.
 
+        Parameters
+        ----------
+        N_eth: int
+            Number of times to apply the spin raising operator
+        N_ethbar: int
+            Number of times to apply the spin lowering operator
+        eth_convention: either 'NP' or 'GHP' 
+            Choose between Newman-Penrose or GHP convention
+                Choose between Newman-Penrose or GHP convention.
+
+        Returns
+        -------
+        mode_data: array of complex 
+
+        """
         import spherical_functions as sf
         if eth_convention == 'NP':
             operator = sf.eth_NP
@@ -335,9 +351,13 @@ class WaveformModes(WaveformBase):
         return mode_data.transpose()
 
     def eth(self):
+        """Returns the spin-raised waveform mode data.
+        """
         return self.apply_eth(N_eth=1)
     
     def ethbar(self):
+        """Returns the spin-lowered waveform mode data.
+        """
         return self.apply_eth(N_ethbar=1)
 
     def inner_product(self, b,
