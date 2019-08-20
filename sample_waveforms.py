@@ -388,7 +388,7 @@ def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
     import numpy as np
     import quaternion
     from quaternion.calculus import indefinite_integral
-    from .utilities import transition_function
+    from .utilities import transition_function, transition_to_constant
 
     if mass_ratio < 1.0:
         mass_ratio = 1.0/mass_ratio
@@ -427,9 +427,12 @@ def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
 
     # Construct ringdown-transition function
     ringdown_transition_width = 20
+    t0 = t_merger
     i0 = np.argmin(np.abs(t-t_merger))
     i1 = np.argmin(np.abs(t-(t[i0]+ringdown_transition_width)))
-    transition = transition_function(t, t[i0], t[i1])
+    t0 = t[i0]
+    t1 = t[i1]
+    transition = transition_function(t, t0, t1)
     ringdown = np.ones_like(t)
     ringdown[i0:] = ringdown[i0:] * (1 - transition[i0:]) + 2.25 * np.exp(-(t[i0:]-t_merger)/11.5) * transition[i0:]
     
@@ -439,11 +442,11 @@ def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
     if precession_nutation_angle is None:
         precession_nutation_angle = precession_opening_angle/10.0
     R_orbital = np.exp(phi * quaternion.z / 2)
-    R_opening = np.exp((precession_opening_angle + precession_opening_angle_dot * t) * quaternion.x / 2)
-    R_precession = np.exp((phi/precession_relative_rate) * quaternion.z / 2)
-    R_nutation = np.exp(precession_nutation_angle * quaternion.x / 2)
+    R_opening = np.exp(transition_to_constant(precession_opening_angle + precession_opening_angle_dot * t, t, t0, t1) * quaternion.x / 2)
+    R_precession = np.exp(transition_to_constant(phi/precession_relative_rate, t, t0, t1) * quaternion.z / 2)
+    R_nutation = np.exp(precession_nutation_angle * transition * quaternion.x / 2)
     frame = R_orbital * R_nutation * R_orbital.conjugate() * R_precession * R_opening * R_precession.conjugate() * R_orbital
-    frame = frame[0].sqrt().conjugate() * frame
+    frame = frame[0].sqrt().conjugate() * frame  # Just give the initial angle a weird little tweak to screw things up
 
     # Construct the modes
     x = omega**(2/3)
