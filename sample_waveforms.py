@@ -442,7 +442,7 @@ def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
     R_opening = np.exp((precession_opening_angle + precession_opening_angle_dot * t) * quaternion.x / 2)
     R_precession = np.exp((phi/precession_relative_rate) * quaternion.z / 2)
     R_nutation = np.exp(precession_nutation_angle * quaternion.x / 2)
-    frame = R_nutation * R_orbital.conjugate() * R_precession * R_opening * R_precession.conjugate() * R_orbital
+    frame = R_orbital * R_nutation * R_orbital.conjugate() * R_precession * R_opening * R_precession.conjugate() * R_orbital
     frame = frame[0].sqrt().conjugate() * frame
 
     # Construct the modes
