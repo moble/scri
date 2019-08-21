@@ -177,7 +177,7 @@ def transition_to_constant(f, t, t1, t2):
     from quaternion import indefinite_integral
     transition, i1, i2 = transition_function(t, t1, t2, y0=1.0, y1=0.0, return_indices=True)
     transition_dot = transition_function_derivative(t, t1, t2, y0=1.0, y1=0.0)
-    f_transitioned[:i2] = f[:i2] * transition[:i2]
+    f_transitioned = f * transition
     f_transitioned[i1:i2] -= indefinite_integral(f[i1:i2] * transition_dot[i1:i2], t[i1:i2])
     f_transitioned[i2:] = f_transitioned[i2-1]
     return f_transitioned
