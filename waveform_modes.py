@@ -326,7 +326,6 @@ class WaveformModes(WaveformBase):
             Number of times to apply the spin lowering operator
         eth_convention: either 'NP' or 'GHP' 
             Choose between Newman-Penrose or GHP convention
-                Choose between Newman-Penrose or GHP convention.
 
         Returns
         -------
