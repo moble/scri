@@ -316,23 +316,23 @@ class WaveformModes(WaveformBase):
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
     def apply_eth(self, operations, eth_convention='NP'):
-        """Apply spin raising/lowering operators to waveform mode data 
-           in a specified order. 
+        """Apply spin raising/lowering operators to waveform mode data in a specified order.
 
         Parameters
         ----------
         operations: str of combinations of '+' and/or '-'
-            The order of eth ('+') and ethbar ('-') operations to perform, 
-            applied from right to left. Example, operations='--+' will perform
-            on WaveformModes data f:
-                ethbar(ethbar(eth(f)))
-
+            The order of eth ('+') and ethbar ('-') operations to perform, applied from right to
+            left. Example, operations='--+' will perform on WaveformModes data f the operation
+            ethbar(ethbar(eth(f))).  Note that the order of operations is right-to-left.
         eth_convention: either 'NP' or 'GHP' 
-            Choose between Newman-Penrose or GHP convention
+            Choose between Newman-Penrose or Geroch-Held-Penrose convention
 
         Returns
         -------
-        mode_data: array of complex 
+        mode_data: array of complex
+            Note that the returned data has the same shape as this object's `data` attribute, and
+            the modes correspond to the same (ell, m) values.  In particular, if the spin weight
+            changes, the output data will no longer satisfy the expectation that ell_min == abs(s).
 
         """
         import spherical_functions as sf
@@ -360,12 +360,14 @@ class WaveformModes(WaveformBase):
     @property
     def eth(self):
         """Returns the spin-raised waveform mode data.
+
         """
         return self.apply_eth(operations='+')
     
     @property
     def ethbar(self):
         """Returns the spin-lowered waveform mode data.
+
         """
         return self.apply_eth(operations='-')
 
