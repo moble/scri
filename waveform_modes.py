@@ -339,6 +339,8 @@ class WaveformModes(WaveformBase):
         elif eth_convention == 'GHP':
             operator = sf.eth_GHP
             antioperator = sf.ethbar_GHP
+        else:
+            raise ValueError("eth_convention must either be 'NP' or 'GHP'; got '{}'".format(eth_convention))
         s = self.spin_weight
         mode_data = self.data.transpose()
         for n_eth in range(N_eth):
