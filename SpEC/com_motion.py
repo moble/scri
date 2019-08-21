@@ -142,6 +142,7 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
         max_d_color = min(1.0, 10*max_displacement)
         fig = plt.figure(figsize=(10, 7))
         plt.plot(t, com, alpha=0.25, lw=1.5)
+        plt.gca().set_prop_cycle(None)
         lineObjects = plt.plot(t, comprm, lw=2)
         plt.xlabel(r'Coordinate time')
         plt.ylabel(r'CoM coordinate values')
