@@ -315,6 +315,59 @@ class WaveformModes(WaveformBase):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
+    def apply_eth(self, operations, eth_convention='NP'):
+        """Apply spin raising/lowering operators to waveform mode data 
+           in a specified order. 
+
+        Parameters
+        ----------
+        operations: str of combinations of '+' and/or '-'
+            The order of eth ('+') and ethbar ('-') operations to perform, 
+            applied from right to left. Example, operations='--+' will perform
+            on WaveformModes data f:
+                ethbar(ethbar(eth(f)))
+
+        eth_convention: either 'NP' or 'GHP' 
+            Choose between Newman-Penrose or GHP convention
+
+        Returns
+        -------
+        mode_data: array of complex 
+
+        """
+        import spherical_functions as sf
+        if eth_convention == 'NP':
+            eth = sf.eth_NP
+            ethbar = sf.ethbar_NP
+        elif eth_convention == 'GHP':
+            eth = sf.eth_GHP
+            ethbar = sf.ethbar_GHP
+        else:
+            raise ValueError("eth_convention must either be 'NP' or 'GHP'; got '{}'".format(eth_convention))
+        s = self.spin_weight
+        mode_data = self.data.transpose()
+        if not set(operations).issubset({'+','-'}):
+            raise ValueError("Operations must be combinations of '+' and '-'; got '{}'".format(operations))
+        for operation in reversed(operations):
+            if operation == '+':
+                mode_data = eth(mode_data, s, self.ell_min)
+                s += 1
+            elif operation == '-':
+                mode_data = ethbar(mode_data, s, self.ell_min)
+                s -= 1
+        return mode_data.transpose()
+
+    @property
+    def eth(self):
+        """Returns the spin-raised waveform mode data.
+        """
+        return self.apply_eth(operations='+')
+    
+    @property
+    def ethbar(self):
+        """Returns the spin-lowered waveform mode data.
+        """
+        return self.apply_eth(operations='-')
 
     def inner_product(self, b,
                       t1=None, t2=None,
