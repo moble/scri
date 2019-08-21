@@ -350,11 +350,13 @@ class WaveformModes(WaveformBase):
             s -= 1
         return mode_data.transpose()
 
+    @property
     def eth(self):
         """Returns the spin-raised waveform mode data.
         """
         return self.apply_eth(N_eth=1)
     
+    @property
     def ethbar(self):
         """Returns the spin-lowered waveform mode data.
         """
