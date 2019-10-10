@@ -673,6 +673,14 @@ class WaveformBase(_object):
     def data_ddot(self):
         return quaternion.calculus.derivative(self.data, self.t, derivative_order=2)
 
+    @property
+    def data_int(self):
+        return quaternion.calculus.antiderivative(self.data, self.t)
+
+    @property
+    def data_iint(self):
+        return quaternion.calculus.antiderivative(self.data, self.t, integral_order=2)
+
     # Data representations
     def _append_history(self, hist, additional_depth=0):
         """Add to the object's history log
