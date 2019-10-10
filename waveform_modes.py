@@ -315,16 +315,72 @@ class WaveformModes(WaveformBase):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
-    def apply_eth(self, operations, eth_convention='NP'):
-        """Apply spin raising/lowering operators to waveform mode data in a specified order.
+    def ladder_factor(self, operations, s, ell, eth_convention='NP'):
+        """Compute the 'ladder factor' for applying a sequence of spin
+        raising/lower operations on a SWSH of given s, ell.
 
         Parameters
         ----------
-        operations: str of combinations of '+' and/or '-'
-            The order of eth ('+') and ethbar ('-') operations to perform, applied from right to
+        operations: list or str composed of +1, -1, '+', '-', 'ð', or 'ð̅'
+            The order of eth (+1, '+', or 'ð') and
+            ethbar (-1, '-', or 'ð̅') operations to perform, applied from right to
             left. Example, operations='--+' will perform on WaveformModes data f the operation
             ethbar(ethbar(eth(f))).  Note that the order of operations is right-to-left.
-        eth_convention: either 'NP' or 'GHP' 
+        eth_convention: either 'NP' or 'GHP' [default: 'NP']
+            Choose between Newman-Penrose or Geroch-Held-Penrose convention
+
+        Returns
+        -------
+        float
+        """
+
+        op_dict = {u'ð': +1, u'ð̅': -1, '+': +1, '-': -1, +1: +1, -1: -1}
+        conv_dict = {'NP': 1., 'GHP': 0.5}
+
+        # Normalize combining unicode characters
+        if (isinstance(operations, str)):
+            operations = operations.replace('ð̅', '-').replace('ð', '+')
+
+        keys = op_dict.keys()
+        key_strings = {key for key in keys if isinstance(key, str)}
+        if not set(operations).issubset(keys):
+            raise ValueError("operations must be a string composed of "
+                             "{} or a list with "
+                             "elements coming from the set {}"
+                             .format(key_strings, set(keys)))
+
+        if eth_convention not in conv_dict:
+            raise ValueError("eth_convention must be one of {}"
+                             .format(set(conv_dict.keys())))
+
+        convention_factor = conv_dict[eth_convention]
+
+        ladder = 1.
+        sign_factor = 1.
+
+        for op in reversed(operations):
+            sign = op_dict[op]
+            sign_factor *= sign
+            ladder *= (ell - s * sign) * (ell + s * sign + 1.) if (ell >= abs(s)) else 0.
+            ladder *= convention_factor
+            s += sign
+
+        ladder = sign_factor * np.sqrt(ladder)
+        return ladder
+
+    def apply_eth(self, operations, eth_convention='NP'):
+        """Apply spin raising/lowering operators to waveform mode data
+        in a specified order.  This does not modify the original
+        waveform object.
+
+        Parameters
+        ----------
+        operations: list or str composed of +1, -1, '+', '-', 'ð', or 'ð̅'
+            The order of eth (+1, '+', or 'ð') and
+            ethbar (-1, '-', or 'ð̅') operations to perform, applied from right to
+            left. Example, operations='--+' will perform on WaveformModes data f the operation
+            ethbar(ethbar(eth(f))).  Note that the order of operations is right-to-left.
+        eth_convention: either 'NP' or 'GHP' [default: 'NP']
             Choose between Newman-Penrose or Geroch-Held-Penrose convention
 
         Returns
@@ -333,29 +389,19 @@ class WaveformModes(WaveformBase):
             Note that the returned data has the same shape as this object's `data` attribute, and
             the modes correspond to the same (ell, m) values.  In particular, if the spin weight
             changes, the output data will no longer satisfy the expectation that ell_min == abs(s).
-
         """
-        import spherical_functions as sf
-        if eth_convention == 'NP':
-            eth = sf.eth_NP
-            ethbar = sf.ethbar_NP
-        elif eth_convention == 'GHP':
-            eth = sf.eth_GHP
-            ethbar = sf.ethbar_GHP
-        else:
-            raise ValueError("eth_convention must either be 'NP' or 'GHP'; got '{}'".format(eth_convention))
+
         s = self.spin_weight
-        mode_data = self.data.transpose()
-        if not set(operations).issubset({'+','-'}):
-            raise ValueError("Operations must be combinations of '+' and '-'; got '{}'".format(operations))
-        for operation in reversed(operations):
-            if operation == '+':
-                mode_data = eth(mode_data, s, self.ell_min)
-                s += 1
-            elif operation == '-':
-                mode_data = ethbar(mode_data, s, self.ell_min)
-                s -= 1
-        return mode_data.transpose()
+        mode_data = self.data.copy()
+
+        for ell in range(self.ell_min, self.ell_max + 1):
+            ladder_factor = self.ladder_factor(operations, s, ell,
+                                               eth_convention=eth_convention)
+            lm_indices = [sf.LM_index(ell, m, self.ell_min)
+                          for m in range(-ell, ell + 1)]
+            mode_data[:, lm_indices] *= ladder_factor
+
+        return mode_data
 
     @property
     def eth(self):
