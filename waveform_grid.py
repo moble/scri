@@ -575,7 +575,7 @@ class WaveformGrid(WaveformBase):
                 SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
                 axes=([0], [2]))
             fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
-        elif w_modes.dataType in [psi3, psi2, psi1, psi0] and not set(supertranslation[1:])=={0}:
+        elif w_modes.dataType in [psi3, psi2, psi1, psi0] and (set(supertranslation[1:])!={0} or (boost_velocity!=np.zeros(3)).all()):
             from scipy.special import comb
 
             kconformal = spinsfast.map2salm(kconformal_j_k, 0, ell_max)
