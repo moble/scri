@@ -577,12 +577,13 @@ class WaveformGrid(WaveformBase):
             fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
         elif w_modes.dataType in [psi3, psi2, psi1, psi0] and not set(supertranslation[1:])=={0}:
             from scipy.special import comb
-            
-            uprime_grid = kconformal_j_k * (w_modes.t[:,np.newaxis,np.newaxis] - alphasupertranslation_j_k)
-            uprime_modes = spinsfast.map2salm(uprime_grid, 0, ell_max)
-            eth_uprime_modes = sf.ethbar_GHP(uprime_modes, 0, 0)
-            eth_uprime_grid = spinsfast.salm2map(eth_uprime_modes, -1, ell_max, n_theta, n_phi)
-            eth_uprime_over_k = eth_uprime_grid / kconformal_j_k 
+
+            kconformal = spinsfast.map2salm(kconformal_j_k, 0, ell_max)
+            eth_kconformal = sf.eth_GHP(kconformal, 0, 0)
+            eth_kconformal_j_k = spinsfast.salm2map(eth_kconformal, 1, ell_max, n_theta, n_phi)
+            eth_alpha = sf.eth_GHP(supertranslation, 0, 0)
+            eth_alpha_j_k = spinsfast.salm2map(eth_alpha, 1, ell_max_supertranslation, n_theta, n_phi)
+            eth_uprime_over_k = w_modes.t[:,np.newaxis,np.newaxis]/kconformal_j_k * eth_kconformal_j_k - eth_alpha_j_k
 
             for i in range(5-w_modes.dataType):
                 if i == 0:
