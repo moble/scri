@@ -44,6 +44,16 @@ def test_nontrivial_construction(linear_waveform):
     assert linear_waveform is not None  # As long as this was constructed, we're okay
 
 
+def test_pickling():
+    import pickle
+    W1 = scri.WaveformModes()
+    W1_str = pickle.dumps(W1)
+    W2 = pickle.loads(W1_str)
+    assert '_WaveformBase__num' in W1.__dict__.keys()
+    assert '_WaveformBase__num' in W2.__dict__.keys()
+    assert W1._allclose(W2, rtol=0, atol=0, compare_history_beginnings=True)
+
+
 def test_waveform_properties(linear_waveform):
     W = linear_waveform
     assert W.ensure_validity(alter=False)
