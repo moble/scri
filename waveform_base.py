@@ -754,8 +754,11 @@ class WaveformBase(_object):
         back to a quaternion array.
 
         """
-        old_num = state.pop('_WaveformBase__num')
+        new_num = self.__num
+        old_num = state.get('_WaveformBase__num')
         self.__dict__.update(state)
+        # Make sure to preserve auto-incremented num
+        self.__num = new_num
         self.frame = quaternion.as_quat_array(self.frame)
         self._append_history('copied, deepcopied, or unpickled as {0}'.format(self), 1)
         self._append_history('{0} = {1}'.format(self, '{0}'.format(self).replace(str(self.num), str(old_num))))
