@@ -84,7 +84,7 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
     #                            for Ri, Vhati in zip(R, Vhat)])
     #     Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
     #     # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
-    #     correction_rotor = np.sqrt_of_rotor(-quaternion.z * Vhat_corot_mean).inverse()
+    #     correction_rotor = np.sqrt(-quaternion.z * Vhat_corot_mean).inverse()
     # W.rotate_decomposition_basis(frame * correction_rotor)
     W.rotate_decomposition_basis(frame)
     W._append_history('{0}.to_corotating_frame({1}, {2}, {3})'.format(W, R0, tolerance, z_alignment_region))

@@ -551,7 +551,7 @@ def corotating_frame(
             *np.mean(Vhat_corot, axis=0)
         ).normalized()
         # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
-        correction_rotor = np.sqrt_of_rotor(-quaternion.z * Vhat_corot_mean).inverse()
+        correction_rotor = np.sqrt(-quaternion.z * Vhat_corot_mean).inverse()
     # R = squad(R, t, W.t)
     if return_omega:
         return (frame * correction_rotor, omega)
