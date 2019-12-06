@@ -719,9 +719,9 @@ class WaveformBase(_object):
          {0}(
              t={1},
              frame={2},
-             data={4},
-             frameType={5}, dataType={6},
-             r_is_scaled_out={7}, m_is_scaled_out={8})  # num = {9}"""
+             data={5},
+             frameType={6}, dataType={7},
+             r_is_scaled_out={8}, m_is_scaled_out={9})  # num = {10}"""
         rep = rep.format(type(self).__name__,
                          str(self.t).replace('\n', '\n' + ' ' * 15),
                          str(self.frame).replace('\n', '\n' + ' ' * 19),
