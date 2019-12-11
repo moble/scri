@@ -23,7 +23,6 @@ def pytest_runtest_setup(item):
         pytest.skip("Need `--run_slow_tests` command-line argument to run")
 
 
-@pytest.fixture
 def constant_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
     t = np.linspace(begin, end, num=n_times)
     frame = np.array([quaternion.x for t_i in t])
@@ -38,8 +37,11 @@ def constant_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
                            r_is_scaled_out=True, m_is_scaled_out=True)
     return W
 
+@pytest.fixture(name="constant_waveform")
+def constant_waveform_fixture():
+    return constant_waveform()
 
-@pytest.fixture
+
 def linear_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
     np.random.seed(hash('linear_waveform') % 4294967294)  # Use mod to get in an acceptable range
     axis = np.quaternion(0., *np.random.uniform(-1, 1, size=3)).normalized()
@@ -59,8 +61,11 @@ def linear_waveform(begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
                            r_is_scaled_out=True, m_is_scaled_out=True)
     return W
 
+@pytest.fixture(name="linear_waveform")
+def linear_waveform_fixture():
+    return linear_waveform()
 
-@pytest.fixture
+
 def random_waveform(begin=-10., end=100., n_times=1000, ell_min=None, ell_max=8, dataType=scri.h):
     np.random.seed(hash('random_waveform') % 4294967294)  # Use mod to get in an acceptable range
     spin_weight = scri.SpinWeights[scri.DataType.index(dataType)]
@@ -77,8 +82,11 @@ def random_waveform(begin=-10., end=100., n_times=1000, ell_min=None, ell_max=8,
                            r_is_scaled_out=True, m_is_scaled_out=False)
     return W
 
+@pytest.fixture(name="random_waveform")
+def random_waveform_fixture():
+    return random_waveform()
 
-@pytest.fixture
+
 def delta_waveform(ell, m, begin=-10., end=100., n_times=1000, ell_min=2, ell_max=8):
     """WaveformModes with 1 in selected slot and 0 elsewhere"""
     n_modes = (ell_max * (ell_max + 2) - ell_min ** 2 + 1)
@@ -91,6 +99,10 @@ def delta_waveform(ell, m, begin=-10., end=100., n_times=1000, ell_min=2, ell_ma
                            frameType=scri.Inertial, dataType=scri.psi4,
                            r_is_scaled_out=False, m_is_scaled_out=True)
     return W
+
+@pytest.fixture(name="delta_waveform")
+def delta_waveform_fixture():
+    return delta_waveform()
 
 
 @pytest.fixture
