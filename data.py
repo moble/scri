@@ -1,9 +1,11 @@
+import copy
+import math
 import numpy as np
 from scipy.interpolate import CubicSpline
-import spinsfast
+import spherical_functions as sf
 
 
-class ModesTimeSeries(spinsfast.Modes):
+class ModesTimeSeries(sf.Modes):
     """Object to store SWSH modes as functions of time
 
     This class subclasses the spinsfast.Modes class, but also tracks corresponding time values,
@@ -16,23 +18,34 @@ class ModesTimeSeries(spinsfast.Modes):
     some other quantity without affecting the time array stored in this class.
 
     """
-    def __new__(cls, input_array, time, *args, **kwargs):
-        input_array = np.asarray(input_array).view(complex)
+    def __new__(cls, input_array, *args, **kwargs):
+        if len(args) > 2:
+            raise ValueError("Only one positional argument may be passed")
+        if len(args) == 1:
+            kwargs['time'] = args[0]
+        metadata = copy.copy(getattr(input_array, '_metadata', {}))
+        metadata.update(**kwargs)
+        input_array = np.asanyarray(input_array).view(complex)
+        time = metadata.get('time', None)
+        if time is None:
+            raise ValueError('Time data must be specified as part of input array or as constructor parameter')
         time = np.asarray(time).view(float)
-        if input_array.ndim<2:
-            raise ValueError(f"Input array must have at least 2 dimensions; it has {input_array.ndim}.")
         if time.ndim != 1:
             raise ValueError(f"Input time array must have exactly 1 dimension; it has {time.ndim}.")
-        if input_array.shape[-2] != time.shape:
-            raise ValueError("Second-to-last axis of input array must have same size as time array.\n            "
+        if input_array.ndim == 0:
+            input_array = input_array[np.newaxis, np.newaxis]
+        elif input_array.ndim == 1:
+            input_array = input_array[np.newaxis, :]
+        elif input_array.shape[-2] != time.shape[0] and input_array.shape[-2] != 1:
+            raise ValueError("Second-to-last axis of input array must have size 1 or same size as time array.\n            "
                              +f"Their shapes are {input_array.shape} and {time.shape}, respectively.")
-        obj = super(cls, self).__new__(input_array, *args, **kwargs)
+        obj = sf.Modes(input_array, **kwargs).view(cls)
         obj._metadata['time'] = time
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None: return
-        super(cls, self).__array_finalize__(self, obj)
+        super().__array_finalize__(obj)
         if 'time' not in self._metadata:
             self._metadata['time'] = None
 
@@ -63,13 +76,15 @@ class ModesTimeSeries(spinsfast.Modes):
         result = out or np.empty(new_shape, dtype=complex)
         if derivative_order > 3:
             raise ValueError(f"{type(self)} interpolation uses CubicSpline, and cannot take a derivative of order {derivative_order}")
-        s = CubicSpline(self.u, self.view(np.ndarray), axis=-2)
+        spline = CubicSpline(self.u, self.view(np.ndarray), axis=-2)
         if derivative_order < 0:
-            s = s.antiderivative(-derivative_order)
+            spline = spline.antiderivative(-derivative_order)
         elif 0 < derivative_order <= 3:
-            s = s.derivative(derivative_order)
-        result[:] = s(new_time)
-        return type(self)(result, self.time, s=self.s, ell_max=self.ell_max)
+            spline = spline.derivative(derivative_order)
+        result[:] = spline(new_time)
+        metadata = self._metadata.copy()
+        metadata['time'] = new_time
+        return type(self)(result, **metadata)
 
     def antiderivative(self, antiderivative_order=1):
         """Integrate modes with respect to time"""
@@ -100,7 +115,7 @@ class ModesTimeSeries(spinsfast.Modes):
         return self.antiderivative(2)
 
 
-class BondiData(object):
+class AsymptoticBondiData(object):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -192,46 +207,88 @@ class BondiData(object):
             Im[\Psi_2] = -Im[\eth^2\bar{\sigma} + \sigma \dot{\bar{\sigma}}]
 
         """
-        import functools
-        import numpy as np
-        import spherical_functions as sf
-        from scipy.interpolate import CubicSpline
-        from quaternion.calculus import spline_evaluation, spline_indefinite_integral
 
-        d = BondiData()
+        def asany_atleast2d_complex(a):
+            a = np.asanyarray(a) + 0j
+            while np.ndim(a) < 2:
+                a = a[np.newaxis, ...]
+            return a
+
+        psi2 = asany_atleast2d_complex(psi2)
+        psi1 = asany_atleast2d_complex(psi1)
+        psi0 = asany_atleast2d_complex(psi0)
+
+        # Construct the empty container
+        d = AsymptoticBondiData()
         d._time = time.copy()
         shape = [6, d.n_times, sf.LM_total_size(0, ell_max)]
         data = np.zeros(shape, dtype=complex)
-        d._psi0 = ModesTimeSeries(data[0], d.time, s=2, ell_max=ell_max)
-        d._psi1 = ModesTimeSeries(data[1], d.time, s=1, ell_max=ell_max)
-        d._psi2 = ModesTimeSeries(data[2], d.time, s=0, ell_max=ell_max)
-        d._psi3 = ModesTimeSeries(data[3], d.time, s=-1, ell_max=ell_max)
-        d._psi4 = ModesTimeSeries(data[4], d.time, s=-2, ell_max=ell_max)
-        d._sigma = ModesTimeSeries(data[5], d.time, s=2, ell_max=ell_max)
-        if np.ndim(sigma) == 2:
-            # Assume this gives complete data, as a function of time and angle.
-            # If this is true, ignore sigmadot and sigmaddot.
-            d.sigma = sigma
-            sigmadot = d.sigma.dot  # spline_evaluation(sigma, d.time, axis=0, spline_degree=4, derivative_order=1)
-            sigmaddot = d.sigma.ddot  # spline_evaluation(sigma, d.time, axis=0, spline_degree=5, derivative_order=2)
-        elif np.ndim(sigma) == 1:
+        d._psi0 = ModesTimeSeries(data[0], d.time, spin_weight=2, ell_max=ell_max, multiplication_truncator=max)
+        d._psi1 = ModesTimeSeries(data[1], d.time, spin_weight=1, ell_max=ell_max, multiplication_truncator=max)
+        d._psi2 = ModesTimeSeries(data[2], d.time, spin_weight=0, ell_max=ell_max, multiplication_truncator=max)
+        d._psi3 = ModesTimeSeries(data[3], d.time, spin_weight=-1, ell_max=ell_max, multiplication_truncator=max)
+        d._psi4 = ModesTimeSeries(data[4], d.time, spin_weight=-2, ell_max=ell_max, multiplication_truncator=max)
+        d._sigma = ModesTimeSeries(data[5], d.time, spin_weight=2, ell_max=ell_max, multiplication_truncator=max)
+
+        # Evaluate sigma and derivatives
+        if np.ndim(sigma) == 0 or np.ndim(sigma) == 1:
             # Assume this is just the angular dependence, which will be taken as constant in time.
             # If this is true, assumes sigmadot and sigmaddot are constants in time, and just
             # integrates them.
+            # sigma = asany_atleast2d_complex(sigma)
+            # sigmadot = asany_atleast2d_complex(sigmadot)
+            # sigmaddot = asany_atleast2d_complex(sigmaddot)
+            # d.sigma = sigma
+            # d.sigma = d.sigma + d.time * (sigmadot + d.time * (sigmaddot / 2))
+            sigma = ModesTimeSeries(sigma+0j, d.time, spin_weight=2)
+            sigmadot = ModesTimeSeries(sigmadot+0j, d.time, spin_weight=2)
+            sigmaddot = ModesTimeSeries(sigmaddot+0j, d.time, spin_weight=2)
             d.sigma = sigma + d.time * (sigmadot + d.time * (sigmaddot / 2))
+        elif np.ndim(sigma) == 2:
+            # Assume this gives complete data, as a function of time and angle.
+            # If this is true, ignore sigmadot and sigmaddot.
+            d.sigma = sigma
+            sigmadot = d.sigma.dot
+            sigmaddot = d.sigma.ddot
         else:
             raise ValueError(f"Input `sigma` must have 1 or 2 dimensions; it has {np.ndim(sigma)}")
+
+        # Adjust the initial value of psi2 to satisfy the mass-aspect condition
+        sigma_initial = d.sigma[..., 0, :]
+        sigma_bar_dot_initial = d.sigma.bar.dot[..., 0, :]
+        psi2 = (
+            ModesTimeSeries(psi2, d.time, spin_weight=0).real
+            - (sigma_initial.bar.eth.eth + sigma_initial * sigma_bar_dot_initial).imag
+        )
+
+        # Compute the Weyl components
         d.psi4 = -sigmaddot.bar
         d.psi3 = sigmadot.bar.eth
-        raise NotImplementedError("Adjust the initial value of psi2 to satisfy the mass-aspect condition.")
         d.psi2 = (-d.psi3.eth +     d.sigma * d.psi4).int + psi2
         d.psi1 = (-d.psi2.eth + 2 * d.sigma * d.psi3).int + psi1
         d.psi0 = (-d.psi1.eth + 3 * d.sigma * d.psi2).int + psi0
+
         return d
 
+    def mass_aspect(self, truncate_ell=None):
+        if callable(truncate_ell):
+            return self.psi2 + self.sigma.bar.eth.eth + self.sigma.multiply(self.sigma.bar.dot, truncator=truncate_ell)
+        elif truncate_ell:
+            return (
+                self.psi2.truncate_ell(truncate_ell)
+                + self.sigma.bar.eth.eth.truncate_ell(truncate_ell)
+                + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: truncate_ell)
+            )
+        else:
+            return self.psi2 + self.sigma.bar.eth.eth + self.sigma * self.sigma.bar.dot
+
     @property
-    def mass_aspect(self):
-        return self.psi2 + self.sigma.bar.eth.eth + self.sigma * self.sigma.bar.dot
+    def bondi_four_momentum(self):
+        Psi_restricted = self.mass_aspect(1).view(np.ndarray).real  # Compute only the parts of the mass aspect we need, ell<=1
+        four_momentum = np.empty(Psi_restricted.shape, dtype=float)
+        four_momentum[..., 0] = - Psi_restricted[..., 0] / math.sqrt(8)
+        four_momentum[..., 1:4] = - Psi_restricted[..., 1:4] / 6
+        return four_momentum
 
     def bondi_constraints(self, lhs=True, rhs=True):
         """Compute Bondi-gauge constraint equations

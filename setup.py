@@ -66,5 +66,12 @@ if __name__ == "__main__":
           author_email='mob22@cornell.edu',
           package_dir={'scri': '.'},
           packages=['scri', 'scri.pn', 'scri.SpEC', 'scri.LVC'],
-          install_requires=['numpy', 'scipy', 'numpy-quaternion>=2019.5.24.11.54.47', 'spinsfast', 'spherical_functions', 'sxs'],
+          install_requires=[
+              'numpy',
+              'scipy',
+              'numpy-quaternion>=2019.7.15.12.50.36',
+              'spinsfast',
+              'spherical_functions>=2020.2.18.11.46.9',
+              'sxs'
+          ],
     )
