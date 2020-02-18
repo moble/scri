@@ -116,8 +116,7 @@ from .waveform_grid import WaveformGrid
 from .extrapolation import extrapolate
 
 from .modes_time_series import ModesTimeSeries
-
-from . import data
+from .asymptotic_bondi_data import AsymptoticBondiData
 
 from . import sample_waveforms, SpEC, LVC
 
