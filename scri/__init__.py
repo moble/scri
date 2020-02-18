@@ -115,6 +115,8 @@ from .waveform_grid import WaveformGrid
 # from .waveform_in_detector import WaveformInDetector
 from .extrapolation import extrapolate
 
+from .modes_time_series import ModesTimeSeries
+
 from . import data
 
 from . import sample_waveforms, SpEC, LVC
