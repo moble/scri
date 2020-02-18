@@ -64,14 +64,14 @@ if __name__ == "__main__":
           url='https://github.com/moble/scri',
           author='Michael Boyle',
           author_email='mob22@cornell.edu',
-          package_dir={'scri': '.'},
           packages=['scri', 'scri.pn', 'scri.SpEC', 'scri.LVC'],
           install_requires=[
               'numpy',
               'scipy',
               'numpy-quaternion>=2019.7.15.12.50.36',
               'spinsfast',
-              'spherical_functions>=2020.2.18.11.46.9',
+              'spherical-functions>=2020.2.18.11.46.9',
               'sxs'
           ],
+          python_requires='>=3.6',
     )
