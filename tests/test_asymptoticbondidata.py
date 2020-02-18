@@ -6,7 +6,7 @@ import spherical_functions as sf
 import scri
 import pytest
 
-ABD = scri.data.AsymptoticBondiData
+ABD = scri.AsymptoticBondiData
 
 
 def kerr_schild(mass, spin, ell_max=8):
