@@ -116,8 +116,22 @@ class ModesTimeSeries(sf.Modes):
 
 
 class AsymptoticBondiData(object):
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, time, ell_max, multiplication_truncator=max):
+        shape = [6, time.size, sf.LM_total_size(0, ell_max)]
+        data = np.zeros(shape, dtype=complex)
+        self._time = time.copy()
+        self._psi0 = ModesTimeSeries(data[0], self._time, spin_weight=2,
+                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._psi1 = ModesTimeSeries(data[1], self._time, spin_weight=1,
+                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._psi2 = ModesTimeSeries(data[2], self._time, spin_weight=0,
+                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._psi3 = ModesTimeSeries(data[3], self._time, spin_weight=-1,
+                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._psi4 = ModesTimeSeries(data[4], self._time, spin_weight=-2,
+                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._sigma = ModesTimeSeries(data[5], self._time, spin_weight=2,
+                                      ell_max=ell_max, multiplication_truncator=multiplication_truncator)
 
     @property
     def time(self):
@@ -219,16 +233,7 @@ class AsymptoticBondiData(object):
         psi0 = asany_atleast2d_complex(psi0)
 
         # Construct the empty container
-        d = AsymptoticBondiData()
-        d._time = time.copy()
-        shape = [6, d.n_times, sf.LM_total_size(0, ell_max)]
-        data = np.zeros(shape, dtype=complex)
-        d._psi0 = ModesTimeSeries(data[0], d.time, spin_weight=2, ell_max=ell_max, multiplication_truncator=max)
-        d._psi1 = ModesTimeSeries(data[1], d.time, spin_weight=1, ell_max=ell_max, multiplication_truncator=max)
-        d._psi2 = ModesTimeSeries(data[2], d.time, spin_weight=0, ell_max=ell_max, multiplication_truncator=max)
-        d._psi3 = ModesTimeSeries(data[3], d.time, spin_weight=-1, ell_max=ell_max, multiplication_truncator=max)
-        d._psi4 = ModesTimeSeries(data[4], d.time, spin_weight=-2, ell_max=ell_max, multiplication_truncator=max)
-        d._sigma = ModesTimeSeries(data[5], d.time, spin_weight=2, ell_max=ell_max, multiplication_truncator=max)
+        abd = AsymptoticBondiData(time, ell_max)
 
         # Evaluate sigma and derivatives
         if np.ndim(sigma) == 0 or np.ndim(sigma) == 1:
@@ -238,35 +243,35 @@ class AsymptoticBondiData(object):
             # sigma = asany_atleast2d_complex(sigma)
             # sigmadot = asany_atleast2d_complex(sigmadot)
             # sigmaddot = asany_atleast2d_complex(sigmaddot)
-            # d.sigma = sigma
-            # d.sigma = d.sigma + d.time * (sigmadot + d.time * (sigmaddot / 2))
-            sigma = ModesTimeSeries(sigma+0j, d.time, spin_weight=2)
-            sigmadot = ModesTimeSeries(sigmadot+0j, d.time, spin_weight=2)
-            sigmaddot = ModesTimeSeries(sigmaddot+0j, d.time, spin_weight=2)
-            d.sigma = sigma + d.time * (sigmadot + d.time * (sigmaddot / 2))
+            # abd.sigma = sigma
+            # abd.sigma = abd.sigma + abd.time * (sigmadot + abd.time * (sigmaddot / 2))
+            sigma = ModesTimeSeries(sigma+0j, abd.time, spin_weight=2)
+            sigmadot = ModesTimeSeries(sigmadot+0j, abd.time, spin_weight=2)
+            sigmaddot = ModesTimeSeries(sigmaddot+0j, abd.time, spin_weight=2)
+            abd.sigma = sigma + abd.time * (sigmadot + abd.time * (sigmaddot / 2))
         elif np.ndim(sigma) == 2:
             # Assume this gives complete data, as a function of time and angle.
             # If this is true, ignore sigmadot and sigmaddot.
-            d.sigma = sigma
-            sigmadot = d.sigma.dot
-            sigmaddot = d.sigma.ddot
+            abd.sigma = sigma
+            sigmadot = abd.sigma.dot
+            sigmaddot = abd.sigma.ddot
         else:
             raise ValueError(f"Input `sigma` must have 1 or 2 dimensions; it has {np.ndim(sigma)}")
 
         # Adjust the initial value of psi2 to satisfy the mass-aspect condition
-        sigma_initial = d.sigma[..., 0, :]
-        sigma_bar_dot_initial = d.sigma.bar.dot[..., 0, :]
+        sigma_initial = abd.sigma[..., 0, :]
+        sigma_bar_dot_initial = abd.sigma.bar.dot[..., 0, :]
         psi2 = (
-            ModesTimeSeries(psi2, d.time, spin_weight=0).real
+            ModesTimeSeries(psi2, abd.time, spin_weight=0).real
             - (sigma_initial.bar.eth.eth + sigma_initial * sigma_bar_dot_initial).imag
         )
 
         # Compute the Weyl components
-        d.psi4 = -sigmaddot.bar
-        d.psi3 = sigmadot.bar.eth
-        d.psi2 = (-d.psi3.eth +     d.sigma * d.psi4).int + psi2
-        d.psi1 = (-d.psi2.eth + 2 * d.sigma * d.psi3).int + psi1
-        d.psi0 = (-d.psi1.eth + 3 * d.sigma * d.psi2).int + psi0
+        abd.psi4 = -sigmaddot.bar
+        abd.psi3 = sigmadot.bar.eth
+        abd.psi2 = (-abd.psi3.eth +     abd.sigma * abd.psi4).int + psi2
+        abd.psi1 = (-abd.psi2.eth + 2 * abd.sigma * abd.psi3).int + psi1
+        abd.psi0 = (-abd.psi1.eth + 3 * abd.sigma * abd.psi2).int + psi0
 
         return d
 
