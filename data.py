@@ -273,7 +273,7 @@ class AsymptoticBondiData(object):
         abd.psi1 = (-abd.psi2.eth + 2 * abd.sigma * abd.psi3).int + psi1
         abd.psi0 = (-abd.psi1.eth + 3 * abd.sigma * abd.psi2).int + psi0
 
-        return d
+        return abd
 
     def mass_aspect(self, truncate_ell=None):
         if callable(truncate_ell):
