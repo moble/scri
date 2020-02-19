@@ -90,6 +90,18 @@ class AsymptoticBondiData(object):
         return self.time.size
 
     @property
+    def n_modes(self):
+        return self._raw_data.shape[-1]
+
+    @property
+    def ell_min(self):
+        return self._psi2.ell_min
+
+    @property
+    def ell_max(self):
+        return self._psi2.ell_max
+
+    @property
     def sigma(self):
         return self._sigma
 
