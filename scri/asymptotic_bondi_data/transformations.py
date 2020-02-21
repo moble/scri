@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import quaternion
+import spinsfast
 import spherical_functions as sf
 
 
@@ -69,23 +70,8 @@ def process_transformation_kwargs(input_ell_max, **kwargs):
     # requirement to have enough points to capture the original waveform, at least
     output_ell_max = kwargs.pop('output_ell_max', input_ell_max)
     working_ell_max = kwargs.pop('working_ell_max', 2*input_ell_max + ell_max_supertranslation)
-    if working_ell_max < 2*input_ell_max:
-        raise ValueError(f"working_ell_max={working_ell_max} is too small; it must be at least 2*ell_max={2*input_ell_max}")
-    n_theta = kwargs.pop('n_theta', 2*working_ell_max+1)
-    n_phi = kwargs.pop('n_phi', 2*working_ell_max+1)
-    if n_theta < 2*working_ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
-        warning = (f"n_theta={n_theta} is small; because of the supertranslation, "
-                   f"it will lose accuracy for anything less than 2*ell+1={working_ell_max}")
-        warnings.warn(warning)
-    if n_theta < 2*input_ell_max+1:
-        raise ValueError(f"n_theta={n_theta} is too small; "
-                         f"must be at least 2*ell+1={2*input_ell_max+1}")
-    if n_phi < 2*working_ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
-        warning = (f"n_phi={n_phi} is small; because of the supertranslation, "
-                   f"it will lose accuracy for anything less than 2*ell+1={2*working_ell_max+1}")
-        warnings.warn(warning)
-    if n_phi < 2*input_ell_max+1:
-        raise ValueError(f"n_phi={n_phi} is too small; must be at least 2*ell+1={2*input_ell_max+1}")
+    if working_ell_max < input_ell_max:
+        raise ValueError(f"working_ell_max={working_ell_max} is too small; it must be at least ell_max={input_ell_max}")
 
     # Get the rotor for the frame rotation
     frame_rotation = np.quaternion(*np.array(kwargs.pop('frame_rotation', [1, 0, 0, 0]), dtype=float))
@@ -100,7 +86,7 @@ def process_transformation_kwargs(input_ell_max, **kwargs):
         raise ValueError(f"Input boost_velocity=`{boost_velocity}` should be a 3-vector with "
                          "magnitude strictly less than 1.0")
 
-    return frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max, n_theta, n_phi
+    return frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max
 
 
 def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
@@ -153,8 +139,15 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
 
 
 def transform(self, **kwargs):
-    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max, n_theta, n_phi = \
+    """Apply BMS transformation to AsymptoticBondiData object
+
+    """
+    from scipy.interpolate import CubicSpline
+    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max,  = \
         process_transformation_kwargs(self.ell_max, **kwargs)
+
+    n_theta = 2 * working_ell_max + 1
+    n_phi = n_theta
 
     β = np.linalg.norm(boost_velocity)
     γ = 1 / math.sqrt(1 - β**2)
@@ -163,8 +156,8 @@ def transform(self, **kwargs):
 
     distorted_grid_rotors = boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi)
 
-    u = self.u
-    α = supertranslation.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
+    u = self.u[:, np.newaxis, np.newaxis]
+    α = supertranslation.evaluate(distorted_grid_rotors).real[np.newaxis, :, :]
     ðα = supertranslation.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
     ððα = supertranslation.eth.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
     v_dot_r = np.array([
@@ -174,7 +167,7 @@ def transform(self, **kwargs):
     one_over_k = γ * (1 - v_dot_r)
     one_over_k_cubed = one_over_k**3
     k = 1.0 / one_over_k
-    ðk_over_k = sqrt(2) * γ * v_dot_r * k
+    ðk_over_k = math.sqrt(2) * γ * v_dot_r * k
 
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
     ðuprime_over_k = ðk_over_k * (u - α) - ðα
@@ -184,7 +177,7 @@ def transform(self, **kwargs):
     # ψ1(u, θ', ϕ') exp(iλ)
     ψ1 = self.psi1.evaluate(distorted_grid_rotors)
     # ψ2(u, θ', ϕ')
-    ψ1 = self.psi2.evaluate(distorted_grid_rotors)
+    ψ2 = self.psi2.evaluate(distorted_grid_rotors)
     # ψ3(u, θ', ϕ') exp(-1iλ)
     ψ3 = self.psi3.evaluate(distorted_grid_rotors)
     # ψ4(u, θ', ϕ') exp(-2iλ)
@@ -239,7 +232,7 @@ def transform(self, **kwargs):
     # u'_i, the average value of u=u'/k+α is precisely <u>=u'γ+<α>=u_i.  But then, we have to narrow
     # that set down, so that every physical point on all the u'_i' slices correspond to data in the
     # range of input data.
-    timeprime = (u - sf.constant_from_ell_0_mode(supertranslation[0])) / γ
+    timeprime = (u[:, 0, 0] - sf.constant_from_ell_0_mode(supertranslation[0]).real) / γ
     timeprime_of_initialtime_directionprime = (k * (u[0] - α))
     timeprime_of_finaltime_directionprime = (k * (u[-1] - α))
     earliest_complete_timeprime = np.max(timeprime_of_initialtime_directionprime)
@@ -252,18 +245,20 @@ def transform(self, **kwargs):
 
     # Interpolate the various transformed function values on the transformed grid from the original
     # time coordinate to the new set of time coordinates, independently for each direction.
-    for j in range(n_theta):
-        for k in range(n_phi):
-            k_j_k = k[0, j, k]
-            α_j_k = α[0, j, k]
+    for i in range(n_theta):
+        for j in range(n_phi):
+            k_i_j = k[0, i, j]
+            α_i_j = α[0, i, j]
             # u'(u, θ', ϕ')
-            timeprime_of_timenaught_directionprime_j_k = k_j_k * (self.u - α_j_k)
+            timeprime_of_timenaught_directionprime_i_j = k_i_j * (self.u - α_i_j)
             # f'(u', θ', ϕ')
-            fprime_of_timeprime_directionprime[:, :, j, k] = CubicSpline(
-                timeprime_of_timenaught_directionprime_j_k, fprime_of_timenaught_directionprime[:, :, j, k], axis=1
+            fprime_of_timeprime_directionprime[:, :, i, j] = CubicSpline(
+                timeprime_of_timenaught_directionprime_i_j,
+                fprime_of_timenaught_directionprime[:, :, i, j],
+                axis=1
             )(timeprime)
 
-    abdprime = AsymptoticBondiData(timeprime, output_ell_max)
+    abdprime = type(self)(timeprime, output_ell_max)
     # ψ0'(u')_{ell', m'}
     abdprime.psi0 = spinsfast.map2salm(fprime_of_timeprime_directionprime[0], 2, output_ell_max)
     # ψ1'(u')_{ell', m'}

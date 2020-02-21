@@ -32,3 +32,12 @@ def test_abd_schwarzschild():
     computed_four_momentum = abd.bondi_four_momentum
     assert np.array_equal(computed_four_momentum, expected_four_momentum)
     #print('Bondi-violation norms', abd.bondi_violation_norms)
+
+
+def test_abd_schwarzschild_transform():
+    mass = 0.789
+    ell_max = 8
+    u = np.linspace(0, 100, num=5000)
+    psi2, psi1, psi0 = kerr_schild(mass, 0.0, ell_max)
+    abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2)
+    abdprime = abd.transform(boost_velocity=[0.0, 0.0, 0.1])

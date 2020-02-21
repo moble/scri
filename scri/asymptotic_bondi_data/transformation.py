@@ -26,13 +26,9 @@ def conformal_factor(v, ell_max, exponent=1, **kwargs):
     gamma = 1/math.sqrt(1 - v[0]**2 - v[1]**2 - v[2]**2)
     n_theta = 2 * ell_max + 1
     n_phi = n_theta
-    theta_phi = sf.theta_phi(n_theta, n_phi)
     k_grid = [
-        [
-            (gamma * (1 - v_dot_r(theta, phi)))**(-exponent)
-            for theta, phi in tp
-        ]
-        for tp in theta_phi
+        [(gamma * (1 - v_dot_r(theta, phi)))**(-exponent) for theta, phi in tp]
+        for tp in sf.theta_phi(n_theta, n_phi)
     ]
     k_modes = spinsfast.map2salm(k_grid, 0, ell_max)
     return sf.Modes(k_modes, spin_weight=0, ell_max=ell_max, **kwargs)
