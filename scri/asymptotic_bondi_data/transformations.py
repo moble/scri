@@ -170,36 +170,50 @@ def transform(self, **kwargs):
 
 
     Parameters
-    ----------
+    ==========
     abd: AsymptoticBondiData
         The object storing the modes of the original data, which will be transformed in this
         function.  This is the only required argument to this function.
     time_translation: float, optional
-        Defaults to zero.  Nonzero overrides corresponding components of spacetime_translation and
-        supertranslation.
+        Defaults to zero.  Nonzero overrides corresponding components of `spacetime_translation` and
+        `supertranslation` parameters.  Note that this is the actual change in the coordinate value,
+        rather than the corresponding mode weight (which is what `supertranslation` represents).
     space_translation : float array of length 3, optional
         Defaults to empty (no translation).  Non-empty overrides corresponding components of
-        spacetime_translation and supertranslation.
+        `spacetime_translation` and `supertranslation` parameters.  Note that this is the actual
+        change in the coordinate value, rather than the corresponding mode weight (which is what
+        `supertranslation` represents).
     spacetime_translation : float array of length 4, optional
         Defaults to empty (no translation).  Non-empty overrides corresponding components of
-        supertranslation.
-    supertranslation : complex array, optional
+        `supertranslation`.  Note that this is the actual change in the coordinate value, rather
+        than the corresponding mode weight (which is what `supertranslation` represents).
+    supertranslation : complex array [defaults to 0]
         This gives the complex components of the spherical-harmonic expansion of the
         supertranslation in standard form, starting from ell=0 up to some ell_max, which may be
         different from the ell_max of the input `abd` object.  Supertranslations must be real, so
         these values should obey the condition
             α^{ℓ,m} = (-1)^m ᾱ^{ℓ,-m}
         This condition is actually imposed on the input data, so imaginary parts of α(θ, ϕ) will
-        essentially be discarded.  Defaults to empty, which causes no supertranslation.
-    frame_rotation : quaternion, optional
+        essentially be discarded.  Defaults to empty, which causes no supertranslation.  Note that
+        some components may be overridden by the parameters above.
+    frame_rotation : quaternion [defaults to 1]
         Transformation applied to (x,y,z) basis of the input mode's inertial frame.  For example,
         the basis z vector of the new frame may be written as
            z' = frame_rotation * z * frame_rotation.inverse()
         Defaults to 1, corresponding to the identity transformation (no rotation).
-    boost_velocity : float array of length 3, optional
+    boost_velocity : float array of length 3 [defaults to (0, 0, 0)]
         This is the three-velocity vector of the new frame relative to the input frame.  The norm of
-        this vector is checked to ensure that it is smaller than 1.  Defaults to [], corresponding
-        to no boost.
+        this vector is required to be smaller than 1.
+    output_ell_max: int [defaults to abd.ell_max]
+        Maximum ell value in the output data.
+    working_ell_max: int [defaults to 2 * abd.ell_max]
+        Maximum ell value to use during the intermediate calculations.  Rotations and time
+        translations do not require this to be any larger than abd.ell_max, but other
+        transformations will require more values of ell for accurate results.  In particular, boosts
+        are multiplied by time, meaning that a large boost of data with large values of time will
+        lead to very large power in higher modes.  Similarly, large (super)translations will couple
+        power through a lot of modes.  To avoid aliasing, this value should be large, to accomodate
+        power in higher modes.
 
     Returns
     -------
@@ -332,18 +346,21 @@ def transform(self, **kwargs):
                 axis=1
             )(timeprime)
 
+    # Finally, transform back from the distorted grid to the SWSH mode weights as measured in that
+    # grid.  I'll abuse notation slightly here by indicating those "distorted" mode weights with
+    # primes, so that f'(u')_{ℓ', m'} = ∫ f'(u', θ', ϕ') sȲ_{ℓ', m'}(θ', ϕ') sin(θ') dθ' dϕ'
     abdprime = type(self)(timeprime, output_ell_max)
-    # ψ0'(u')_{ell', m'}
+    # ψ0'(u')_{ℓ', m'}
     abdprime.psi0 = spinsfast.map2salm(fprime_of_timeprime_directionprime[0], 2, output_ell_max)
-    # ψ1'(u')_{ell', m'}
+    # ψ1'(u')_{ℓ', m'}
     abdprime.psi1 = spinsfast.map2salm(fprime_of_timeprime_directionprime[1], 1, output_ell_max)
-    # ψ2'(u')_{ell', m'}
+    # ψ2'(u')_{ℓ', m'}
     abdprime.psi2 = spinsfast.map2salm(fprime_of_timeprime_directionprime[2], 0, output_ell_max)
-    # ψ3'(u')_{ell', m'}
+    # ψ3'(u')_{ℓ', m'}
     abdprime.psi3 = spinsfast.map2salm(fprime_of_timeprime_directionprime[3], -1, output_ell_max)
-    # ψ4'(u')_{ell', m'}
+    # ψ4'(u')_{ℓ', m'}
     abdprime.psi4 = spinsfast.map2salm(fprime_of_timeprime_directionprime[4], -2, output_ell_max)
-    # σ'(u')_{ell', m'}
+    # σ'(u')_{ℓ', m'}
     abdprime.sigma = spinsfast.map2salm(fprime_of_timeprime_directionprime[5], 2, output_ell_max)
 
     return abdprime
