@@ -5,7 +5,7 @@ import spinsfast
 import spherical_functions as sf
 
 
-def process_transformation_kwargs(input_ell_max, **kwargs):
+def _process_transformation_kwargs(input_ell_max, **kwargs):
     original_kwargs = kwargs.copy()
 
     # Build the supertranslation and spacetime_translation arrays
@@ -141,21 +141,95 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
 def transform(self, **kwargs):
     """Apply BMS transformation to AsymptoticBondiData object
 
+    It is important to note that the input transformation parameters are applied in this order:
+
+      1. (Super)Translations
+      2. Rotation (about the origin)
+      3. Boost (about the origin)
+
+    All input parameters refer to the transformation required to take the input data's inertial
+    frame onto the inertial frame of the output data's inertial observers.  In what follows, the
+    coordinates of and functions in the input inertial frame will be unprimed, while corresponding
+    values of the output inertial frame will be primed.
+
+    The translations (space, time, spacetime, or super) can be given in various ways, which may
+    override each other.  Ultimately, however, they are essentially combined into a single function
+    `α`, representing the supertranslation, which transforms the asymptotic time variable `u` as
+
+        u'(u, θ, ϕ) = u(u, θ, ϕ) - α(θ, ϕ)
+
+    A simple time translation by δt would correspond to
+
+        α(θ, ϕ) = δt  # Independent of (θ, ϕ)
+
+    A pure spatial translation δx ·would correspond to
+
+        α(θ, ϕ) = -δx · n̂(θ, ϕ)
+
+    where `·` is the usual dot product, and `n̂` is the unit vector in the given direction.
+
+
+    Parameters
+    ----------
+    abd: AsymptoticBondiData
+        The object storing the modes of the original data, which will be transformed in this
+        function.  This is the only required argument to this function.
+    time_translation: float, optional
+        Defaults to zero.  Nonzero overrides corresponding components of spacetime_translation and
+        supertranslation.
+    space_translation : float array of length 3, optional
+        Defaults to empty (no translation).  Non-empty overrides corresponding components of
+        spacetime_translation and supertranslation.
+    spacetime_translation : float array of length 4, optional
+        Defaults to empty (no translation).  Non-empty overrides corresponding components of
+        supertranslation.
+    supertranslation : complex array, optional
+        This gives the complex components of the spherical-harmonic expansion of the
+        supertranslation in standard form, starting from ell=0 up to some ell_max, which may be
+        different from the ell_max of the input `abd` object.  Supertranslations must be real, so
+        these values should obey the condition
+            α^{ℓ,m} = (-1)^m ᾱ^{ℓ,-m}
+        This condition is actually imposed on the input data, so imaginary parts of α(θ, ϕ) will
+        essentially be discarded.  Defaults to empty, which causes no supertranslation.
+    frame_rotation : quaternion, optional
+        Transformation applied to (x,y,z) basis of the input mode's inertial frame.  For example,
+        the basis z vector of the new frame may be written as
+           z' = frame_rotation * z * frame_rotation.inverse()
+        Defaults to 1, corresponding to the identity transformation (no rotation).
+    boost_velocity : float array of length 3, optional
+        This is the three-velocity vector of the new frame relative to the input frame.  The norm of
+        this vector is checked to ensure that it is smaller than 1.  Defaults to [], corresponding
+        to no boost.
+
+    Returns
+    -------
+    AsymptoticBondiData
+
     """
     from scipy.interpolate import CubicSpline
-    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max,  = \
-        process_transformation_kwargs(self.ell_max, **kwargs)
 
+    # Parse the input arguments, and define the basic parameters for this function
+    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max,  = \
+        _process_transformation_kwargs(self.ell_max, **kwargs)
     n_theta = 2 * working_ell_max + 1
     n_phi = n_theta
-
     β = np.linalg.norm(boost_velocity)
     γ = 1 / math.sqrt(1 - β**2)
 
-    supertranslation = sf.Modes(supertranslation, spin_weight=0)
+    # Make this into a Modes object, so it can keep track of its spin weight, etc., through the
+    # various operations needed below.
+    supertranslation = sf.Modes(supertranslation, spin_weight=0).real
 
+    # This is a 2-d array of unit quaternions, which are what the spin-weighted functions should be
+    # evaluated on (even for spin 0 functions, for simplicity).  That will be equivalent to
+    # evaluating the spin-weighted functions with respect to the transformed grid -- although on the
+    # original time slices.
     distorted_grid_rotors = boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi)
 
+    # Compute u, α, ðα, ððα, v·r, 1/k, 1/k**3, k, and ðk/k on the distorted grid, including new axes
+    # to enable broadcasting with time-dependent functions.  Note that the first axis should
+    # represent variation in u, the second axis variation along θ', and the third axis variation
+    # along ϕ'.
     u = self.u[:, np.newaxis, np.newaxis]
     α = supertranslation.evaluate(distorted_grid_rotors).real[np.newaxis, :, :]
     ðα = supertranslation.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
