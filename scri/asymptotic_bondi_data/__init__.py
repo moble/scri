@@ -196,10 +196,13 @@ class AsymptoticBondiData(object):
     @property
     def bondi_four_momentum(self):
         """Compute the Bondi four-momentum of the AsymptoticBondiData"""
-        Psi_restricted = self.mass_aspect(1).view(np.ndarray).real  # Compute only the parts of the mass aspect we need, ell<=1
-        four_momentum = np.empty(Psi_restricted.shape, dtype=float)
-        four_momentum[..., 0] = - Psi_restricted[..., 0] / math.sqrt(8)
-        four_momentum[..., 1:4] = - Psi_restricted[..., 1:4] / 6
+        import spherical_functions as sf
+        P_restricted = - self.mass_aspect(1).view(np.ndarray) / math.sqrt(4*math.pi)  # Compute only the parts we need, ell<=1
+        four_momentum = np.empty(P_restricted.shape, dtype=float)
+        four_momentum[..., 0] = P_restricted[..., 0].real
+        four_momentum[..., 1] = (P_restricted[..., 3] - P_restricted[..., 1]).real / math.sqrt(6)
+        four_momentum[..., 2] = (1j * (P_restricted[..., 3] + P_restricted[..., 1])).real / math.sqrt(6)
+        four_momentum[..., 3] = -P_restricted[..., 2].real / math.sqrt(3)
         return four_momentum
 
     from .constraints import (
