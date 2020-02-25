@@ -58,6 +58,7 @@ target/
 .idea
 
 rhOverM_Asymptotic*h5
+rh_FiniteRadii_CodeUnits.h5
 Horizons.h5
 releases
 scri.zip
