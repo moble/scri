@@ -220,6 +220,7 @@ def transform(self, **kwargs):
     AsymptoticBondiData
 
     """
+    from quaternion import rotate_vectors
     from scipy.interpolate import CubicSpline
 
     # Parse the input arguments, and define the basic parameters for this function
@@ -243,19 +244,23 @@ def transform(self, **kwargs):
     # Compute u, α, ðα, ððα, v·r, 1/k, 1/k**3, k, and ðk/k on the distorted grid, including new axes
     # to enable broadcasting with time-dependent functions.  Note that the first axis should
     # represent variation in u, the second axis variation along θ', and the third axis variation
-    # along ϕ'.
+    # along ϕ'.  Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.
+    # As modes in the undistorted frame, we have ð(v·r) = √2 (v·r), but this is now an s=1 field, so
+    # it has to be evaluated as such.
     u = self.u[:, np.newaxis, np.newaxis]
     α = supertranslation.evaluate(distorted_grid_rotors).real[np.newaxis, :, :]
     ðα = supertranslation.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
     ððα = supertranslation.eth.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
-    v_dot_r = np.array([
-        [np.dot(boost_velocity, (R*quaternion.z*R.conjugate()).vec) for R in dgr]
-        for dgr in distorted_grid_rotors
-    ])[np.newaxis, :, :]
+    v_dot_r = np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity)[np.newaxis, :, :]
+    ðv_dot_r = np.tensordot(
+        math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0),
+        sf.SWSH_grid(distorted_grid_rotors, 1, 1),
+        axes=([0], [2])
+    )[np.newaxis, :, :]
     one_over_k = γ * (1 - v_dot_r)
     one_over_k_cubed = one_over_k**3
     k = 1.0 / one_over_k
-    ðk_over_k = math.sqrt(2) * γ * v_dot_r * k
+    ðk_over_k = ðv_dot_r / (1 - v_dot_r)
 
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
     ðuprime_over_k = ðk_over_k * (u - α) - ðα
