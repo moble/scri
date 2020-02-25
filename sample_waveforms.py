@@ -506,3 +506,207 @@ def pn_leading_order_amplitude(ell, m, x, mass_ratio=1.0):
         )
 
     return 8 * np.sqrt(np.pi/5) * nu * x * amplitude
+
+
+def create_fake_finite_radius_strain_h5file(
+    output_file_path = "./rh_FiniteRadii_CodeUnits.h5",
+    n_subleading=3,
+    amp=1.0,
+    t_0=0.0,
+    t_1=3000.0,
+    dt=0.1,
+    r_min=100.0,
+    r_max=600.0,
+    n_radii=24,
+    ell_max=8,
+    initial_adm_energy=0.99,
+    avg_lapse=0.99,
+    avg_areal_radius_diff=1.0,
+    mass_ratio=1.0,
+    precession_opening_angle=0.0,
+    **kwargs,
+):
+    """
+    Create an HDF5 file with fake finite-radius GW strain data in the NRAR format, as 
+    used by the Spectral Einstein Code (SpEC). The asymptotic waveform is created by
+    the function scri.sample_waveforms.fake_precessing_waveform and then radius-dependent 
+    terms are added to it. These subleading artificial "near-zone" effects are simple 
+    sinusoids. The finite-radius waveform, scaled by a factor of the radius, is then,
+
+        r*h(r) = h_0 + h_1*r**-1 + h_2*r**-2 + ... + h_n*r**-n
+
+    where h_0 is the waveform from scri.sample_waveforms.fake_precessing_waveform() and n is 
+    chosen by the user.
+
+    Finally, the finite-radius waveforms as output by SpEC uses simulation coordinates for 
+    radius and time, which do not perfectly parametrize outgoing null rays. This function 
+    approximates these simulation coordinates so that the data in the resulting HDF5 file
+    most nearly mimics that of a SpEC HDF5 output file. 
+
+    Parameters
+    ==========
+    output_file_path: str
+        The name and path of the output file. The filename must be "rh_FiniteRadius_CodeUnits.h5" 
+        if you wish to be able to run scri.extrapolation.extrapolate on it. 
+    n_subleading: int [defaults to 3]
+        The number of subleading, radius-dependent terms to add to the asymptotic waveform.
+    amp: float [defaults to 1.0]
+        The amplitude of the subleading, radius-dependent terms.
+    t_0: float [defaults to 0.0]
+    t_1: float [defaults to 3000.0]
+        The initial and final times in the output waveform. Note that the merger is placed 
+        100.0 time units before `t_1`, and several transitions are made before this, so `t_0` 
+        must be that far ahead of `t_1`.
+    dt: float [defaults to 0.1]
+        Spacing of output time series.
+    r_min: float [defaults to 100.0]
+    r_max: float [defaults to 600.0]
+    n_radii: float [defaults to 24]
+        The minimum and maximum radius, and the number of radii between these values, at which 
+        to produce a finite-radius waveform. These will be equally spaced in inverse radius. 
+    ell_max: int [defaults to 8]
+        Largest ell value in the output modes.
+    initial_adm_energy: float [defaults to 0.99]
+        The intial ADM energy as would be computed by the SpEC intitial data solver.
+    avg_lapse: float [defaults to 0.99]
+        The value of the lapse averaged over a sphere at 
+    avg_areal_radius_diff: float [defaults to 1.0]
+        How much on average the areal radius is larger than the coord radius, may be negative.
+    mass_ratio: float [defaults to 1.0]
+        Ratio of BH masses to use as input to rough approximations for orbital evolution 
+        and mode amplitudes.
+    precession_opening_angle: float [defaults to 0.0]
+        Opening angle of the precession cone. The default results in no precession. If
+        this value is non-zero, then the following options from fake_precessing_waveform
+        may be supplied as kwagrs:
+            * precession_opening_angle_dot
+            * precession_relative_rate
+            * precession_nutation_angle
+        See the help text of fake_precessing_waveform for documentation.
+
+    """
+    import h5py
+    from scipy.interpolate import InterpolatedUnivariateSpline
+
+    with h5py.File(output_file_path, "x") as h5file:
+
+        # Set up an H5 group for each radius
+        coord_radii = (1 / np.linspace(1 / r_min, 1 / r_max, n_radii)).astype(int)
+        groups = [f"R{R:04}.dir" for R in coord_radii]
+        for group in groups:
+            h5file.create_group(group)
+
+        # Create version history dataset
+        # We mimic how SpEC encodes the strings in VersionHist.ver to ensure we
+        # don't hit any errors due to the encoding.
+        version_hist = [
+            [
+                "ef51849550a1d8a5bbdd810c7debf0dd839e86dd",
+                "Overall sign change in complex strain h.",
+            ]
+        ]
+        reencoded_version_hist = [
+            [entry[0].encode("ascii", "ignore"), entry[1].encode("ascii", "ignore")]
+            for entry in version_hist
+        ]
+        dset = h5file.create_dataset(
+            "VersionHist.ver",
+            (len(version_hist), 2),
+            maxshape=(None, 2),
+            data=reencoded_version_hist,
+            dtype=h5py.special_dtype(vlen=bytes),
+        )
+        dset.attrs.create("Version", len(version_hist), shape=(1,), dtype=np.uint64)
+
+        # Generate the asymptotic waveform
+        h0 = scri.sample_waveforms.fake_precessing_waveform(
+            t_0 = t_0,
+            t_1 = t_1,
+            dt = dt,
+            ell_max = ell_max,
+            precession_opening_angle = precession_opening_angle,
+            **kwargs,
+        )
+        n_times = int(h0.t.shape[0] + r_max / dt)
+        t_1 += r_max
+        all_times = np.linspace(0, t_1, n_times)
+
+        # Set auxiliary datasetsss
+        for i in range(len(groups)):
+            # Set coordinate radius dataset
+            coord_radius = np.vstack((all_times, [coord_radii[i]] * n_times)).T
+            dset = h5file.create_dataset(
+                groups[i] + "/CoordRadius.dat", data=coord_radius
+            )
+            dset.attrs.create("Legend", ["time", "CoordRadius"])
+
+            # Set areal radius dataset
+            areal_radius = coord_radius
+            areal_radius[:, 1] += avg_areal_radius_diff
+            dset = h5file.create_dataset(
+                groups[i] + "/ArealRadius.dat", data=areal_radius
+            )
+            dset.attrs.create("Legend", ["time", "ArealRadius"])
+
+            # Set initial ADM energy dataset
+            seg_start_times = h0.t[:: int(n_times / 20)]
+            adm_energy_dset = np.vstack(
+                (seg_start_times, [initial_adm_energy] * len(seg_start_times))
+            ).T
+            dset = h5file.create_dataset(
+                groups[i] + "/InitialAdmEnergy.dat", data=adm_energy_dset
+            )
+            dset.attrs.create("Legend", ["time", "InitialAdmEnergy"])
+
+            # Set average lapse dataset
+            avg_lapse_dset = np.vstack((all_times, [avg_lapse] * n_times)).T
+            dset = h5file.create_dataset(
+                groups[i] + "/AverageLapse.dat", data=avg_lapse_dset
+            )
+            dset.attrs.create("Legend", ["time", "AverageLapse"])
+
+            # Set finite radius data
+            tortoise_coord = areal_radius[0, 1] + 2 * initial_adm_energy * np.log(
+                areal_radius[0, 1] / (2 * initial_adm_energy) - 1
+            )
+            simulation_time = ( # Approximate time in SpEC simulation coordinates
+                (h0.t + tortoise_coord)
+                * np.sqrt(1 - 2 * initial_adm_energy / areal_radius[0, 1])
+                / avg_lapse
+            )
+            for l in range(2, ell_max):
+                for m in range(-l, l + 1):
+                    new_data = h0.data[:, sf.LM_index(l, m, 2)]
+                    # Add subleading, radius-dependent terms to the asymptotic data
+                    for n in range(1, n_subleading + 1):
+                        h_subleading = (
+                            amp
+                            * np.abs(h0.data[:, sf.LM_index(l, m, 2)])
+                            * (
+                                np.cos(n * 50 * h0.t * np.pi / h0.t.shape[0])
+                                + 1j * np.sin(n * 50 * h0.t * np.pi / h0.t.shape[0])
+                            )
+                        )
+                        new_data += h_subleading * (1 / areal_radius[0, 1]) ** n
+                    re_spline = InterpolatedUnivariateSpline(
+                        simulation_time, new_data.real, ext=1
+                    )
+                    im_spline = InterpolatedUnivariateSpline(
+                        simulation_time, new_data.imag, ext=1
+                    )
+                    # Add a small epsilon to prevent angular_velocity() from 
+                    # encountering a singular matrix
+                    re_data = re_spline(all_times) + 1e-14 * all_times
+                    im_data = im_spline(all_times) + 1e-14 * all_times
+                    new_dset = np.vstack((all_times, re_data, im_data)).T
+                    dset = h5file.create_dataset(
+                        groups[i] + f"/Y_l{l}_m{m}.dat", data=new_dset
+                    )
+                    dset.attrs.create(
+                        "Legend",
+                        [
+                            "time",
+                            f"Re[rh]_l{l}_m{m}(R={coord_radii[i]}.00)",
+                            f"Im[rh]_l{l}_m{m}(R={coord_radii[i]}.00)",
+                        ],
+                    )
