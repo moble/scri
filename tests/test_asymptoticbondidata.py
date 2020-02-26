@@ -7,6 +7,7 @@ import scri
 import pytest
 
 ABD = scri.AsymptoticBondiData
+abd = scri.asymptotic_bondi_data
 
 
 def kerr_schild(mass, spin, ell_max=8):
@@ -34,6 +35,58 @@ def test_abd_schwarzschild():
     # print(f"Computed four-momentum: {computed_four_momentum}")
     assert np.allclose(computed_four_momentum, expected_four_momentum, atol=1e-14, rtol=1e-14)
     #print('Bondi-violation norms', abd.bondi_violation_norms)
+
+
+def test_abd_conformal_factors():
+    tolerance = 4e-14
+    ell_max = 32
+    n_theta = 2 * ell_max + 1
+    n_phi = n_theta
+    cf = abd.transformations.conformal_factors
+    def cf2(v, distorted_grid_rotors):
+        from math import sin, cos
+        # κ = 1 / [γ(1-v⋅r)]
+        # ð(κ⁻¹) = - κ⁻² ðκ
+        # ðκ = - κ² ð(κ⁻¹)
+        theta_phi = sf.theta_phi(n_theta, n_phi)
+        kinv = γ * np.array([
+            [
+                1 - v[0] * sin(θ) * cos(ϕ) - v[1] * math.sin(θ) * math.sin(ϕ) - v[2] * math.cos(θ)
+                for θ, ϕ in row
+            ]
+            for row in theta_phi
+        ])
+        k = 1 / kinv
+        κinv = spinsfast.map2salm(kinv, 0, ell_max)
+        κ = spinsfast.map2salm(k, 0, ell_max)
+        SWSHs = sf.SWSH_grid(distorted_grid_rotors, 0, ell_max)
+        one_over_k2 = np.tensordot(κinv, SWSHs, axes=([-1], [-1]))
+        one_over_k_cubed2 = one_over_k2**3
+        k2 = 1/one_over_k2
+        ðκ = sf.eth_NP(κ, 0)
+        SWSHs = sf.SWSH_grid(distorted_grid_rotors, 1, ell_max)
+        ðk = np.tensordot(ðκ, SWSHs, axes=([-1], [-1]))
+        ðk_over_k2 = ðk / k2
+        return k2[np.newaxis, :, :], ðk_over_k2[np.newaxis, :, :], one_over_k2[np.newaxis, :, :], one_over_k_cubed2[np.newaxis, :, :]
+    frame_rotation = quaternion.one
+    boost_velocity = np.array([0.01, 0.02, 0.03])
+    β = np.linalg.norm(boost_velocity)
+    γ = 1 / math.sqrt(1 - β**2)
+    distorted_grid_rotors = abd.transformations.boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi)
+    k, ðk_over_k, one_over_k, one_over_k_cubed = cf(boost_velocity, distorted_grid_rotors)
+    k2, ðk_over_k2, one_over_k2, one_over_k_cubed2 = cf2(boost_velocity, distorted_grid_rotors)
+    assert k.shape == k2.shape
+    assert ðk_over_k.shape == ðk_over_k2.shape
+    assert one_over_k.shape == one_over_k2.shape
+    assert one_over_k_cubed.shape == one_over_k_cubed2.shape
+    assert k.s == 0
+    assert ðk_over_k.s == 1
+    assert one_over_k.s == 0
+    assert one_over_k_cubed.s == 0
+    assert np.allclose(k.view(np.ndarray), k2, atol=tolerance, rtol=tolerance)
+    assert np.allclose(ðk_over_k.view(np.ndarray), ðk_over_k2, atol=tolerance, rtol=tolerance)
+    assert np.allclose(one_over_k.view(np.ndarray), one_over_k2, atol=tolerance, rtol=tolerance)
+    assert np.allclose(one_over_k_cubed.view(np.ndarray), one_over_k_cubed2, atol=tolerance, rtol=tolerance)
 
 
 def test_abd_schwarzschild_transform():
