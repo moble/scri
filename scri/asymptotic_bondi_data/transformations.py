@@ -292,7 +292,7 @@ def transform(self, **kwargs):
     # Compute u, α, ðα, ððα, k, ðk/k, 1/k, and 1/k³ on the distorted grid, including new axes to
     # enable broadcasting with time-dependent functions.  Note that the first axis should represent
     # variation in u, the second axis variation in θ', and the third axis variation in ϕ'.
-    u = self.u[:, np.newaxis, np.newaxis]
+    u = self.u
     α = sf.Grid(supertranslation.evaluate(distorted_grid_rotors), spin_weight=0).real[np.newaxis, :, :]
     ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+1)[np.newaxis, :, :]
     ððα = sf.Grid(supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+2)[np.newaxis, :, :]
@@ -360,17 +360,20 @@ def transform(self, **kwargs):
     fprime_temp *= one_over_k_cubed
     fprime_of_timenaught_directionprime[4] = fprime_temp
     # σ'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[5] = one_over_k * (σ - ððα)
+    fprime_temp = σ.copy()
+    fprime_temp -= ððα
+    fprime_temp *= one_over_k
+    fprime_of_timenaught_directionprime[5] = fprime_temp
 
     # Determine the new time slices.  The set timeprime is chosen so that on each slice of constant
-    # u'_i, the average value of u=u'/k+α is precisely <u>=u'γ+<α>=u_i.  But then, we have to narrow
-    # that set down, so that every physical point on all the u'_i' slices correspond to data in the
-    # range of input data.
-    timeprime = (u[:, 0, 0] - sf.constant_from_ell_0_mode(supertranslation[0]).real) / γ
+    # u'_i, the average value of u=(u'/k)+α is precisely <u>=u'γ+<α>=u_i.  But then, we have to
+    # narrow that set down, so that every grid point on all the u'_i' slices correspond to data in
+    # the range of input data.
+    timeprime = (u - sf.constant_from_ell_0_mode(supertranslation[0]).real) / γ
     timeprime_of_initialtime_directionprime = (k * (u[0] - α))
     timeprime_of_finaltime_directionprime = (k * (u[-1] - α))
-    earliest_complete_timeprime = np.max(timeprime_of_initialtime_directionprime)
-    latest_complete_timeprime = np.min(timeprime_of_finaltime_directionprime)
+    earliest_complete_timeprime = np.max(timeprime_of_initialtime_directionprime.view(np.ndarray))
+    latest_complete_timeprime = np.min(timeprime_of_finaltime_directionprime.view(np.ndarray))
     timeprime = timeprime[(timeprime >= earliest_complete_timeprime)
                           & (timeprime <= latest_complete_timeprime)]
 
@@ -384,7 +387,7 @@ def transform(self, **kwargs):
             k_i_j = k[0, i, j]
             α_i_j = α[0, i, j]
             # u'(u, θ', ϕ')
-            timeprime_of_timenaught_directionprime_i_j = k_i_j * (self.u - α_i_j)
+            timeprime_of_timenaught_directionprime_i_j = k_i_j * (u - α_i_j)
             # f'(u', θ', ϕ')
             fprime_of_timeprime_directionprime[:, :, i, j] = CubicSpline(
                 timeprime_of_timenaught_directionprime_i_j,
