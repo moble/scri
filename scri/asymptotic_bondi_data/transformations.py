@@ -320,40 +320,45 @@ def transform(self, **kwargs):
     #
     fprime_of_timenaught_directionprime = np.empty((6, self.n_times, n_theta, n_phi), dtype=complex)
     # ψ0'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[0] = ψ4
-    fprime_of_timenaught_directionprime[0] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[0] += -4 * ψ3
-    fprime_of_timenaught_directionprime[0] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[0] += 6 * ψ2
-    fprime_of_timenaught_directionprime[0] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[0] += -4 * ψ1
-    fprime_of_timenaught_directionprime[0] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[0] += ψ0
-    fprime_of_timenaught_directionprime[0] *= one_over_k_cubed
+    fprime_temp = ψ4.copy()
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += -4 * ψ3
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += 6 * ψ2
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += -4 * ψ1
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += ψ0
+    fprime_temp *= one_over_k_cubed
+    fprime_of_timenaught_directionprime[0] = fprime_temp
     # ψ1'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[1] = -ψ4
-    fprime_of_timenaught_directionprime[1] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[1] += 3 * ψ3
-    fprime_of_timenaught_directionprime[1] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[1] += -3 * ψ2
-    fprime_of_timenaught_directionprime[1] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[1] += ψ1
-    fprime_of_timenaught_directionprime[1] *= one_over_k_cubed
+    fprime_temp = -ψ4
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += 3 * ψ3
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += -3 * ψ2
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += ψ1
+    fprime_temp *= one_over_k_cubed
+    fprime_of_timenaught_directionprime[1] = fprime_temp
     # ψ2'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[2] = ψ4
-    fprime_of_timenaught_directionprime[2] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[2] += -2 * ψ3
-    fprime_of_timenaught_directionprime[2] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[2] += ψ2
-    fprime_of_timenaught_directionprime[2] *= one_over_k_cubed
+    fprime_temp = ψ4.copy()
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += -2 * ψ3
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += ψ2
+    fprime_temp *= one_over_k_cubed
+    fprime_of_timenaught_directionprime[2] = fprime_temp
     # ψ3'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[3] = -ψ4
-    fprime_of_timenaught_directionprime[3] *= ðuprime_over_k
-    fprime_of_timenaught_directionprime[3] += ψ3
-    fprime_of_timenaught_directionprime[3] *= one_over_k_cubed
+    fprime_temp = -ψ4
+    fprime_temp *= ðuprime_over_k
+    fprime_temp += ψ3
+    fprime_temp *= one_over_k_cubed
+    fprime_of_timenaught_directionprime[3] = fprime_temp
     # ψ4'(u, θ', ϕ')
-    fprime_of_timenaught_directionprime[4] = ψ4
-    fprime_of_timenaught_directionprime[4] *= one_over_k_cubed
+    fprime_temp = ψ4.copy()
+    fprime_temp *= one_over_k_cubed
+    fprime_of_timenaught_directionprime[4] = fprime_temp
     # σ'(u, θ', ϕ')
     fprime_of_timenaught_directionprime[5] = one_over_k * (σ - ððα)
 
