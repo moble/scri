@@ -65,9 +65,9 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
         spacetime_translation[0] = t_trans
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
 
-    # Decide on the number of points to use in each direction.  A nontrivial supertranslation will introduce
-    # power in higher modes, so for best accuracy, we need to account for that.  But we'll make it a firm
-    # requirement to have enough points to capture the original waveform, at least
+    # Decide on the number of points to use in each direction.  A nontrivial supertranslation will
+    # introduce power in higher modes, so for best accuracy, we need to account for that.  But we'll
+    # make it a firm requirement to have enough points to capture the original waveform, at least
     output_ell_max = kwargs.pop('output_ell_max', input_ell_max)
     working_ell_max = kwargs.pop('working_ell_max', 2*input_ell_max + ell_max_supertranslation)
     if working_ell_max < input_ell_max:
@@ -101,14 +101,15 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
         def Bprm_j_k(thetaprm, phiprm):
             """Construct rotor taking r' to r
 
-            I derived this result in a different way, but I've also found it described in Penrose-Rindler Vol. 1,
-            around Eq. (1.3.5).  Note, however, that their discussion is for the past celestial sphere,
-            so there's a sign difference.
+            I derived this result in a different way, but I've also found it described in
+            Penrose-Rindler Vol. 1, around Eq. (1.3.5).  Note, however, that their discussion is for
+            the past celestial sphere, so there's a sign difference.
 
             """
-            # Note: It doesn't matter which we use -- r' or r; all we need is the direction of the bivector
-            # spanned by v and r', which is the same as the direction of the bivector spanned by v and r,
-            # since either will be normalized, and one cross product is zero iff the other is zero.
+            # Note: It doesn't matter which we use -- r' or r; all we need is the direction of the
+            # bivector spanned by v and r', which is the same as the direction of the bivector
+            # spanned by v and r, since either will be normalized, and one cross product is zero iff
+            # the other is zero.
             rprm = np.array([math.cos(phiprm)*math.sin(thetaprm),
                              math.sin(phiprm)*math.sin(thetaprm),
                              math.cos(thetaprm)])
@@ -138,6 +139,52 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
     return R_j_k
 
 
+def conformal_factors(boost_velocity, distorted_grid_rotors):
+    """Compute various combinations of the conformal factor
+
+    This is primarily a utility function for use in the `transform` function, pulled out so that it
+    can be tested separately.
+
+    Parameters
+    ==========
+    boost_velocity: array of 3 floats
+        Three-velocity of the new frame relative to the old frame
+    distorted_grid_rotors: 2-d array of quaternions
+        Unit quaternions giving the rotation of the (x, y, z) basis onto the basis vectors with
+        respect to which the output spin-weighted fields are evaluated
+
+    Returns
+    =======
+    k: spherical_functions.Grid
+    ðk_over_k: spherical_functions.Grid
+    one_over_k: spherical_functions.Grid
+    one_over_k_cubed: spherical_functions.Grid
+        These all have the same shape as `distorted_grid_rotors` except for an additional dimension
+        of size 1 at the beginning, so that they can broadcast against the time dimension.
+
+    """
+    from quaternion import rotate_vectors
+    β = np.linalg.norm(boost_velocity)
+    γ = 1 / math.sqrt(1 - β**2)
+
+    # Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.  As modes
+    # in the undistorted frame, we have ð(v·r) = √2 (v·r), but this is now an s=1 field, so it has
+    # to be evaluated as such.
+    v_dot_r = sf.Grid(
+        np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity),
+        spin_weight=0
+    )[np.newaxis, :, :]
+    ðv_dot_r = sf.Grid(sf.Modes(
+        math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0),
+        spin_weight=1
+    ).evaluate(distorted_grid_rotors), spin_weight=1)[np.newaxis, :, :]
+    one_over_k = γ * (1 - v_dot_r)
+    k = 1.0 / one_over_k
+    ðk_over_k = ðv_dot_r / (1 - v_dot_r)
+    one_over_k_cubed = one_over_k**3
+    return k, ðk_over_k, one_over_k, one_over_k_cubed
+
+
 def transform(self, **kwargs):
     """Apply BMS transformation to AsymptoticBondiData object
 
@@ -162,7 +209,7 @@ def transform(self, **kwargs):
 
         α(θ, ϕ) = δt  # Independent of (θ, ϕ)
 
-    A pure spatial translation δx ·would correspond to
+    A pure spatial translation δx would correspond to
 
         α(θ, ϕ) = -δx · n̂(θ, ϕ)
 
@@ -217,7 +264,8 @@ def transform(self, **kwargs):
 
     Returns
     -------
-    AsymptoticBondiData
+    abdprime: AsymptoticBondiData
+        Object representing the transformed data.
 
     """
     from quaternion import rotate_vectors
@@ -241,42 +289,30 @@ def transform(self, **kwargs):
     # original time slices.
     distorted_grid_rotors = boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi)
 
-    # Compute u, α, ðα, ððα, v·r, 1/k, 1/k**3, k, and ðk/k on the distorted grid, including new axes
-    # to enable broadcasting with time-dependent functions.  Note that the first axis should
-    # represent variation in u, the second axis variation along θ', and the third axis variation
-    # along ϕ'.  Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.
-    # As modes in the undistorted frame, we have ð(v·r) = √2 (v·r), but this is now an s=1 field, so
-    # it has to be evaluated as such.
+    # Compute u, α, ðα, ððα, k, ðk/k, 1/k, and 1/k³ on the distorted grid, including new axes to
+    # enable broadcasting with time-dependent functions.  Note that the first axis should represent
+    # variation in u, the second axis variation in θ', and the third axis variation in ϕ'.
     u = self.u[:, np.newaxis, np.newaxis]
-    α = supertranslation.evaluate(distorted_grid_rotors).real[np.newaxis, :, :]
-    ðα = supertranslation.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
-    ððα = supertranslation.eth.eth.evaluate(distorted_grid_rotors)[np.newaxis, :, :]
-    v_dot_r = np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity)[np.newaxis, :, :]
-    ðv_dot_r = np.tensordot(
-        math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0),
-        sf.SWSH_grid(distorted_grid_rotors, 1, 1),
-        axes=([0], [2])
-    )[np.newaxis, :, :]
-    one_over_k = γ * (1 - v_dot_r)
-    one_over_k_cubed = one_over_k**3
-    k = 1.0 / one_over_k
-    ðk_over_k = ðv_dot_r / (1 - v_dot_r)
+    α = sf.Grid(supertranslation.evaluate(distorted_grid_rotors), spin_weight=0).real[np.newaxis, :, :]
+    ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+1)[np.newaxis, :, :]
+    ððα = sf.Grid(supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+2)[np.newaxis, :, :]
+    k, ðk_over_k, one_over_k, one_over_k_cubed = conformal_factors(boost_velocity, distorted_grid_rotors)
 
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
     ðuprime_over_k = ðk_over_k * (u - α) - ðα
 
     # ψ0(u, θ', ϕ') exp(2iλ)
-    ψ0 = self.psi0.evaluate(distorted_grid_rotors)
+    ψ0 = sf.Grid(self.psi0.evaluate(distorted_grid_rotors), spin_weight=2)
     # ψ1(u, θ', ϕ') exp(iλ)
-    ψ1 = self.psi1.evaluate(distorted_grid_rotors)
+    ψ1 = sf.Grid(self.psi1.evaluate(distorted_grid_rotors), spin_weight=1)
     # ψ2(u, θ', ϕ')
-    ψ2 = self.psi2.evaluate(distorted_grid_rotors)
+    ψ2 = sf.Grid(self.psi2.evaluate(distorted_grid_rotors), spin_weight=0)
     # ψ3(u, θ', ϕ') exp(-1iλ)
-    ψ3 = self.psi3.evaluate(distorted_grid_rotors)
+    ψ3 = sf.Grid(self.psi3.evaluate(distorted_grid_rotors), spin_weight=-1)
     # ψ4(u, θ', ϕ') exp(-2iλ)
-    ψ4 = self.psi4.evaluate(distorted_grid_rotors)
+    ψ4 = sf.Grid(self.psi4.evaluate(distorted_grid_rotors), spin_weight=-2)
     # σ(u, θ', ϕ') exp(2iλ)
-    σ = self.sigma.evaluate(distorted_grid_rotors)
+    σ = sf.Grid(self.sigma.evaluate(distorted_grid_rotors), spin_weight=2)
 
     ### The following calculations are done using in-place Horner form.  I suspect this will be the
     ### most efficient form of this calculation, within reason.  Note that the factors of exp(isλ)
