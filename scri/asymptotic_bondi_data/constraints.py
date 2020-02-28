@@ -50,7 +50,7 @@ def bondi_violations(self):
 
     """
     constraints = self.bondi_constraints(True, True)
-    return (lhs-rhs for (lhs, rhs) in constraints)
+    return [lhs-rhs for (lhs, rhs) in constraints]
 
 
 @property
@@ -73,7 +73,7 @@ def bondi_violation_norms(self):
 
     """
     violations = self.bondi_violations
-    return (v.norm() for v in violations)
+    return [v.norm() for v in violations]
 
 
 def bianchi_0(self, lhs=True, rhs=True):
@@ -249,8 +249,9 @@ def constraint_mass_aspect(self, lhs=True, rhs=True):
     otherwise just the requested value is returned.
 
     """
+    import numpy as np
     if lhs:
-        lhs_value = np.imag(self.psi2.view(np.ndarray))
+        lhs_value = np.imag(self.psi2)
     if rhs:
         rhs_value = -np.imag(self.sigma.bar.eth.eth + self.sigma * self.sigma.bar.dot)
     if lhs and rhs:
