@@ -11,15 +11,15 @@ def bondi_constraints(self, lhs=True, rhs=True):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        \dot{\Psi0} = -\eth\Psi_1 + 3\sigma \Psi_2
-        \dot{\Psi1} = -\eth\Psi_2 + 2\sigma \Psi_3
-        \dot{\Psi2} = -\eth\Psi_3 + \sigma \Psi_4
-        \Psi_3 = \eth \dot{\bar{\sigma}}
-        \Psi_4 = - \ddot{\bar{\sigma}}
-        Im[\Psi_2] = -Im[\eth^2\bar{\sigma} + \sigma \dot{\bar{\sigma}}]
+        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
+        ψ₃ = ∂ðσ̄/∂u
+        ψ₄ = -∂²σ̄/∂u²
+        Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
-    This function returns a 6-tuple of 2-tuples, corresponding to these 6 equations and their
-    left- and right-hand sides.
+    This function returns a 6-tuple of 2-tuples, corresponding to these 6 equations
+    and their left- and right-hand sides.
 
     """
     return (
@@ -38,15 +38,16 @@ def bondi_violations(self):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        \dot{\Psi0} = -\eth\Psi_1 + 3\sigma \Psi_2
-        \dot{\Psi1} = -\eth\Psi_2 + 2\sigma \Psi_3
-        \dot{\Psi2} = -\eth\Psi_3 + \sigma \Psi_4
-        \Psi_3 = \eth \dot{\bar{\sigma}}
-        \Psi_4 = - \ddot{\bar{\sigma}}
-        Im[\Psi_2] = -Im[\eth^2\bar{\sigma} + \sigma \dot{\bar{\sigma}}]
+        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
+        ψ₃ = ∂ðσ̄/∂u
+        ψ₄ = -∂²σ̄/∂u²
+        Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
-    This function returns a tuple of 6 arrays, corresponding to these 6 equations, in which the
-    right-hand side is subtracted from the left-hand side.  No norms are taken.
+    This function returns a tuple of 6 arrays, corresponding to these 6 equations,
+    in which the right-hand side is subtracted from the left-hand side.  No norms
+    are taken.
 
     """
     constraints = self.bondi_constraints(True, True)
@@ -59,17 +60,17 @@ def bondi_violation_norms(self):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        \dot{\Psi0} = -\eth\Psi_1 + 3\sigma \Psi_2
-        \dot{\Psi1} = -\eth\Psi_2 + 2\sigma \Psi_3
-        \dot{\Psi2} = -\eth\Psi_3 + \sigma \Psi_4
-        \Psi_3 = \eth \dot{\bar{\sigma}}
-        \Psi_4 = - \ddot{\bar{\sigma}}
-        Im[\Psi_2] = -Im[\eth^2\bar{\sigma} + \sigma \dot{\bar{\sigma}}]
+        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
+        ψ₃ = ∂ðσ̄/∂u
+        ψ₄ = -∂²σ̄/∂u²
+        Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
-    This function returns a tuple of 6 arrays, corresponding to the norms of these 6 equations,
-    in which the right-hand side is subtracted from the left-hand side, and then the squared
-    magnitude of that result is integrated over the sphere.  No integration is performed over
-    time.
+    This function returns a tuple of 6 arrays, corresponding to the norms of these
+    6 equations, in which the right-hand side is subtracted from the left-hand
+    side, and then the squared magnitude of that result is integrated over the
+    sphere.  No integration is performed over time.
 
     """
     violations = self.bondi_violations
@@ -79,10 +80,10 @@ def bondi_violation_norms(self):
 def bianchi_0(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the Psi0 component of the Bianchi identity
 
-    In Bondi coordinates, the Bianchi identities simplify, resulting in this expression (among
-    others) for the time derivative of Psi0:
+    In Bondi coordinates, the Bianchi identities simplify, resulting in this
+    expression (among others) for the time derivative of ψ₀:
 
-        \dot{\Psi0} = -\eth\Psi_1 + 3\sigma \Psi_2
+        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
 
     Parameters
     ==========
@@ -91,8 +92,8 @@ def bianchi_0(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     if lhs:
@@ -110,10 +111,10 @@ def bianchi_0(self, lhs=True, rhs=True):
 def bianchi_1(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the Psi1 component of the Bianchi identity
 
-    In Bondi coordinates, the Bianchi identities simplify, resulting in this expression (among
-    others) for the time derivative of Psi1:
+    In Bondi coordinates, the Bianchi identities simplify, resulting in this
+    expression (among others) for the time derivative of ψ₁:
 
-        \dot{\Psi1} = -\eth\Psi_2 + 2\sigma \Psi_3
+        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
 
     Parameters
     ==========
@@ -122,8 +123,8 @@ def bianchi_1(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     if lhs:
@@ -141,10 +142,10 @@ def bianchi_1(self, lhs=True, rhs=True):
 def bianchi_2(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the Psi2 component of the Bianchi identity
 
-    In Bondi coordinates, the Bianchi identities simplify, resulting in this expression (among
-    others) for the time derivative of Psi2:
+    In Bondi coordinates, the Bianchi identities simplify, resulting in this
+    expression (among others) for the time derivative of ψ₂:
 
-        \dot{\Psi2} = -\eth\Psi_3 + \sigma \Psi_4
+        ψ̇₂ = -ðψ₃ + σ ψ₄
 
     Parameters
     ==========
@@ -153,8 +154,8 @@ def bianchi_2(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     if lhs:
@@ -172,10 +173,10 @@ def bianchi_2(self, lhs=True, rhs=True):
 def constraint_3(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the Psi3 expression in Bondi gauge
 
-    In Bondi coordinates, the value of Psi3 is given by a time derivative and an angular
-    derivative of the (conjugate) shear:
+    In Bondi coordinates, the value of ψ₃ is given by a time derivative and an
+    angular derivative of the (conjugate) shear:
 
-        \Psi3 = \eth \dot{\bar{\sigma}}
+        ψ₃ = ∂ðσ̄/∂u
 
     Parameters
     ==========
@@ -184,8 +185,8 @@ def constraint_3(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     if lhs:
@@ -203,10 +204,10 @@ def constraint_3(self, lhs=True, rhs=True):
 def constraint_4(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the Psi4 expression in Bondi gauge
 
-    In Bondi coordinates, the value of Psi4 is given by two time derivatives of the (conjugate)
-    shear:
+    In Bondi coordinates, the value of ψ₄ is given by the second time derivative
+    of the (conjugate) shear:
 
-        \Psi4 = - \ddot{\bar{\sigma}}
+        ψ₄ = -∂²σ̄/∂u²
 
     Parameters
     ==========
@@ -215,8 +216,8 @@ def constraint_4(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     if lhs:
@@ -234,9 +235,10 @@ def constraint_4(self, lhs=True, rhs=True):
 def constraint_mass_aspect(self, lhs=True, rhs=True):
     """Return the left- and/or right-hand sides of the mass-aspect reality condition in Bondi gauge
 
-    In Bondi coordinates, the Bondi mass aspect is always real, resulting in this relationship:
+    In Bondi coordinates, the Bondi mass aspect is always real, resulting in this
+    relationship:
 
-        \Im[\Psi2] = - \Im[\eth^2\bar{\sigma} + \sigma \dot{\bar{\sigma}}]
+        Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
     Parameters
     ==========
@@ -245,8 +247,8 @@ def constraint_mass_aspect(self, lhs=True, rhs=True):
     rhs: bool [defaults to True]
         If True, return the right-hand side of the equation above
 
-    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is returned;
-    otherwise just the requested value is returned.
+    If both parameters are True, a tuple with elements (lhs_value, rhs_value) is
+    returned; otherwise just the requested value is returned.
 
     """
     import numpy as np
