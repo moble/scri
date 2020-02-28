@@ -85,9 +85,9 @@ def from_initial_values(cls, time, ell_max=8, sigma=0.0, sigmadot=0.0, sigmaddot
         # this is true, assumes sigmadot and sigmaddot are constants in time, and just integrates
         # them.
         u = abd.time
-        sigma = ModesTimeSeries(sigma+0j, u, spin_weight=2)
-        sigmadot = ModesTimeSeries(sigmadot+0j, u, spin_weight=2)
-        sigmaddot = ModesTimeSeries(sigmaddot+0j, u, spin_weight=2)
+        sigma = ModesTimeSeries(sigma+0j, u, spin_weight=2, multiplication_truncator=max)
+        sigmadot = ModesTimeSeries(sigmadot+0j, u, spin_weight=2, multiplication_truncator=max)
+        sigmaddot = ModesTimeSeries(sigmaddot+0j, u, spin_weight=2, multiplication_truncator=max)
         abd.sigma = sigma + u * (sigmadot + u * (sigmaddot / 2))
         # ψ₄ = -∂²σ̄/∂u²
         abd.psi4 = -sigmaddot.bar
@@ -110,7 +110,7 @@ def from_initial_values(cls, time, ell_max=8, sigma=0.0, sigmadot=0.0, sigmaddot
         #    = -ð(uψ₂₀+u²ψ₂₁/2+u³ψ₂₂/3+u⁴ψ₂₃/4) + ∫ (σ₀ψ₃₀+u(σ₁ψ₃₀+σ₀ψ₃₁)+u²(σ₂ψ₃₀/2+σ₁ψ₃₁)+u³(σ₂ψ₃₁/2)) du
         #    = -uðψ₂₀-u²ðψ₂₁/2-u³ðψ₂₂/3-u⁴ðψ₂₃/4 + uσ₀ψ₃₀+u²(σ₁ψ₃₀+σ₀ψ₃₁)/2+u³(σ₂ψ₃₀/2+σ₁ψ₃₁)/3+u⁴(σ₂ψ₃₁/2)/4
         #    = u(σ₀ψ₃₀-ðψ₂₀) + u²(σ₁ψ₃₀+σ₀ψ₃₁-ðψ₂₁)/2 + u³(σ₂ψ₃₀/2+σ₁ψ₃₁-ðψ₂₂)/3 + u⁴(σ₂ψ₃₁/2-ðψ₂₃)/4
-        ψ10 = ModesTimeSeries(psi1, u, spin_weight=1)
+        ψ10 = ModesTimeSeries(psi1, u, spin_weight=1, multiplication_truncator=max)
         ψ11 = sigma * ψ30 - ψ20.eth
         ψ12 = (sigmadot * ψ30 + sigma * ψ31 - ψ21.eth) / 2
         ψ13 = (sigmaddot * ψ30 / 2 + sigmadot * ψ31 - ψ22.eth) / 3
@@ -122,7 +122,7 @@ def from_initial_values(cls, time, ell_max=8, sigma=0.0, sigmadot=0.0, sigmaddot
         #    = -ð(uψ₁₀+u²ψ₁₁/2+u³ψ₁₂/3+u⁴ψ₁₃/4+u⁵ψ₁₄/5) + ∫ (σ₀ψ₂₀+u(σ₁ψ₂₀+σ₀ψ₂₁)+u²(σ₂ψ₂₀/2+σ₁ψ₂₁+σ₀ψ₂₂)+u³(σ₂ψ₂₁/2+σ₁ψ₂₂)+u⁴(σ₂ψ₂₂/2)) du
         #    = -uðψ₁₀-u²ðψ₁₁/2-u³ðψ₁₂/3-u⁴ðψ₁₃/4-u⁵ðψ₁₄/5 + uσ₀ψ₂₀+u²(σ₁ψ₂₀+σ₀ψ₂₁)/2+u³(σ₂ψ₂₀/2+σ₁ψ₂₁+σ₀ψ₂₂)/3+u⁴(σ₂ψ₂₁/2+σ₁ψ₂₂)/4+u⁵(σ₂ψ₂₂/2)/5
         #    = u(σ₀ψ₂₀-ðψ₁₀) + u²(σ₁ψ₂₀+σ₀ψ₂₁-ðψ₁₁)/2 + u³(σ₂ψ₂₀/2+σ₁ψ₂₁+σ₀ψ₂₂-ðψ₁₂)/3 + u⁴(σ₂ψ₂₁/2+σ₁ψ₂₂-ðψ₁₃)/4 + u⁵(σ₂ψ₂₂/2 -ðψ₁₄/5)/5
-        ψ00 = ModesTimeSeries(psi0, u, spin_weight=2)
+        ψ00 = ModesTimeSeries(psi0, u, spin_weight=2, multiplication_truncator=max)
         ψ01 = sigma * ψ20 - ψ10.eth
         ψ02 = (sigmadot * ψ20 + sigma * ψ21 - ψ11.eth) / 2
         ψ03 = (sigmaddot * ψ20 / 2 + sigmadot * ψ21 + sigma * ψ22 - ψ12.eth) / 3
