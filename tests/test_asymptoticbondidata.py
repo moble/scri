@@ -79,6 +79,10 @@ def test_abd_conformal_factors():
     assert ðk_over_k.shape == ðk_over_k2.shape
     assert one_over_k.shape == one_over_k2.shape
     assert one_over_k_cubed.shape == one_over_k_cubed2.shape
+    assert isinstance(k, sf.Grid)
+    assert isinstance(ðk_over_k, sf.Grid)
+    assert isinstance(one_over_k, sf.Grid)
+    assert isinstance(one_over_k_cubed, sf.Grid)
     assert k.s == 0
     assert ðk_over_k.s == 1
     assert one_over_k.s == 0
