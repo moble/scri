@@ -1,4 +1,4 @@
-import math
+from math import sqrt, pi
 import numpy as np
 from spherical_functions import LM_total_size
 from .. import ModesTimeSeries
@@ -30,6 +30,7 @@ class AsymptoticBondiData(object):
     the Bondi four-momentum, the Bianchi identities, etc.
 
     """
+
     def __init__(self, time, ell_max, multiplication_truncator=sum):
         """Create new storage for asymptotic Bondi data
 
@@ -49,6 +50,8 @@ class AsymptoticBondiData(object):
             is aware of the situation.)
 
         """
+        import functools
+
         if np.ndim(time) == 0:
             # Assume this is just the size of the time array; construct an empty array
             time = np.empty((time,), dtype=float)
@@ -56,21 +59,16 @@ class AsymptoticBondiData(object):
             raise ValueError(f"Input `time` parameter must be an integer or a 1-d array; it has shape {time.shape}")
         if time.dtype != float:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
+        ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
         shape = [6, time.size, LM_total_size(0, ell_max)]
         self._time = time.copy()
         self._raw_data = np.zeros(shape, dtype=complex)
-        self._psi0 = ModesTimeSeries(self._raw_data[0], self._time, spin_weight=2,
-                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        self._psi1 = ModesTimeSeries(self._raw_data[1], self._time, spin_weight=1,
-                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        self._psi2 = ModesTimeSeries(self._raw_data[2], self._time, spin_weight=0,
-                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        self._psi3 = ModesTimeSeries(self._raw_data[3], self._time, spin_weight=-1,
-                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        self._psi4 = ModesTimeSeries(self._raw_data[4], self._time, spin_weight=-2,
-                                     ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        self._sigma = ModesTimeSeries(self._raw_data[5], self._time, spin_weight=2,
-                                      ell_max=ell_max, multiplication_truncator=multiplication_truncator)
+        self._psi0 = ModesTS(self._raw_data[0], self._time, spin_weight=2)
+        self._psi1 = ModesTS(self._raw_data[1], self._time, spin_weight=1)
+        self._psi2 = ModesTS(self._raw_data[2], self._time, spin_weight=0)
+        self._psi3 = ModesTS(self._raw_data[3], self._time, spin_weight=-1)
+        self._psi4 = ModesTS(self._raw_data[4], self._time, spin_weight=-2)
+        self._sigma = ModesTS(self._raw_data[5], self._time, spin_weight=2)
 
     @property
     def time(self):
@@ -197,12 +195,12 @@ class AsymptoticBondiData(object):
     def bondi_four_momentum(self):
         """Compute the Bondi four-momentum of the AsymptoticBondiData"""
         import spherical_functions as sf
-        P_restricted = - self.mass_aspect(1).view(np.ndarray) / math.sqrt(4*math.pi)  # Compute only the parts we need, ell<=1
+        P_restricted = - self.mass_aspect(1).view(np.ndarray) / sqrt(4*pi)  # Compute only the parts we need, ell<=1
         four_momentum = np.empty(P_restricted.shape, dtype=float)
         four_momentum[..., 0] = P_restricted[..., 0].real
-        four_momentum[..., 1] = (P_restricted[..., 3] - P_restricted[..., 1]).real / math.sqrt(6)
-        four_momentum[..., 2] = (1j * (P_restricted[..., 3] + P_restricted[..., 1])).real / math.sqrt(6)
-        four_momentum[..., 3] = -P_restricted[..., 2].real / math.sqrt(3)
+        four_momentum[..., 1] = (P_restricted[..., 3] - P_restricted[..., 1]).real / sqrt(6)
+        four_momentum[..., 2] = (1j * (P_restricted[..., 3] + P_restricted[..., 1])).real / sqrt(6)
+        four_momentum[..., 3] = -P_restricted[..., 2].real / sqrt(3)
         return four_momentum
 
     from .constraints import (
