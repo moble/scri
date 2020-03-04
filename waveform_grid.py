@@ -363,11 +363,6 @@ class WaveformGrid(WaveformBase):
             then psi4_modes and psi3_modes will be required. Note: the WaveformModes objects 
             supplied to these arguments will themselves NOT be transformed. Please use the 
             AsymptoticBondiData class to efficiently transform all asymptotic data at once.
-        eth_convention : {'SXS', 'NP', 'GHP'}
-            Specify the convention for the spin-weight raising/lower operator. Options are:
-                * 'SXS', the SXS collaboration convention (equal to eth_NP/2)
-                * 'NP', the Newman-Penrose convention
-                * 'GHP', the Geroch-Held-Penrose convention (equal to eth_NP/np.sqrt(2))
 
         Returns
         -------
@@ -561,19 +556,9 @@ class WaveformGrid(WaveformBase):
                                          :sf.LM_index(w_modes.ell_max, w_modes.ell_max, 0)+1],
             axes=([1], [2]))
         if beta != 0 or (supertranslation[1:] != 0).any():
-            eth_convention = kwargs.pop("eth_convention", "SXS")
-            if eth_convention.lower() == "np":
-                eth_factor = 1.0
-            elif eth_convention.lower() == "ghp":
-                eth_factor = 1.0 / np.sqrt(2) 
-            elif eth_convention.lower() == "sxs":
-                eth_factor = 0.5
-            else:
-                raise ValueError("\n'{0}' is not a valid option for eth_convention. "
-                                 "Must be one of: ['SXS', 'NP', 'GHP']".format(eth_convention))
             if w_modes.dataType == h:
                 # Note that SWSH_j_k will use s=-2 in this case, so it can be used in the tensordot correctly
-                supertranslation_deriv = eth_factor**2 * sf.ethbar_NP(sf.ethbar_NP(supertranslation, 0, 0), -1, 0)
+                supertranslation_deriv = 0.5 * sf.ethbar_GHP(sf.ethbar_GHP(supertranslation, 0, 0), -1, 0)
                 supertranslation_deriv_values = np.tensordot(
                     supertranslation_deriv,
                     SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
@@ -581,7 +566,7 @@ class WaveformGrid(WaveformBase):
                 fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
             elif w_modes.dataType == sigma:
                 # Note that SWSH_j_k will use s=+2 in this case, so it can be used in the tensordot correctly
-                supertranslation_deriv = eth_factor**2 * sf.eth_NP(sf.eth_NP(supertranslation, 0, 0), 1, 0)
+                supertranslation_deriv = 0.5 * sf.eth_GHP(sf.eth_GHP(supertranslation, 0, 0), 1, 0)
                 supertranslation_deriv_values = np.tensordot(
                     supertranslation_deriv,
                     SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
@@ -590,12 +575,12 @@ class WaveformGrid(WaveformBase):
             elif w_modes.dataType in [psi0, psi1, psi2, psi3]:
                 from scipy.special import comb
                 eth_alphasupertranslation_j_k = np.tensordot(
-                    eth_factor * sf.eth_NP(supertranslation, spin_weight=0),
+                    1/np.sqrt(2) * sf.eth_GHP(supertranslation, spin_weight=0),
                     sf.SWSH_grid(R_j_k, 1, ell_max_supertranslation),
                     axes=([0], [2]))
                 v_dot_rhat = np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0)
                 eth_v_dot_rhat_j_k = np.tensordot(
-                    eth_factor * np.sqrt(2) * v_dot_rhat,
+                    1/np.sqrt(2) * v_dot_rhat,
                     sf.SWSH_grid(R_j_k, 1, 1),
                     axes=([0], [2]))
                 eth_uprm_over_kconformal_i_j_k = (
