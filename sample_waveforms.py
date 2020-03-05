@@ -674,7 +674,7 @@ def create_fake_finite_radius_strain_h5file(
                 * np.sqrt(1 - 2 * initial_adm_energy / areal_radius[0, 1])
                 / avg_lapse
             )
-            for l in range(2, ell_max):
+            for l in range(2, ell_max + 1):
                 for m in range(-l, l + 1):
                     new_data = h0.data[:, sf.LM_index(l, m, 2)]
                     # Add subleading, radius-dependent terms to the asymptotic data
