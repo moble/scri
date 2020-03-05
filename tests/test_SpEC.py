@@ -58,11 +58,10 @@ def test_file_io(tempdir):
         scri.extrapolation.extrapolate(
             InputDirectory=str(tempdir),
             OutputDirectory=str(tempdir / "test_NRAR_extrapolation"),
-            DifferenceFiles="",
-            PlotFormat="",
-            UseStupidNRARFormat=True,
             ChMass=1.0,
-        )
+            UseStupidNRARFormat=True,
+            DifferenceFiles="",
+            PlotFormat="")
     output_dir.mkdir()
 
     input_file = str(input_file)
@@ -79,9 +78,7 @@ def test_file_io(tempdir):
         assert list1 == list2
 
         # Check that original history is contained (with extra comment characters) in second history
-        assert ("# " + "\n# ".join(f1["History.txt"][()].split("\n"))) in f2[
-            "History.txt"
-        ][()]
+        assert ("# " + "\n# ".join(f1["History.txt"][()].split("\n"))) in f2["History.txt"][()]
 
         # Now check each mode from the original
         for mode in list(f1):

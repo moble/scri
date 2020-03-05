@@ -599,15 +599,9 @@ def create_fake_finite_radius_strain_h5file(
         # Create version history dataset
         # We mimic how SpEC encodes the strings in VersionHist.ver to ensure we
         # don't hit any errors due to the encoding.
-        version_hist = [
-            [
-                "ef51849550a1d8a5bbdd810c7debf0dd839e86dd",
-                "Overall sign change in complex strain h.",
-            ]
-        ]
+        version_hist = [["ef51849550a1d8a5bbdd810c7debf0dd839e86dd", "Overall sign change in complex strain h."]]
         reencoded_version_hist = [
-            [entry[0].encode("ascii", "ignore"), entry[1].encode("ascii", "ignore")]
-            for entry in version_hist
+            [entry[0].encode("ascii", "ignore"), entry[1].encode("ascii", "ignore")] for entry in version_hist
         ]
         dset = h5file.create_dataset(
             "VersionHist.ver",
@@ -620,12 +614,7 @@ def create_fake_finite_radius_strain_h5file(
 
         # Generate the asymptotic waveform
         h0 = scri.sample_waveforms.fake_precessing_waveform(
-            t_0 = t_0,
-            t_1 = t_1,
-            dt = dt,
-            ell_max = ell_max,
-            precession_opening_angle = precession_opening_angle,
-            **kwargs,
+            t_0=t_0, t_1=t_1, dt=dt, ell_max=ell_max, precession_opening_angle=precession_opening_angle, **kwargs
         )
         n_times = int(h0.t.shape[0] + r_max / dt)
         t_1 += r_max
@@ -635,58 +624,42 @@ def create_fake_finite_radius_strain_h5file(
         for i in range(len(groups)):
             # Set coordinate radius dataset
             coord_radius = np.vstack((all_times, [coord_radii[i]] * n_times)).T
-            dset = h5file.create_dataset(
-                groups[i] + "/CoordRadius.dat", data=coord_radius
-            )
+            dset = h5file.create_dataset(groups[i] + "/CoordRadius.dat", data=coord_radius)
             dset.attrs.create("Legend", ["time", "CoordRadius"])
 
             # Set areal radius dataset
             areal_radius = coord_radius
             areal_radius[:, 1] += avg_areal_radius_diff
-            dset = h5file.create_dataset(
-                groups[i] + "/ArealRadius.dat", data=areal_radius
-            )
+            dset = h5file.create_dataset(groups[i] + "/ArealRadius.dat", data=areal_radius)
             dset.attrs.create("Legend", ["time", "ArealRadius"])
 
             # Set initial ADM energy dataset
             seg_start_times = h0.t[:: int(n_times / 20)]
-            adm_energy_dset = np.vstack(
-                (seg_start_times, [initial_adm_energy] * len(seg_start_times))
-            ).T
-            dset = h5file.create_dataset(
-                groups[i] + "/InitialAdmEnergy.dat", data=adm_energy_dset
-            )
+            adm_energy_dset = np.vstack((seg_start_times, [initial_adm_energy] * len(seg_start_times))).T
+            dset = h5file.create_dataset(groups[i] + "/InitialAdmEnergy.dat", data=adm_energy_dset)
             dset.attrs.create("Legend", ["time", "InitialAdmEnergy"])
 
             # Set average lapse dataset
             avg_lapse_dset = np.vstack((all_times, [avg_lapse] * n_times)).T
-            dset = h5file.create_dataset(
-                groups[i] + "/AverageLapse.dat", data=avg_lapse_dset
-            )
+            dset = h5file.create_dataset(groups[i] + "/AverageLapse.dat", data=avg_lapse_dset)
             dset.attrs.create("Legend", ["time", "AverageLapse"])
 
             # Set finite radius data
-            tortoise_coord = areal_radius[0, 1] + 2 * initial_adm_energy * np.log(
-                areal_radius[0, 1] / (2 * initial_adm_energy) - 1
-            )
-            simulation_time = ( # Approximate time in SpEC simulation coordinates
-                (h0.t + tortoise_coord)
-                * np.sqrt(1 - 2 * initial_adm_energy / areal_radius[0, 1])
-                / avg_lapse
-            )
+            R = areal_radius[0,1]
+            tortoise_coord = R + 2 * initial_adm_energy * np.log(R / (2 * initial_adm_energy) - 1)
+            # Compute the approximate time in SpEC simulation coordinates
+            simulation_time = (h0.t + tortoise_coord) * np.sqrt(1 - 2 * initial_adm_energy / R) / avg_lapse
             for l in range(2, ell_max + 1):
                 for m in range(-l, l + 1):
                     index = sf.LM_index(l, m, 2)
                     new_data = h0.data[:, index]
                     for n in range(1, n_subleading + 1):
-                        new_data += amp * areal_radius[0, 1] ** -n * np.exp((1j * n * 50 * np.pi / h0.n_times) * h0.t) * h0.abs[:, index]
+                        new_data += amp * h0.abs[:, index] * R ** -n * np.exp((1j * n * 50 * np.pi / h0.n_times) * h0.t)
                     new_data = CubicSpline(simulation_time, new_data)(all_times)
-                    new_data[(all_times<simulation_time[0]) | (all_times>simulation_time[-1])] = 0.0
+                    new_data[(all_times < simulation_time[0]) | (all_times > simulation_time[-1])] = 0.0
                     new_data += (1 + 1j) * 1e-14 * all_times
                     new_dset = np.vstack((all_times, new_data.real, new_data.imag)).T
-                    dset = h5file.create_dataset(
-                        groups[i] + f"/Y_l{l}_m{m}.dat", data=new_dset
-                    )
+                    dset = h5file.create_dataset(groups[i] + f"/Y_l{l}_m{m}.dat", data=new_dset)
                     dset.attrs.create(
                         "Legend",
                         [
