@@ -63,8 +63,24 @@ def test_NRAR_extrapolation():
 
 def test_file_io(tempdir):
     """Test file I/O with a round-trip and compare H5 files"""
-    w = scri.SpEC.read_from_h5(test_file)
-    scri.SpEC.write_to_h5(w, "../SpEC/samples/Asymptotic_GeometricUnits_test.h5")
+    input_file = tempdir / "test_NRAR_extrapolation" / "rhOverM_Extrapolated_N2.h5"
+    output_dir = tempdir / "test_file_io"
+    output_file = str(output_dir / "Asymptotic_GeometricUnits.h5")
+    output_file_result = str(output_dir / "rhOverM_Asymptotic_GeometricUnits.h5")
+
+    if not input_file.exists():
+        scri.extrapolation.extrapolate(
+            InputDirectory=str(tempdir),
+            OutputDirectory=str(tempdir / "test_NRAR_extrapolation"),
+            DifferenceFiles="",
+            PlotFormat="",
+            UseStupidNRARFormat=True,
+            ChMass=1.0,
+        )
+    output_dir.mkdir()
+
+    w = scri.SpEC.read_from_h5(input_file)
+    scri.SpEC.write_to_h5(w, output_file)
 
     f1 = h5py.File(test_file,'r')
     f2 = h5py.File("../SpEC/samples/rhOverM_Asymptotic_GeometricUnits_test.h5",'r')
