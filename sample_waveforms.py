@@ -586,7 +586,7 @@ def create_fake_finite_radius_strain_h5file(
 
     """
     import h5py
-    from scipy.interpolate import InterpolatedUnivariateSpline
+    from scipy.interpolate import CubicSpline
 
     with h5py.File(output_file_path, "x") as h5file:
 
