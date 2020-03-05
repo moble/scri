@@ -676,29 +676,14 @@ def create_fake_finite_radius_strain_h5file(
             )
             for l in range(2, ell_max + 1):
                 for m in range(-l, l + 1):
-                    new_data = h0.data[:, sf.LM_index(l, m, 2)]
-                    # Add subleading, radius-dependent terms to the asymptotic data
+                    index = sf.LM_index(l, m, 2)
+                    new_data = h0.data[:, index]
                     for n in range(1, n_subleading + 1):
-                        h_subleading = (
-                            amp
-                            * np.abs(h0.data[:, sf.LM_index(l, m, 2)])
-                            * (
-                                np.cos(n * 50 * h0.t * np.pi / h0.t.shape[0])
-                                + 1j * np.sin(n * 50 * h0.t * np.pi / h0.t.shape[0])
-                            )
-                        )
-                        new_data += h_subleading * (1 / areal_radius[0, 1]) ** n
-                    re_spline = InterpolatedUnivariateSpline(
-                        simulation_time, new_data.real, ext=1
-                    )
-                    im_spline = InterpolatedUnivariateSpline(
-                        simulation_time, new_data.imag, ext=1
-                    )
-                    # Add a small epsilon to prevent angular_velocity() from 
-                    # encountering a singular matrix
-                    re_data = re_spline(all_times) + 1e-14 * all_times
-                    im_data = im_spline(all_times) + 1e-14 * all_times
-                    new_dset = np.vstack((all_times, re_data, im_data)).T
+                        new_data += amp * areal_radius[0, 1] ** -n * np.exp((1j * n * 50 * np.pi / h0.n_times) * h0.t) * h0.abs[:, index]
+                    new_data = CubicSpline(simulation_time, new_data)(all_times)
+                    new_data[(all_times<simulation_time[0]) | (all_times>simulation_time[-1])] = 0.0
+                    new_data += (1 + 1j) * 1e-14 * all_times
+                    new_dset = np.vstack((all_times, new_data.real, new_data.imag)).T
                     dset = h5file.create_dataset(
                         groups[i] + f"/Y_l{l}_m{m}.dat", data=new_dset
                     )

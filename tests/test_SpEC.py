@@ -15,28 +15,24 @@ import shutil
 # NOTE: test_file_io() depends on output from test_NRAR_extrapolation(), so the latter
 # must come first in this file.
 
-filename = "rh_FiniteRadii_CodeUnits.h5"
-input_dir = "../SpEC/samples/"
-output_dir_base = "../SpEC/samples/test_output/"
-
-
-@pytest.mark.skipif(
-    not os.path.exists(input_dir + filename),
-    reason="requires {}".format(input_dir + filename),
-)
-def test_extrapolation():
-    """
-    Test extrapolation of waveforms with output in the scri format.
-    """
-    output_dir = output_dir_base + "test_extrapolation_output/"
-    # Extrapolation fails if the output filenames exist so we delete
-    # the output files from a previous test if they exist.
-    if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
-
-    scri.extrapolation.extrapolate(
-        InputDirectory=input_dir, OutputDirectory=output_dir, ChMass=1.0
+@pytest.fixture(scope="session")  # The following will exist for an entire run of pytest
+def tempdir(tmp_path_factory):
+    """Test fixture to create a temp directory and write the fake finite-radius file"""
+    tmpdir = tmp_path_factory.mktemp("test_extrapolation")
+    filename = tmpdir / "rh_FiniteRadii_CodeUnits.h5"
+    scri.sample_waveforms.create_fake_finite_radius_strain_h5file(
+        output_file_path=filename,
+        ell_max=3,
+        t_1=2000.0,
     )
+    return tmpdir
+
+
+def test_extrapolation(tempdir):
+    """Test extrapolation of waveforms with output in the scri format"""
+    input_dir = str(tempdir)
+    output_dir = str(tempdir / "test_extrapolation")
+    scri.extrapolation.extrapolate(InputDirectory=input_dir, OutputDirectory=output_dir, ChMass=1.0)
 
 
 @pytest.mark.skipif(
@@ -65,12 +61,7 @@ def test_NRAR_extrapolation():
     )
 
 
-test_file = "../SpEC/samples/test_output/test_NRAR_extrapolation_output/rhOverM_Extrapolated_N2.h5"
-
-@pytest.mark.skipif(
-    not os.path.exists(test_file), reason="requires {}".format(test_file)
-)
-def test_file_io():
+def test_file_io(tempdir):
     """Test file I/O with a round-trip and compare H5 files"""
     w = scri.SpEC.read_from_h5(test_file)
     scri.SpEC.write_to_h5(w, "../SpEC/samples/Asymptotic_GeometricUnits_test.h5")
