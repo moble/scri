@@ -654,7 +654,7 @@ def create_fake_finite_radius_strain_h5file(
                     index = sf.LM_index(l, m, 2)
                     new_data = h0.data[:, index]
                     for n in range(1, n_subleading + 1):
-                        new_data += amp * h0.abs[:, index] * R ** -n * np.exp((1j * n * 50 * np.pi / h0.n_times) * h0.t)
+                        new_data += amp * R ** -n * np.exp((1j * n * 50 * np.pi / h0.n_times) * h0.t) * h0.abs[:, index]
                     new_data = CubicSpline(simulation_time, new_data)(all_times)
                     new_data[(all_times < simulation_time[0]) | (all_times > simulation_time[-1])] = 0.0
                     new_data += (1 + 1j) * 1e-14 * all_times

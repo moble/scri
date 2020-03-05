@@ -35,7 +35,7 @@ def test_extrapolation(tempdir):
     scri.extrapolation.extrapolate(InputDirectory=input_dir, OutputDirectory=output_dir, ChMass=1.0)
 
 
-def test_extrapolation(tempdir):
+def test_NRAR_extrapolation(tempdir):
     """Test extrapolation of waveforms with output in the NRAR format."""
     input_dir = str(tempdir)
     output_dir = str(tempdir / "test_NRAR_extrapolation")
