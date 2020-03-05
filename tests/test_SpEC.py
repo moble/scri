@@ -11,8 +11,9 @@ import scri
 import scri.SpEC
 
 
-# NOTE: test_file_io() depends on output from test_NRAR_extrapolation(), so the latter
-# must come first in this file.
+# NOTE: if test_file_io() comes after test_NRAR_extrapolation() in this file, then the
+# output of the latter can be used in test_file_io(). Otherwise, test_file_io() will
+# just generate the data it needs indepenedently. 
 
 @pytest.fixture(scope="session")  # The following will exist for an entire run of pytest
 def tempdir(tmp_path_factory):
