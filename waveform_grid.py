@@ -3,7 +3,8 @@
 
 from __future__ import print_function, division, absolute_import
 
-from . import (Inertial, WaveformModes, SpinWeights, h, sigma, psi0, psi1, psi2, psi3)
+from . import Inertial, WaveformModes, SpinWeights, DataNames
+from . import h, hdot, sigma, news, psi0, psi1, psi2, psi3, psi4
 from .waveform_base import WaveformBase, waveform_alterations
 
 import sys
@@ -303,7 +304,9 @@ class WaveformGrid(WaveformBase):
           3. Boost
         All input parameters refer to the transformation required to take the mode's inertial frame onto the inertial
         frame of the grid's inertial observers.  In what follows, the inertial frame of the modes will be unprimed,
-        while the inertial frame of the grid will be primed.
+        while the inertial frame of the grid will be primed.  NOTE: These are passive transformations, e.g. supplying 
+        the option space_translation=[0, 0, 5] to a Schwarzschild spacetime will move the coordinates to z'=z+5 and so 
+        the center of mass will be shifted in the negative z direction by 5 in the new coordinates.
 
         The translations (space, time, spacetime, or super) can be given in various ways, which may override each
         other.  Ultimately, however, they are essentially combined into a single function `alpha`, representing the
@@ -350,6 +353,16 @@ class WaveformGrid(WaveformBase):
         boost_velocity : float array of length 3, optional
             This is the three-velocity vector of the grid frame relative to the mode frame.  The norm of this vector
             is checked to ensure that it is smaller than 1.  Defaults to [], corresponding to no boost.
+        psi4_modes : WaveformModes, required only if w_modes is type psi3, psi2, psi1, or psi0
+        psi3_modes : WaveformModes, required only if w_modes is type psi2, psi1, or psi0
+        psi2_modes : WaveformModes, required only if w_modes is type psi1 or psi0
+        psi1_modes : WaveformModes, required only if w_modes is type psi0
+            The objects storing the modes of the original waveforms of the same spacetime that 
+            w_modes belongs to. A BMS transformation of an asymptotic Weyl scalar requires mode 
+            information from all higher index Weyl scalars. E.g. if w_modes is of type scri.psi2, 
+            then psi4_modes and psi3_modes will be required. Note: the WaveformModes objects 
+            supplied to these arguments will themselves NOT be transformed. Please use the 
+            AsymptoticBondiData class to efficiently transform all asymptotic data at once.
 
         Returns
         -------
@@ -484,10 +497,6 @@ class WaveformGrid(WaveformBase):
         gamma = 1 / math.sqrt(1 - beta**2)
         varphi = math.atanh(beta)
 
-        if kwargs:
-            import pprint
-            warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
-
         # These are the angles in the transformed system at which we need to know the function values
         thetaprm_j_phiprm_k = np.array([[[thetaprm_j, phiprm_k]
                                          for phiprm_k in np.linspace(0.0, 2*np.pi, num=n_phi, endpoint=False)]
@@ -546,28 +555,61 @@ class WaveformGrid(WaveformBase):
             w_modes.data, SWSH_j_k[:, :, sf.LM_index(w_modes.ell_min, -w_modes.ell_min, 0)
                                          :sf.LM_index(w_modes.ell_max, w_modes.ell_max, 0)+1],
             axes=([1], [2]))
-        if w_modes.dataType == h:
-            # Note that SWSH_j_k will use s=-2 in this case, so it can be used in the tensordot correctly
-            supertranslation_deriv = sf.ethbar_GHP(sf.ethbar_GHP(supertranslation, 0, 0), -1, 0)
-            supertranslation_deriv_values = np.tensordot(
-                supertranslation_deriv,
-                SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
-                axes=([0], [2]))
-            fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
-        elif w_modes.dataType == sigma:
-            # Note that SWSH_j_k will use s=+2 in this case, so it can be used in the tensordot correctly
-            supertranslation_deriv = sf.eth_GHP(sf.eth_GHP(supertranslation, 0, 0), 1, 0)
-            supertranslation_deriv_values = np.tensordot(
-                supertranslation_deriv,
-                SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
-                axes=([0], [2]))
-            fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
-        elif w_modes.dataType in [psi0, psi1, psi2, psi3]:
-            warning = ("\nTechnically, waveforms of dataType `{0}` ".format(w_modes.data_type_string)
-                       + "do not transform among themselves;\n there is mixing from psi_n, for each n greater than "
-                       + "this waveform's.\nProceeding on the assumption other contributions are small.  However,\n"
-                       + "note that it is possible to construct a `psin` data type containing all necessary modes.")
-            warnings.warn(warning)
+        if beta != 0 or (supertranslation[1:] != 0).any():
+            if w_modes.dataType == h:
+                # Note that SWSH_j_k will use s=-2 in this case, so it can be used in the tensordot correctly
+                supertranslation_deriv = 0.5 * sf.ethbar_GHP(sf.ethbar_GHP(supertranslation, 0, 0), -1, 0)
+                supertranslation_deriv_values = np.tensordot(
+                    supertranslation_deriv,
+                    SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
+                    axes=([0], [2]))
+                fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
+            elif w_modes.dataType == sigma:
+                # Note that SWSH_j_k will use s=+2 in this case, so it can be used in the tensordot correctly
+                supertranslation_deriv = 0.5 * sf.eth_GHP(sf.eth_GHP(supertranslation, 0, 0), 1, 0)
+                supertranslation_deriv_values = np.tensordot(
+                    supertranslation_deriv,
+                    SWSH_j_k[:, :, :sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0)+1],
+                    axes=([0], [2]))
+                fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
+            elif w_modes.dataType in [psi0, psi1, psi2, psi3]:
+                from scipy.special import comb
+                eth_alphasupertranslation_j_k = np.tensordot(
+                    1/np.sqrt(2) * sf.eth_GHP(supertranslation, spin_weight=0),
+                    sf.SWSH_grid(R_j_k, 1, ell_max_supertranslation),
+                    axes=([0], [2]))
+                v_dot_rhat = np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0)
+                eth_v_dot_rhat_j_k = np.tensordot(
+                    1/np.sqrt(2) * v_dot_rhat,
+                    sf.SWSH_grid(R_j_k, 1, 1),
+                    axes=([0], [2]))
+                eth_uprm_over_kconformal_i_j_k = (
+                    (w_modes.t[:, np.newaxis, np.newaxis] - alphasupertranslation_j_k[np.newaxis, :, :])
+                    * gamma * kconformal_j_k[np.newaxis,:,:] * eth_v_dot_rhat_j_k[np.newaxis,:,:]
+                    - eth_alphasupertranslation_j_k[np.newaxis,:,:])
+                # Loop over the Weyl scalars of higher index than w_modes, and sum
+                # them with appropriate prefactors.
+                for DT in range(w_modes.dataType + 1, psi4 + 1):
+                    try:
+                        w_modes_temp = kwargs.pop("psi{}_modes".format(DataNames[DT][-1]))
+                    except KeyError:
+                        raise ValueError("\nA BMS transformation of {} requires information from {}, which "
+                                         "has not been supplied.".format(w_modes.data_type_string, DataNames[DT]))
+                    SWSH_temp_j_k = sf.SWSH_grid(R_j_k, w_modes_temp.spin_weight, w_modes_temp.ell_max)
+                    f_i_j_k = np.tensordot(
+                        w_modes_temp.data,
+                        SWSH_temp_j_k[:, :, sf.LM_index(w_modes_temp.ell_min, -w_modes_temp.ell_min, 0) 
+                                            :sf.LM_index(w_modes_temp.ell_max, w_modes_temp.ell_max, 0)+1],
+                        axes=([1], [2]))
+                    fprm_i_j_k += (
+                        comb(5 - w_modes.dataType, 5 - DT)
+                        * f_i_j_k
+                        * eth_uprm_over_kconformal_i_j_k**(DT - w_modes.dataType))
+            elif w_modes.dataType not in [psi4, hdot, news]:
+                warning = ("\nNo BMS transformation is implemented for waveform objects "
+                           "of dataType '{}'. Proceeding with the transformation as if it "
+                           "were dataType 'Psi4'.".format(w_modes.data_type_string))
+                warnings.warn(warning)
 
         fprm_i_j_k *= (gamma**w_modes.gamma_weight
                        * kconformal_j_k**w_modes.conformal_weight)[np.newaxis, :, :]
@@ -602,6 +644,10 @@ class WaveformGrid(WaveformBase):
 
         # Reshape, to have correct final dimensions
         fprm_iprm_j_k = fprm_iprm_j_k.reshape((fprm_iprm_j_k.shape[0], n_theta*n_phi)+w_modes.data.shape[2:])
+
+        if kwargs:
+            import pprint
+            warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
 
         # Encapsulate into a new grid waveform
         g = cls(t=uprm_iprm, data=fprm_iprm_j_k, history=w_modes.history,
