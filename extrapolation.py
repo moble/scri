@@ -591,6 +591,14 @@ def extrapolate(**kwargs):
           outside of the input data, it will be reset to the midpoint
           of the waveform: (W_outer.T(0)+W_outer.T(-1))/2
 
+        ErrorTol                 None
+          ONLY USED FOR Psi1 AND Psi0 WAVEFORMS.
+          ErroTol is the effective noise floor of the simulation.
+          If Psi1 or Psi0 (NOT scaled by radius) falls beneath
+          this tolerance for certain extraction radii, then those
+          radii are not included in the extrapolation. The value
+          1.0e-9 seems to work well for a few BBH systems.
+
     """
 
     # Basic imports
@@ -622,6 +630,7 @@ def extrapolate(**kwargs):
     EarliestTime = kwargs.pop("EarliestTime", -3.0e300)
     LatestTime = kwargs.pop("LatestTime", 3.0e300)
     AlignmentTime = kwargs.pop("AlignmentTime", None)
+    ErrorTol = kwargs.pop("ErrorTol", None)
     return_finite_radius_waveforms = kwargs.pop("return_finite_radius_waveforms", False)
     if len(kwargs) > 0:
         raise ValueError(
@@ -766,6 +775,7 @@ def extrapolate(**kwargs):
         D['EarliestTime'] = {EarliestTime}
         D['LatestTime'] = {LatestTime}
         D['AlignmentTime'] = {AlignmentTime}
+        D['ErrorTol'] = {ErrorTol}
         # End Extrapolation input arguments
         """.format(
         InputDirectory=InputDirectory,
@@ -786,6 +796,7 @@ def extrapolate(**kwargs):
         EarliestTime=EarliestTime,
         LatestTime=LatestTime,
         AlignmentTime=AlignmentTime,
+        ErrorTol=ErrorTol,
     )
     InputArguments = dedent(InputArguments)
 
@@ -837,7 +848,7 @@ def extrapolate(**kwargs):
     # print([i for i in range(1)]); stdout.flush()
     # ExtrapolatedWaveforms = [ExtrapolatedWaveformsObject.GetWaveform(i)
     #                         for i in range(ExtrapolatedWaveformsObject.size())]
-    ExtrapolatedWaveforms = _Extrapolate(Ws, Radii, ExtrapolationOrders, Omegas)
+    ExtrapolatedWaveforms = _Extrapolate(Ws, Radii, ExtrapolationOrders, Omegas, ErrorTol)
 
     NExtrapolations = len(ExtrapolationOrders)
     for i, ExtrapolationOrder in enumerate(ExtrapolationOrders):
@@ -1408,7 +1419,7 @@ def RunExtrapolation(
     return 0
 
 
-def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None):
+def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None, ErrorTol=None):
     import numpy
     import scri
 
@@ -1421,6 +1432,12 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None)
     NFiniteRadii = len(FiniteRadiusWaveforms)
     NExtrapolations = len(ExtrapolationOrders)
     SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
+    DataType = FiniteRadiusWaveforms[NFiniteRadii-1].dataType
+    ExcludeInsignificantRadii = True if ((DataType in [scri.psi1, scri.psi0]) and ErrorTol) else False
+    if ExcludeInsignificantRadii:
+        from spherical_functions import LM_index
+        ell_min = FiniteRadiusWaveforms[NFiniteRadii - 1].ell_min
+        print("Performing extrapolation excluding insignifcant outer radii.")
 
     # Make sure everyone is playing with a full deck
     if abs(MinN) > NFiniteRadii:
@@ -1560,6 +1577,29 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None)
 
             Re = data[:, i_t, :, 0]
             Im = data[:, i_t, :, 1]
+
+            if ExcludeInsignificantRadii:
+                # Psi1 and Psi0 fall off as O(r^-4) and O(r^-5), which falls below a tolerance of significance
+                # within the region that wave extraction is performed. Extraction radii with a waveform amplitude
+                # below ErrorTol will not be used for extrapolation.
+                ErrorTol = 1e-9
+
+                # Since we are in the corotating frame, we can be sure that the (2,2) mode is dominant. For the sake of
+                # consistency we will use the same radial weights for each mode at a given retarded time.
+                MinimumNRadii = NExtrapolations + 4
+                WaveformAmplitude = np.abs(Re[MinimumNRadii,LM_index(2,2,ell_min)] + 1j*Im[MinimumNRadii,LM_index(2,2,ell_min)])
+
+                # Radius at which the amplitude of the waveform is equal to error_tol.
+                LargestSignificantRadius = (WaveformAmplitude/ErrorTol)**(1/(6-DataType))
+
+                # Use as many radii as possible that are smaller than LargestSignificantRadius.
+                RadiiOnTimeSlice = np.array(Radii)[:,i_t]
+                MinimumNRadii= max(len(RadiiOnTimeSlice[RadiiOnTimeSlice <= LargestSignificantRadius]), MinimumNRadii)
+
+                # Remove the outer radii
+                OneOverRadii = OneOverRadii[:MinimumNRadii]
+                Re = Re[:MinimumNRadii,:]
+                Im = Im[:MinimumNRadii,:]
 
             # Loop over extrapolation orders
             for i_N in range(NExtrapolations):
