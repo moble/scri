@@ -1433,7 +1433,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     NExtrapolations = len(ExtrapolationOrders)
     SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
     DataType = FiniteRadiusWaveforms[NFiniteRadii-1].dataType
-    ExcludeInsignificantRadii = True if ((DataType in [scri.psi1, scri.psi0]) and ErrorTol) else False
+    ExcludeInsignificantRadii = DataType in [scri.psi1, scri.psi0]) and bool(ErrorTol)
     if ExcludeInsignificantRadii:
         from spherical_functions import LM_index
         ell_min = FiniteRadiusWaveforms[NFiniteRadii - 1].ell_min
