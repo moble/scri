@@ -1579,14 +1579,14 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
             Im = data[:, i_t, :, 1]
 
             if ExcludeInsignificantRadii:
-                # Psi1 and Psi0 fall off as O(r^-4) and O(r^-5), which falls below a tolerance of significance
-                # within the region that wave extraction is performed. Extraction radii with a waveform amplitude
-                # below ErrorTol will not be used for extrapolation.
-                ErrorTol = 1e-9
+                # For the sake of avoiding a poorly conditioned polynomial fit, we need to set an absolute minimum for the
+                # possible number of radii that may be used. Occasionally where there is junk radiation the amplitude of
+                # the waveform may be spuriously small at a few timesteps, setting this minimum avoids excluding an
+                # unreasonable number of radii and then having polyfit return an error.
+                MinimumNRadii = NExtrapolations + 4
 
                 # Since we are in the corotating frame, we can be sure that the (2,2) mode is dominant. For the sake of
                 # consistency we will use the same radial weights for each mode at a given retarded time.
-                MinimumNRadii = NExtrapolations + 4
                 WaveformAmplitude = np.abs(Re[MinimumNRadii,LM_index(2,2,ell_min)] + 1j*Im[MinimumNRadii,LM_index(2,2,ell_min)])
 
                 # Radius at which the amplitude of the waveform is equal to error_tol.
