@@ -1,4 +1,5 @@
- <a href="https://travis-ci.org/moble/scri"><img align="right" hspace="3" alt="Status of automatic build and test suite" src="https://travis-ci.org/moble/scri.svg?branch=master"></a> <a href="https://github.com/moble/scri/blob/master/LICENSE"><img align="right" hspace="3" alt="MIT license" src="https://img.shields.io/github/license/moble/out_of_core_fft.svg"></a>
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moble/scri/blob/master/LICENSE)
+[![Documentation Status](https://readthedocs.org/projects/scri/badge/?version=latest)](https://scri.readthedocs.io/en/latest/?badge=latest)
 
 Scri
 ====
@@ -121,6 +122,9 @@ header or library for `fftw`.  See the documentation of my copy of `spinsfast`
 on solving that problem.  Of course, with `conda`, `fftw` is installed in the
 right place from my channel automatically.
 
+## Documentation
+
+Automatically-generated API documentation is available on [Read the Docs: scri](https://scri.readthedocs.io/).
 
 ## Acknowledgments
 
