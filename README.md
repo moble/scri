@@ -35,7 +35,7 @@ installation is as simple as
 
 ```sh
 conda update -y --all
-conda install -c moble scri
+conda install -c conda-forge scri
 ```
 
 If you need to install `anaconda` first, it's very easy and doesn't require root permissions.  Just [download](http://continuum.io/downloads) and follow the instructions — particularly setting your `PATH`.  Also, make sure `PYTHONPATH` and `PYTHONHOME` are *not* set.  Ensure that it worked by running `python --version`.  It should say something about anaconda; if not, you probably forgot to set your `PATH`.  Now just run the installation command above.
