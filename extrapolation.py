@@ -591,11 +591,11 @@ def extrapolate(**kwargs):
           outside of the input data, it will be reset to the midpoint
           of the waveform: (W_outer.T(0)+W_outer.T(-1))/2
 
-        ErrorTol                 None
+        NoiseFloor                 None
           ONLY USED FOR Psi1 AND Psi0 WAVEFORMS.
-          ErroTol is the effective noise floor of the simulation.
+          The effective noise floor of the SpEC simulation.
           If Psi1 or Psi0 (NOT scaled by radius) falls beneath
-          this tolerance for certain extraction radii, then those
+          this value for certain extraction radii, then those
           radii are not included in the extrapolation. The value
           1.0e-9 seems to work well for a few BBH systems.
 
@@ -630,7 +630,7 @@ def extrapolate(**kwargs):
     EarliestTime = kwargs.pop("EarliestTime", -3.0e300)
     LatestTime = kwargs.pop("LatestTime", 3.0e300)
     AlignmentTime = kwargs.pop("AlignmentTime", None)
-    ErrorTol = kwargs.pop("ErrorTol", None)
+    NoiseFloor = kwargs.pop("NoiseFloor", None)
     return_finite_radius_waveforms = kwargs.pop("return_finite_radius_waveforms", False)
     if len(kwargs) > 0:
         raise ValueError(
@@ -775,7 +775,7 @@ def extrapolate(**kwargs):
         D['EarliestTime'] = {EarliestTime}
         D['LatestTime'] = {LatestTime}
         D['AlignmentTime'] = {AlignmentTime}
-        D['ErrorTol'] = {ErrorTol}
+        D['NoiseFloor'] = {NoiseFloor}
         # End Extrapolation input arguments
         """.format(
         InputDirectory=InputDirectory,
@@ -796,7 +796,7 @@ def extrapolate(**kwargs):
         EarliestTime=EarliestTime,
         LatestTime=LatestTime,
         AlignmentTime=AlignmentTime,
-        ErrorTol=ErrorTol,
+        NoiseFloor=NoiseFloor,
     )
     InputArguments = dedent(InputArguments)
 
@@ -848,7 +848,7 @@ def extrapolate(**kwargs):
     # print([i for i in range(1)]); stdout.flush()
     # ExtrapolatedWaveforms = [ExtrapolatedWaveformsObject.GetWaveform(i)
     #                         for i in range(ExtrapolatedWaveformsObject.size())]
-    ExtrapolatedWaveforms = _Extrapolate(Ws, Radii, ExtrapolationOrders, Omegas, ErrorTol)
+    ExtrapolatedWaveforms = _Extrapolate(Ws, Radii, ExtrapolationOrders, Omegas, NoiseFloor)
 
     NExtrapolations = len(ExtrapolationOrders)
     for i, ExtrapolationOrder in enumerate(ExtrapolationOrders):
@@ -1419,7 +1419,7 @@ def RunExtrapolation(
     return 0
 
 
-def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None, ErrorTol=None):
+def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None, NoiseFloor=None):
     import numpy
     import scri
 
@@ -1433,7 +1433,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     NExtrapolations = len(ExtrapolationOrders)
     SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
     DataType = FiniteRadiusWaveforms[NFiniteRadii-1].dataType
-    ExcludeInsignificantRadii = DataType in [scri.psi1, scri.psi0] and bool(ErrorTol)
+    ExcludeInsignificantRadii = DataType in [scri.psi1, scri.psi0] and bool(NoiseFloor)
     if ExcludeInsignificantRadii:
         from spherical_functions import LM_index
         ell_min = FiniteRadiusWaveforms[NFiniteRadii - 1].ell_min
@@ -1590,11 +1590,11 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
                 WaveformAmplitude = np.linalg.norm(Re[MinimumNRadii] + 1j*Im[MinimumNRadii])
 
                 # Radius at which the amplitude of the waveform is equal to error_tol.
-                LargestSignificantRadius = (WaveformAmplitude/ErrorTol)**(1/(6-DataType))
+                LargestSignificantRadius = (WaveformAmplitude/NoiseFloor)**(1/(6-DataType))
 
                 # Use as many radii as possible that are smaller than LargestSignificantRadius.
                 RadiiOnTimeSlice = np.array(Radii)[:,i_t]
-                MinimumNRadii= max(sum(RadiiOnTimeSlice <= LargestSignificantRadius), MinimumNRadii)
+                MinimumNRadii = max(sum(RadiiOnTimeSlice <= LargestSignificantRadius), MinimumNRadii)
 
                 # Remove the outer radii
                 OneOverRadii = OneOverRadii[:MinimumNRadii]
