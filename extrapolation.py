@@ -1583,18 +1583,18 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
                 # possible number of radii that may be used. Occasionally where there is junk radiation the amplitude of
                 # the waveform may be spuriously small at a few timesteps, setting this minimum avoids excluding an
                 # unreasonable number of radii and then having polyfit return an error.
-                MinimumNRadii = NExtrapolations + 4
+                MinimumNRadii = max(ExtrapolationOrders) + 4
 
                 # Since we are in the corotating frame, we can be sure that the (2,2) mode is dominant. For the sake of
                 # consistency we will use the same radial weights for each mode at a given retarded time.
-                WaveformAmplitude = np.abs(Re[MinimumNRadii,LM_index(2,2,ell_min)] + 1j*Im[MinimumNRadii,LM_index(2,2,ell_min)])
+                WaveformAmplitude = np.linalg.norm(Re[MinimumNRadii] + 1j*Im[MinimumNRadii])
 
                 # Radius at which the amplitude of the waveform is equal to error_tol.
                 LargestSignificantRadius = (WaveformAmplitude/ErrorTol)**(1/(6-DataType))
 
                 # Use as many radii as possible that are smaller than LargestSignificantRadius.
                 RadiiOnTimeSlice = np.array(Radii)[:,i_t]
-                MinimumNRadii= max(len(RadiiOnTimeSlice[RadiiOnTimeSlice <= LargestSignificantRadius]), MinimumNRadii)
+                MinimumNRadii= max(sum(RadiiOnTimeSlice <= LargestSignificantRadius), MinimumNRadii)
 
                 # Remove the outer radii
                 OneOverRadii = OneOverRadii[:MinimumNRadii]
