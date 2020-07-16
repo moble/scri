@@ -487,10 +487,7 @@ def angular_velocity(W, include_frame_velocity=False):
     return omega
 
 
-# def corotating_frame(W, Ri=quaternion.one, ti=0.0, tolerance=1e-12):
-def corotating_frame(
-    W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False
-):
+def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
     """Return rotor taking current mode frame into corotating frame
 
     This function simply evaluates the angular velocity of the waveform, and
@@ -522,9 +519,7 @@ def corotating_frame(
     from quaternion.quaternion_time_series import integrate_angular_velocity, squad
 
     omega = angular_velocity(W)
-    t, frame = integrate_angular_velocity(
-        (W.t, omega), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance
-    )
+    t, frame = integrate_angular_velocity((W.t, omega), t0=W.t[0], t1=W.t[-1], R0=R0, tolerance=tolerance)
     if z_alignment_region is None:
         correction_rotor = quaternion.one
     else:
@@ -538,25 +533,21 @@ def corotating_frame(
         i1m = max(0, i1 - 10)
         i1p = i1m + 21
         RoughDirection = W[i1m:i1p].angular_velocity()[10]
-        Vhat = W[i1:i2].LLDominantEigenvector(
-            RoughDirection=RoughDirection, RoughDirectionIndex=0
-        )
+        Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
         Vhat_corot = np.array(
             [
                 (Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
                 for Ri, Vhati in zip(R, Vhat)
             ]
         )
-        Vhat_corot_mean = quaternion.quaternion(
-            *np.mean(Vhat_corot, axis=0)
-        ).normalized()
-        # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
+        Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
         correction_rotor = np.sqrt(-quaternion.z * Vhat_corot_mean).inverse()
-    # R = squad(R, t, W.t)
+    frame = frame * correction_rotor
+    frame = frame / np.abs(frame)
     if return_omega:
-        return (frame * correction_rotor, omega)
+        return (frame, omega)
     else:
-        return frame * correction_rotor
+        return frame
 
 
 def inner_product(t, abar, b, axis=None, apply_conjugate=False):
