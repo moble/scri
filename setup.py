@@ -69,6 +69,7 @@ if __name__ == "__main__":
               'scri.LVC',
               'scri.pn',
               'scri.SpEC',
+              'scri.SpEC.file_io',
           ],
           install_requires=[
               'numpy>=1.13',
