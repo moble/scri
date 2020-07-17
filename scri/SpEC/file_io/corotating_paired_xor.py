@@ -7,8 +7,7 @@ import numpy as np
 import quaternion
 from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
-from .. import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0)
-from sxs.metadata import Metadata
+from ... import WaveformModes, DataType, DataNames
 
 
 def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, compress=True):
@@ -22,6 +21,18 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
     import sxs
     import scri
     from ...utilities import xor_timeseries
+
+    # Make sure that we can understand the file_name and create the directory
+    if file_name is None:
+        # We'll just be creating a temp directory below, to check
+        warnings.warn(
+            'Input `file_name` is None.  Running in temporary directory.\n'
+            'Note that this option is mostly for debugging purposes.'
+        )
+    else:
+        h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
+        if not h5_path.parent.exists():
+            h5_path.parent.mkdir(parents=True)
 
     compression_options = {
         'compression': 'gzip',
@@ -81,12 +92,12 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
     with contextlib.ExitStack() as context:
         if file_name is None:
             temp_dir = context.enter_context(tempfile.TemporaryDirectory())
-            h5_file_name = Path(f'{temp_dir}') / 'test.h5'
+            h5_path = Path(f'{temp_dir}') / 'test.h5'
         else:
-            print(f'Saving H5 to "{h5_file_name}"')
+            print(f'Saving H5 to "{h5_path}"')
 
         # Write the H5 file
-        with h5py.File(h5_file_name, 'w') as f:
+        with h5py.File(h5_path, 'w') as f:
             f.attrs['sxs_format'] = 'corotating_paired_xor'
             warnings.warn('sxs_format is being set to "corotating_paired_xor"')
             f.create_dataset('time', data=w.t.view(np.uint64), **compression_options)
@@ -96,12 +107,12 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
             if log_frame.size > 1:
                 f.create_dataset('log_frame', data=log_frame.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
 
-        size = os.stat(file_name).st_size
-        print(f'Output H5 file size: {size:_} B')
+        h5_size = os.stat(h5_path).st_size
+        if file_name is None:
+            print(f'Output H5 file size: {h5_size:_} B')
 
         # Write the corresponding JSON file
-        json_file_name = h5_file_name.with_suffix('.json')
-        warnings.warn('Incomplete JSON data; work in progress')
+        json_path = h5_path.with_suffix('.json')
         json_data = {
             'sxs_format': 'corotating_paired_xor',
             'data_info': {
@@ -111,26 +122,34 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
                 'ell_max': int(w.ell_max),
             },
             'transformations': {
-                # 'boost_velocity': [],
-                # 'translation': [],
                 'truncation': L2norm_fractional_tolerance,
+                # see below for 'boost_velocity'
+                # see below for 'space_translation'
             },
             'version_info': {
-                # 'SpEC': [],
+                # see below 'spec_version_hist'
                 'numpy': numpy.__version__,
                 'scipy': scipy.__version__,
                 'h5py': h5py.__version__,
-                'sxs': sxs.__version__,
+                'quaternion': quaternion.__version__,
+                'spherical_functions': sf.__version__,
                 'scri': scri.__version__,
+                'sxs': sxs.__version__,
             },
             'validation': {
-                'h5_file_size': size,
+                'h5_file_size': h5_size,
                 'n_times': w.n_times,
                 # 'fletcher32': {'time': [], 'modes': [], 'log_frame': []}
             }
         }
-        print(f'Saving JSON to "{json_file_name}"')
-        with json_file_name.open('w') as f:
+        if hasattr(w, 'boost_velocity'):
+            json_data['transformations']['boost_velocity'] = w.boost_velocity.tolist()
+        if hasattr(w, 'space_translation'):
+            json_data['transformations']['space_translation'] = w.space_translation.tolist()
+        if hasattr(w, 'version_hist'):
+            json_data['version_info']['spec_version_history'] = w.version_hist
+        print(f'Saving JSON to "{json_path}"')
+        with json_path.open('w') as f:
             json.dump(json_data, f, indent=2, separators=(',', ': '), ensure_ascii=True)
 
     return w
@@ -143,14 +162,14 @@ def load(file_name):
     import scri
     from ...utilities import xor_timeseries_reverse
 
-    h5_file_name = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
-    json_file_name = h5_file_name.with_suffix('.json')
+    h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
+    json_path = h5_path.with_suffix('.json')
 
-    with open(json_file_name, 'r') as f:
+    with open(json_path, 'r') as f:
         json_data = json.load(f)
         dataType = scri.DataType[scri.DataNames.index(json_data['data_info']['data_type'])]
 
-    with h5py.File(h5_file_name, 'r') as f:
+    with h5py.File(h5_path, 'r') as f:
         sxs_format = f.attrs['sxs_format']
         assert sxs_format in ['corotating_paired_xor',]
         time = f['time'][:].view(np.float64)
@@ -174,5 +193,6 @@ def load(file_name):
         ell_min=ell_min, ell_max=ell_max
     )
     w.convert_from_conjugate_pairs()
+    w.json_data = json_data
 
     return w
