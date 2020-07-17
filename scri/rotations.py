@@ -39,7 +39,8 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
 
 
 @waveform_alterations
-def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
+def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None,
+                        return_omega=False, truncate_log_frame=False):
     """Transform waveform (in place) to a corotating frame
 
     Parameters
@@ -60,39 +61,32 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
         If True, return a 2-tuple consisting of the waveform in the corotating frame (the usual
         returned object) and the angular-velocity data.  That is frequently also needed, so this is
         just a more efficient way of getting the data.
+    truncate_log_frame: bool [defaults to False]
+        If True, set bits of log(frame) with lower significance than `tolerance` to zero, and use
+        exp(truncated(log(frame))) to rotate the waveform.  Also returns `log_frame` along with the
+        waveform (and optionally `omega`)
 
     """
-    if return_omega:
-        frame, omega = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region, return_omega=True)
-    else:
-        frame = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region)
-    # if z_alignment_region is None:
-    #     correction_rotor = quaternion.one
-    # else:
-    #     initial_time = W.t[0]
-    #     inspiral_time = W.max_norm_time() - initial_time
-    #     t1 = initial_time + z_alignment_region[0]*inspiral_time
-    #     t2 = initial_time + z_alignment_region[1]*inspiral_time
-    #     i1 = np.argmin(np.abs(W.t-t1))
-    #     i2 = np.argmin(np.abs(W.t-t2))
-    #     R = frame[i1:i2]
-    #     i1m = max(0, i1-10)
-    #     i1p = i1m + 21
-    #     RoughDirection = W[i1m:i1p].angular_velocity()[10]
-    #     Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
-    #     Vhat_corot = np.array([(Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
-    #                            for Ri, Vhati in zip(R, Vhat)])
-    #     Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
-    #     # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
-    #     correction_rotor = np.sqrt(-quaternion.z * Vhat_corot_mean).inverse()
-    # W.rotate_decomposition_basis(frame * correction_rotor)
+    frame, omega = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region, return_omega=True)
+    if truncate_log_frame:
+        log_frame = quaternion.as_float_array(np.log(frame))
+        power_of_2 = 2 ** int(-np.floor(np.log2(2*tolerance)))
+        log_frame = np.round(log_frame * power_of_2) / power_of_2
+        frame = np.exp(quaternion.as_quat_array(log_frame))
     W.rotate_decomposition_basis(frame)
-    W._append_history('{0}.to_corotating_frame({1}, {2}, {3})'.format(W, R0, tolerance, z_alignment_region))
+    W._append_history('{0}.to_corotating_frame({1}, {2}, {3}, {4}, {5})'.format(
+        W, R0, tolerance, z_alignment_region, return_omega, truncate_log_frame))
     W.frameType = Corotating
     if return_omega:
-        return (W, omega)
+        if truncate_log_frame:
+            return (W, omega, log_frame)
+        else:
+            return (W, omega)
     else:
-        return W
+        if truncate_log_frame:
+            return (W, log_frame)
+        else:
+            return W
 
 
 @waveform_alterations
