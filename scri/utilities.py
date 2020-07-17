@@ -2,7 +2,7 @@
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
 import numpy as np
-from quaternion.numba_wrapper import jit
+from quaternion.numba_wrapper import jit, njit
 
 maxexp = np.finfo(float).maxexp * np.log(2) * 0.99
 
@@ -181,3 +181,42 @@ def transition_to_constant(f, t, t1, t2):
     f_transitioned[i1:i2] -= indefinite_integral(f[i1:i2] * transition_dot[i1:i2], t[i1:i2])
     f_transitioned[i2:] = f_transitioned[i2-1]
     return f_transitioned
+
+
+@njit
+def xor_timeseries(c):
+    """XOR a time-series of data in place
+
+    Assumes time varies along the first dimension of the input array, but any number of other
+    dimensions are supported.
+
+    This function leaves the first time step unchanged, but successive timesteps are the XOR from
+    the preceding time step — storing only the bits that have changed.  This transformation is
+    useful when storing the data because it allows for greater compression in many cases.
+
+    Note that the direction in which this operation is done matters.  This function starts with the
+    last time, changes that data in place, and proceeds to earlier times.  To undo this
+    transformation, we need to start at early times and proceed to later times.
+
+    The function `xor_timeseries_reverse` achieves the opposite transformation, recovering the
+    original data with bit-for-bit accuracy.
+
+    """
+    u = c.view(np.uint64)
+    for i in range(u.shape[0]-1, 0, -1):
+        u[i] = np.bitwise_xor(u[i-1], u[i])
+    return c
+
+
+@njit
+def xor_timeseries_reverse(c):
+    """XOR a time-series of data in place
+
+    This function reverses the effects of `xor_timeseries`.  See that function's docstring for
+    details.
+
+    """
+    u = c.view(np.uint64)
+    for i in range(1, u.shape[0]):
+        u[i] = np.bitwise_xor(u[i-1], u[i])
+    return c
