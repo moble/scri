@@ -9,6 +9,8 @@ from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
 from ... import WaveformModes, DataType, DataNames
 
+sxs_formats = ['corotating_paired_xor',]
+
 
 def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, compress=True):
     import tempfile
@@ -20,7 +22,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
     import h5py
     import sxs
     import scri
-    from ...utilities import xor_timeseries
+    from ...utilities import xor_timeseries, fletcher32
 
     # Make sure that we can understand the file_name and create the directory
     if file_name is None:
@@ -107,9 +109,16 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
             if log_frame.size > 1:
                 f.create_dataset('log_frame', data=log_frame.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
 
+        # Get some numbers for the JSON file
         h5_size = os.stat(h5_path).st_size
         if file_name is None:
             print(f'Output H5 file size: {h5_size:_} B')
+        fletcher32_dict = {}
+        with h5py.File(h5_path, 'r') as f:
+            fletcher32_dict['time'] = fletcher32(f['time'][:])
+            fletcher32_dict['modes'] = fletcher32(f['modes'][:])
+            if 'log_frame' in f:
+                fletcher32_dict['log_frame'] = fletcher32(f['log_frame'][:])
 
         # Write the corresponding JSON file
         json_path = h5_path.with_suffix('.json')
@@ -139,7 +148,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
             'validation': {
                 'h5_file_size': h5_size,
                 'n_times': w.n_times,
-                # 'fletcher32': {'time': [], 'modes': [], 'log_frame': []}
+                'fletcher32': fletcher32_dict,
             }
         }
         if hasattr(w, 'boost_velocity'):
@@ -156,23 +165,73 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
     return w
 
 
-def load(file_name):
+def load(file_name, ignore_validation=False):
     import pathlib
     import json
     import h5py
     import scri
-    from ...utilities import xor_timeseries_reverse
+    from ...utilities import xor_timeseries_reverse, fletcher32
+
+    def invalid(message):
+        if ignore_validation:
+            warnings.warn(message)
+        else:
+            raise ValueError(message)
 
     h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
     json_path = h5_path.with_suffix('.json')
 
-    with open(json_path, 'r') as f:
-        json_data = json.load(f)
-        dataType = scri.DataType[scri.DataNames.index(json_data['data_info']['data_type'])]
+    # This will be used for validation
+    h5_size = os.stat(h5_path).st_size
+
+    if not json_path.exists():
+        invalid(f'JSON file "{json_path}" cannot be found, but is expected for this data format.')
+        json_data = {}
+    else:
+        with open(json_path, 'r') as f:
+            json_data = json.load(f)
+
+        dataType = json_data.get('data_info', {}).get('data_type', 'UnknownDataType')
+        dataType = scri.DataType[scri.DataNames.index(dataType)]
+
+        # Make sure this is our format
+        sxs_format = json_data.get('sxs_format', '')
+        if sxs_format not in sxs_formats:
+            invalid(
+                f'The `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n'
+                f'    {sxs_formats}.'
+            )
+
+        json_h5_file_size = json_data.get('validation', {}).get('h5_file_size', 0)
+        if json_h5_file_size != h5_size:
+            invalid(
+                f'Mismatch between `validation/h5_file_size` key in JSON file ({json_h5_file_size}) '
+                f'and observed file size ({h5_size}) of "{h5_path}".'
+            )
 
     with h5py.File(h5_path, 'r') as f:
+        # Make sure this is our format
         sxs_format = f.attrs['sxs_format']
-        assert sxs_format in ['corotating_paired_xor',]
+        if sxs_format not in sxs_formats:
+            raise ValueError(
+                f'The `sxs_format` found in H5 file is "{sxs_format}"; it should be one of\n'
+                f'    {sxs_formats}.'
+            )
+
+        # Ensure that the 'validation' keys from the JSON file are the same as in this file
+        json_n_times = json_data.get('validation', {}).get('n_times', 0)
+        n_times = f['time'][:].view(np.float64).size
+        if json_n_times != n_times:
+            invalid(
+                f'Number of time steps in H5 file ({n_times}) '
+                f'does not match expected value from JSON ({json_n_times}).'
+            )
+        for dataset, checksum in json_data.get('validation', {}).get('fletcher32', {}).items():
+            observed_checksum = fletcher32(f[dataset][:])
+            if checksum != observed_checksum:
+                invalid(f'Checksum of "{dataset}" dataset does not match expected value from JSON.')
+
+        # Read the data
         time = f['time'][:].view(np.float64)
         modes = f['modes'][:].view(np.complex128)
         ell_min = f['modes'].attrs['ell_min']
