@@ -315,6 +315,23 @@ class WaveformModes(WaveformBase):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 
+    @waveform_alterations
+    def truncate(self, tol=1e-10):
+        """Truncate the precision of this object's `data` in place
+
+        This function sets bits in `self.data` to 0 when they have lower significance than `tol`
+        times the norm of the Waveform at that instant in time.
+
+        """
+        if tol != 0.0:
+            tol_per_mode = tol / np.sqrt(self.n_modes)
+            absolute_tolerance = np.linalg.norm(self.data, axis=1) * tol_per_mode
+            power_of_2 = 2 ** (np.floor(-np.log2(absolute_tolerance))).astype('int')[:, np.newaxis]
+            self.data *= power_of_2
+            np.round(self.data, out=self.data)
+            self.data /= power_of_2
+        self._append_history(f'{self}.truncate(tol={tol})')
+
     def ladder_factor(self, operations, s, ell, eth_convention='NP'):
         """Compute the 'ladder factor' for applying a sequence of spin
         raising/lower operations on a SWSH of given s, ell.
@@ -502,6 +519,53 @@ class WaveformModes(WaveformBase):
         integrand = np.sum(np.conj(A.data) * B.data, axis=1)
 
         return sdi(integrand, times, t1=t1, t2=t2)
+
+    @waveform_alterations
+    def convert_to_conjugate_pairs(self):
+        """Convert modes to conjugate-pair format in place
+
+        This function alters this object's modes to store the sum and difference of pairs with
+        opposite `m` values.  If we denote the modes `f[l, m]`, then we define
+
+            s[l, m] = (f[l, m] + f̄[l, -m]) / √2
+            d[l, m] = (f[l, m] - f̄[l, -m]) / √2
+
+        For m<0 we replace the mode data with `d[l, -m]`, for m=0 we do nothing, and for m>0 we
+        replace the mode data with `s[l, m]`.  That is, the mode data on output look like this:
+
+            [..., d[2, 2], d[2, 1], f[2, 0], s[2, 1], s[2, 2], d[3, 3], d[3, 2], ...]
+
+        The factor of √2 is chosen so that the sum of the magnitudes squared at each time for this
+        data is the same as it is for the original data.
+
+        """
+        for ell in range(self.ell_min, self.ell_max + 1):
+            for m in range(1, ell+1):
+                i_plus = self.index(ell, m)
+                i_minus = self.index(ell, -m)
+                mode_plus = self.data[..., i_plus].copy()
+                mode_minus = self.data[..., i_minus].copy()
+                self.data[..., i_plus] = (mode_plus + np.conjugate(mode_minus)) / np.sqrt(2)
+                self.data[..., i_minus] = (mode_plus - np.conjugate(mode_minus)) / np.sqrt(2)
+        self._append_history(f'{self}.convert_to_conjugate_pairs()')
+
+    @waveform_alterations
+    def convert_from_conjugate_pairs(self):
+        """Convert modes from conjugate-pair format in place
+
+        This function reverses the effects of `convert_to_conjugate_pairs`.  See that function's
+        docstring for details.
+
+        """
+        for ell in range(self.ell_min, self.ell_max + 1):
+            for m in range(1, ell+1):
+                i_plus = self.index(ell, m)
+                i_minus = self.index(ell, -m)
+                mode_plus = self.data[..., i_plus].copy()
+                mode_minus = self.data[..., i_minus].copy()
+                self.data[..., i_plus] = (mode_plus + mode_minus) / np.sqrt(2)
+                self.data[..., i_minus] = np.conjugate(mode_plus - mode_minus) / np.sqrt(2)
+        self._append_history(f'{self}.convert_from_conjugate_pairs()')
 
     # Involutions
     @property
