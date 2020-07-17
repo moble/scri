@@ -92,7 +92,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
     with contextlib.ExitStack() as context:
         if file_name is None:
             temp_dir = context.enter_context(tempfile.TemporaryDirectory())
-            h5_path = Path(f'{temp_dir}') / 'test.h5'
+            h5_path = pathlib.Path(f'{temp_dir}') / 'test.h5'
         else:
             print(f'Saving H5 to "{h5_path}"')
 
