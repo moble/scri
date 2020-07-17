@@ -5,12 +5,15 @@ from __future__ import print_function, division, absolute_import
 
 import warnings
 import os
+import re
+import ast
 import numpy as np
 import quaternion
 from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
-from .. import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0)
+from ... import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0)
 from sxs.metadata import Metadata
+from . import corotating_paired_xor
 
 
 def translate_data_types_GWFrames_to_waveforms(d):
@@ -134,7 +137,7 @@ def read_from_h5(file_name, **kwargs):
             w._append_history(old_history, 1)
             w._append_history("</previous_history>", 2)
         except KeyError:
-            pass  # Did not find a history
+            old_history = False
 
         # Get the frame data, converting to quaternion objects
         try:
@@ -226,6 +229,38 @@ def read_from_h5(file_name, **kwargs):
 
         # Now that the data is set, we can set these
         w.ells = ell_min, ell_max
+
+        # If possible, retrieve the CoM-correction parameters
+        try:
+            if hasattr(f, 'attrs') and 'space_translation' in f.attrs:
+                w.space_translation = np.array(list(f.attrs['space_translation']))
+            elif old_history:
+                pattern = r"'{0}': array\((.*?)\)".format('space_translation')
+                matches = re.search(pattern, old_history)
+                if matches:
+                    w.space_translation = np.array(ast.literal_eval(matches.group(1)))
+        except:
+            pass
+        try:
+            if hasattr(f, 'attrs') and 'boost_velocity' in f.attrs:
+                w.boost_velocity = np.array(list(f.attrs['boost_velocity']))
+            elif old_history:
+                pattern = r"'{0}': array\((.*?)\)".format('boost_velocity')
+                matches = re.search(pattern, old_history)
+                if matches:
+                    w.boost_velocity = np.array(ast.literal_eval(matches.group(1)))
+        except:
+            pass
+
+        # If possible, retrieve the CoM-correction parameters
+        try:
+            if "VersionHist.ver" in f_h5:
+                w.version_hist = [
+                    [git_hash.decode('ascii'), message.decode('ascii')]
+                    for git_hash, message in f_h5["VersionHist.ver"][()].tolist()
+                ]
+        except:
+            pass
 
         # Check up on the validity of the waveform
         if not w.ensure_validity(alter=True, assertions=False):
