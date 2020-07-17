@@ -220,3 +220,40 @@ def xor_timeseries_reverse(c):
     for i in range(1, u.shape[0]):
         u[i] = np.bitwise_xor(u[i-1], u[i])
     return c
+
+
+@njit
+def fletcher32(data):
+    """Compute the Fletcher-32 checksum of an array
+
+    This checksum is very easy to implement from scratch and very fast.
+
+    Note that it's not entirely clear that everyone agrees on the naming of
+    these functions.  This version uses 16-bit input, 32-bit accumulators,
+    block sizes of 360, and a modulus of 65_535.
+
+    Parameters
+    ==========
+    data: ndarray
+        This array can have any dtype, but must be able to be viewed as uint16.
+
+    Returns
+    =======
+    checksum: uint32
+
+    """
+    data = data.reshape((data.size,)).view(np.uint16)
+    size = data.size
+    c0 = np.uint32(0)
+    c1 = np.uint32(0)
+    j = 0
+    block_size = 360  # largest number of sums that can be performed without overflow
+    while j < size:
+        block_length = min(block_size, size-j)
+        for i in range(block_length):
+            c0 += data[j]
+            c1 += c0
+            j += 1
+        c0 %= np.uint32(65535)
+        c1 %= np.uint32(65535)
+    return (c1 << np.uint32(16) | c0)
