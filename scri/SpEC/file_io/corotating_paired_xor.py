@@ -100,7 +100,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
         with h5py.File(h5_path, 'w') as f:
             f.attrs['sxs_format'] = 'corotating_paired_xor'
             warnings.warn('sxs_format is being set to "corotating_paired_xor"')
-            f.create_dataset('time', data=w.t.view(np.uint64), **compression_options)
+            f.create_dataset('time', data=w.t.view(np.uint64), chunks=(w.n_times,), **compression_options)
             f.create_dataset('modes', data=w.data.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
             f['modes'].attrs['ell_min'] = w.ell_min
             f['modes'].attrs['ell_max'] = w.ell_max
@@ -127,7 +127,6 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
                 # see below for 'space_translation'
             },
             'version_info': {
-                # see below 'spec_version_hist'
                 'numpy': numpy.__version__,
                 'scipy': scipy.__version__,
                 'h5py': h5py.__version__,
@@ -135,6 +134,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
                 'spherical_functions': sf.__version__,
                 'scri': scri.__version__,
                 'sxs': sxs.__version__,
+                # see below 'spec_version_hist'
             },
             'validation': {
                 'h5_file_size': h5_size,
@@ -148,7 +148,8 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, c
             json_data['transformations']['space_translation'] = w.space_translation.tolist()
         if hasattr(w, 'version_hist'):
             json_data['version_info']['spec_version_history'] = w.version_hist
-        print(f'Saving JSON to "{json_path}"')
+        if file_name is not None:
+            print(f'Saving JSON to "{json_path}"')
         with json_path.open('w') as f:
             json.dump(json_data, f, indent=2, separators=(',', ': '), ensure_ascii=True)
 
