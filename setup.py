@@ -3,7 +3,6 @@
 # Copyright (c) 2019, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/quaternion/blob/master/LICENSE>
 
-from distutils.core import setup
 from os import getenv
 
 # Construct the version number from the date and time this python version was created.
