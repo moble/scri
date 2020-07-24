@@ -315,10 +315,15 @@ def multishuffle(shuffle_widths, forward=True):
     =======
     shuffle_func: numba JIT function
         This function takes just one parameter — the array to be shuffled — and
-        returns the shuffled array.  Note that the input array will be viewed
-        as an array of unsigned ints of the input bit width, and then reshaped
-        into one dimension.  This can affect the order of elements; you should
-        ensure that your data will survive this process in the desired order.
+        returns the shuffled array.  Note that the input array *must* be flat
+        (have just one dimension), and will be viewed as an array of unsigned
+        integers of the input bit width.  This can affect the shape of the
+        array and order of elements.  You should ensure that this process will
+        result in an array of numbers in the order that you want.  For example,
+        if you have a 2-d array of floats `a` that are more continuous along
+        the first dimension, you might pass `np.ravel(a.view(np.uint64), 'F')`,
+        where F represents Fortran order, which varies more quickly in the
+        first dimension.
 
     """
     import numpy as np
@@ -333,6 +338,13 @@ def multishuffle(shuffle_widths, forward=True):
 
     if forward:
         def shuffle(a):
+            a = a.view(dtype)
+            if a.ndim != 1:
+                raise ValueError(
+                    "\nThis function only accepts flat arrays.  Make sure you flatten "
+                    "(using ravel, reshape, or flatten)\n in a way that keeps your data"
+                    "contiguous in the order you want."
+                )
             b = np.zeros_like(a)
             b_array_bit = dtype.type(0)
             for i, shuffle_width in enumerate(shuffle_widths):
@@ -351,6 +363,13 @@ def multishuffle(shuffle_widths, forward=True):
         # 1) swap a <-> b in input and output
         # 2) reverse the effect of the line in which b was set from a
         def unshuffle(b):
+            b = b.view(dtype)
+            if b.ndim != 1:
+                raise ValueError(
+                    "\nThis function only accepts flat arrays.  Make sure you flatten "
+                    "(using ravel, reshape, or flatten)\n in a way that keeps your data"
+                    "contiguous in the order you want."
+                )
             a = np.zeros_like(b)
             b_array_bit = dtype.type(0)
             for i, shuffle_width in enumerate(shuffle_widths):
