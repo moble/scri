@@ -336,12 +336,12 @@ def multishuffle(shuffle_widths, forward=True):
             b = np.zeros_like(a)
             b_array_bit = dtype.type(0)
             for i, shuffle_width in enumerate(shuffle_widths):
-                mask_shift = bit_width - np.sum(shuffle_widths[:i+1])
+                mask_shift = np.sum(shuffle_widths[:i])
                 mask = dtype.type(2**shuffle_width-1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
-                    b_element_bit = (bit_width - shuffle_width) - (b_array_bit % bit_width)
+                    b_element_bit = b_array_bit % bit_width
                     b[b_array_index] += ((a[a_array_index] >> mask_shift) & mask) << b_element_bit
                     b_array_bit += shuffle_width
             return b
@@ -354,12 +354,12 @@ def multishuffle(shuffle_widths, forward=True):
             a = np.zeros_like(b)
             b_array_bit = dtype.type(0)
             for i, shuffle_width in enumerate(shuffle_widths):
-                mask_shift = bit_width - np.sum(shuffle_widths[:i+1])
+                mask_shift = np.sum(shuffle_widths[:i])
                 mask = dtype.type(2**shuffle_width-1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
-                    b_element_bit = (bit_width - shuffle_width) - (b_array_bit % bit_width)
+                    b_element_bit = b_array_bit % bit_width
                     a[a_array_index] += ((b[b_array_index] >> b_element_bit) & mask) << mask_shift
                     b_array_bit += shuffle_width
             return a
