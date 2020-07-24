@@ -257,3 +257,110 @@ def fletcher32(data):
         c0 %= np.uint32(65535)
         c1 %= np.uint32(65535)
     return (c1 << np.uint32(16) | c0)
+
+
+def multishuffle(shuffle_widths, forward=True):
+    """Construct functions to "multi-shuffle" data
+
+    The standard "shuffle" algorithm (as found in HDF5, for example) takes an
+    array of numbers and shuffles their bytes so that all bytes of a given
+    significance are stored together — the first byte of all the numbers are
+    stored contiguously, then the second byte of all the numbers, and so on.
+    The motivation for this is that — with reasonably smooth data — bytes in
+    the same byte position in sequential numbers are usually more related to
+    each other than they are to other bytes within the same number, which means
+    that shuffling results in better compression of the data.
+
+    There is no reason that shuffling can only work byte-by-byte, however.
+    There is also a "bitshuffle" algorithm, which works in the same way, but
+    collecting bits rather than bytes.  More generally, we could vary the
+    number of bits stored together as we move along the numbers.  For example,
+    we could store the first 8 bits of each number, followed by the next 4 bits
+    of each number, etc.  This is the "multi-shuffle" algorithm.
+
+    With certain types of data, this can reduce the compressed data size
+    significantly.  For example, with float data for which successive values
+    have been XOR-ed, the sign bit will very rarely change, the next 11 bits
+    (representing the exponent) and a few of the following bits (representing
+    the highest-significance digits) will typically be highly correlated, while
+    as we move to lower significance there will be less correlation.  Thus, we
+    might shuffle the first 8 bits together, followed by the next 8, then the
+    next 4, the next 4, the next 2, and so on — decreasing the shuffle width as
+    we go.  The `shuffle_widths` input might look like [8, 8, 4, 4, 2, 2, 1, 1,
+    1, 1, ...].
+
+    There are also some cases where we see correlation *increasing* again at
+    low significance.  For example, if a number results from cancellation — the
+    subtraction of two numbers much larger than their difference — then its
+    lower-significance bits will be 0.  If we then multiply that by some
+    integer (e.g., for normalization), there may be some very correlated but
+    nonzero pattern.  In either case, compression might improve if the values
+    at the end of our shuffle_widths list increase.
+
+    Parameters
+    ==========
+    shuffle_widths: list of integers
+        These integers represent the number of bits in each piece of each
+        number that is shuffled, starting from the highest significance, and
+        proceeding to the lowest.  The sum of these numbers must be the total
+        bit width of the numbers that will be given as input — which must
+        currently be 8, 16, 32, or 64.  There is no restriction on the
+        individual widths, but note that if they do not fit evenly into 8-bit
+        bytes, the result is unlikely to compress well.
+    forward: bool [defaults to True]
+        If True, the returned function will shuffle data; if False, the
+        returned function will reverse this process — unshuffle.
+
+    Returns
+    =======
+    shuffle_func: numba JIT function
+        This function takes just one parameter — the array to be shuffled — and
+        returns the shuffled array.  Note that the input array will be viewed
+        as an array of unsigned ints of the input bit width, and then reshaped
+        into one dimension.  This can affect the order of elements; you should
+        ensure that your data will survive this process in the desired order.
+
+    """
+    import numpy as np
+    import numba as nb
+
+    bit_width = np.sum(shuffle_widths)
+    if bit_width not in [8, 16, 32, 64]:
+        raise ValueError(f'Total bit width must be one of [8, 16, 32, 64], not {bit_width}')
+    dtype = np.dtype(f'u{bit_width//8}')
+    bit_width = dtype.type(bit_width)
+    shuffle_widths = np.asarray(shuffle_widths, dtype=dtype)
+
+    if forward:
+        def shuffle(a):
+            b = np.zeros_like(a)
+            b_array_bit = dtype.type(0)
+            for i, shuffle_width in enumerate(shuffle_widths):
+                mask_shift = bit_width - np.sum(shuffle_widths[:i+1])
+                mask = dtype.type(2**shuffle_width-1)
+                pieces_per_element = bit_width // shuffle_width
+                for a_array_index in range(a.size):
+                    b_array_index = b_array_bit // bit_width
+                    b_element_bit = (bit_width - shuffle_width) - (b_array_bit % bit_width)
+                    b[b_array_index] += ((a[a_array_index] >> mask_shift) & mask) << b_element_bit
+                    b_array_bit += shuffle_width
+            return b
+        return nb.njit(shuffle)
+    else:
+        # This function is almost the same as above, except for:
+        # 1) swap a <-> b in input and output
+        # 2) reverse the effect of the line in which b was set from a
+        def unshuffle(b):
+            a = np.zeros_like(b)
+            b_array_bit = dtype.type(0)
+            for i, shuffle_width in enumerate(shuffle_widths):
+                mask_shift = bit_width - np.sum(shuffle_widths[:i+1])
+                mask = dtype.type(2**shuffle_width-1)
+                pieces_per_element = bit_width // shuffle_width
+                for a_array_index in range(a.size):
+                    b_array_index = b_array_bit // bit_width
+                    b_element_bit = (bit_width - shuffle_width) - (b_array_bit % bit_width)
+                    a[a_array_index] += ((b[b_array_index] >> b_element_bit) & mask) << mask_shift
+                    b_array_bit += shuffle_width
+            return a
+        return nb.njit(unshuffle)
