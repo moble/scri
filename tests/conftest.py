@@ -17,6 +17,18 @@ def pytest_addoption(parser):
     parser.addoption("--run_slow_tests", action="store_true",
                      help="Run all tests, including slow ones")
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: mark test as slow to run")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run_slow_tests"):
+        # --run_slow_tests given in cli: do not skip slow tests
+        return
+    skip_slow = pytest.mark.skip(reason="need --run_slow_tests option to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
 
 def pytest_runtest_setup(item):
     if 'slow' in item.keywords and not item.config.getoption("--run_slow_tests"):
