@@ -285,13 +285,13 @@ def multishuffle(shuffle_widths, forward=True):
     the highest-significance digits) will typically be highly correlated, while
     as we move to lower significance there will be less correlation.  Thus, we
     might shuffle the first 8 bits together, followed by the next 8, then the
-    next 4, the next 4, the next 2, and so on — decreasing the shuffle width as
+    next 4, the next 4, the next 2, and so on — decreasing the shuffle width as
     we go.  The `shuffle_widths` input might look like [8, 8, 4, 4, 2, 2, 1, 1,
     1, 1, ...].
 
     There are also some cases where we see correlation *increasing* again at
     low significance.  For example, if a number results from cancellation — the
-    subtraction of two numbers much larger than their difference — then its
+    subtraction of two numbers much larger than their difference — then its
     lower-significance bits will be 0.  If we then multiply that by some
     integer (e.g., for normalization), there may be some very correlated but
     nonzero pattern.  In either case, compression might improve if the values
@@ -335,6 +335,7 @@ def multishuffle(shuffle_widths, forward=True):
     dtype = np.dtype(f'u{bit_width//8}')
     bit_width = dtype.type(bit_width)
     reversed_shuffle_widths = np.array(list(reversed(shuffle_widths)), dtype=dtype)
+    one = dtype.type(1)
 
     if forward:
         def shuffle(a):
@@ -346,15 +347,18 @@ def multishuffle(shuffle_widths, forward=True):
                     "contiguous in the order you want."
                 )
             b = np.zeros_like(a)
-            b_array_bit = dtype.type(0)
+            b_array_bit = np.uint64(0)
             for i, shuffle_width in enumerate(reversed_shuffle_widths):
                 mask_shift = np.sum(reversed_shuffle_widths[:i])
                 mask = dtype.type(2**shuffle_width-1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
-                    b_element_bit = b_array_bit % bit_width
-                    b[b_array_index] += ((a[a_array_index] >> mask_shift) & mask) << b_element_bit
+                    b_element_bit = dtype.type(b_array_bit % bit_width)
+                    masked = (a[a_array_index] >> mask_shift) & mask
+                    b[b_array_index] += masked << b_element_bit
+                    if b_element_bit + shuffle_width > bit_width:
+                        b[b_array_index+one] += masked >> (bit_width - b_element_bit)
                     b_array_bit += shuffle_width
             return b
         return nb.njit(shuffle)
@@ -379,7 +383,10 @@ def multishuffle(shuffle_widths, forward=True):
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
                     b_element_bit = b_array_bit % bit_width
-                    a[a_array_index] += ((b[b_array_index] >> b_element_bit) & mask) << mask_shift
+                    masked = (b[b_array_index] >> b_element_bit) & mask
+                    a[a_array_index] += masked << mask_shift
+                    if b_element_bit + shuffle_width > bit_width:
+                        a[a_array_index] += ((b[b_array_index+one] << (bit_width - b_element_bit)) & mask) << mask_shift
                     b_array_bit += shuffle_width
             return a
         return nb.njit(unshuffle)
