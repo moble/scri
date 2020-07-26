@@ -334,7 +334,7 @@ def multishuffle(shuffle_widths, forward=True):
         raise ValueError(f'Total bit width must be one of [8, 16, 32, 64], not {bit_width}')
     dtype = np.dtype(f'u{bit_width//8}')
     bit_width = dtype.type(bit_width)
-    shuffle_widths = np.asarray(shuffle_widths, dtype=dtype)
+    reversed_shuffle_widths = np.array(list(reversed(shuffle_widths)), dtype=dtype)
 
     if forward:
         def shuffle(a):
@@ -347,8 +347,8 @@ def multishuffle(shuffle_widths, forward=True):
                 )
             b = np.zeros_like(a)
             b_array_bit = dtype.type(0)
-            for i, shuffle_width in enumerate(shuffle_widths):
-                mask_shift = np.sum(shuffle_widths[:i])
+            for i, shuffle_width in enumerate(reversed_shuffle_widths):
+                mask_shift = np.sum(reversed_shuffle_widths[:i])
                 mask = dtype.type(2**shuffle_width-1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
@@ -372,8 +372,8 @@ def multishuffle(shuffle_widths, forward=True):
                 )
             a = np.zeros_like(b)
             b_array_bit = dtype.type(0)
-            for i, shuffle_width in enumerate(shuffle_widths):
-                mask_shift = np.sum(shuffle_widths[:i])
+            for i, shuffle_width in enumerate(reversed_shuffle_widths):
+                mask_shift = np.sum(reversed_shuffle_widths[:i])
                 mask = dtype.type(2**shuffle_width-1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
