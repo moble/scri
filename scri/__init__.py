@@ -118,7 +118,7 @@ from .extrapolation import extrapolate
 from .modes_time_series import ModesTimeSeries
 from .asymptotic_bondi_data import AsymptoticBondiData
 
-from . import sample_waveforms, SpEC, LVC
+from . import sample_waveforms, SpEC, LVC, utilities
 
 __all__ = ['WaveformModes', 'WaveformGrid', 'WaveformInDetector',
            'FrameType', 'UnknownFrameType', 'Inertial', 'Coprecessing', 'Coorbital', 'Corotating', 'FrameNames',
