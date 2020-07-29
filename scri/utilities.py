@@ -329,7 +329,7 @@ def multishuffle(shuffle_widths, forward=True):
     import numpy as np
     import numba as nb
 
-    bit_width = np.sum(shuffle_widths)
+    bit_width = np.sum(shuffle_widths, dtype=np.int64)  # uint64 casts to float under floor division...
     if bit_width not in [8, 16, 32, 64]:
         raise ValueError(f'Total bit width must be one of [8, 16, 32, 64], not {bit_width}')
     dtype = np.dtype(f'u{bit_width//8}')
