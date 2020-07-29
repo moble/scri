@@ -28,7 +28,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
     if file_name is None:
         # We'll just be creating a temp directory below, to check
         warnings.warn(
-            'Input `file_name` is None.  Running in temporary directory.\n'
+            '\nInput `file_name` is None.  Running in temporary directory.\n'
             'Note that this option is mostly for debugging purposes.'
         )
     else:
@@ -164,6 +164,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
     import os
     import warnings
     import pathlib
+    import bz2
     import json
     import numpy as np
     import h5py
@@ -185,7 +186,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
     h5_size = os.stat(h5_path).st_size
 
     if not json_path.exists():
-        invalid(f'JSON file "{json_path}" cannot be found, but is expected for this data format.')
+        invalid(f'\nJSON file "{json_path}" cannot be found, but is expected for this data format.')
         json_data = {}
     else:
         with open(json_path, 'r') as f:
@@ -198,7 +199,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
         sxs_format = json_data.get('sxs_format', '')
         if sxs_format not in sxs_formats:
             invalid(
-                f'The `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n'
+                f'\nThe `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n'
                 f'    {sxs_formats}.'
             )
 
@@ -206,7 +207,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
         json_h5_file_size = json_data.get('validation', {}).get('h5_file_size', 0)
         if json_h5_file_size != h5_size:
             invalid(
-                f'Mismatch between `validation/h5_file_size` key in JSON file ({json_h5_file_size}) '
+                f'\nMismatch between `validation/h5_file_size` key in JSON file ({json_h5_file_size}) '
                 f'and observed file size ({h5_size}) of "{h5_path}".'
             )
 
@@ -216,7 +217,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
             json_md5sum = json_data.get('validation', {}).get('md5sum', '')
             if json_md5sum != md5sum:
                 invalid(
-                    f'Mismatch between `validation/md5sum` key in JSON file and observed MD5 checksum.'
+                    f'\nMismatch between `validation/md5sum` key in JSON file and observed MD5 checksum.'
                 )
 
     with h5py.File(h5_path, 'r') as f:
@@ -233,7 +234,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
         json_n_times = json_data.get('validation', {}).get('n_times', 0)
         if json_n_times != n_times:
             invalid(
-                f'Number of time steps in H5 file ({n_times}) '
+                f'\nNumber of time steps in H5 file ({n_times}) '
                 f'does not match expected value from JSON ({json_n_times}).'
             )
 

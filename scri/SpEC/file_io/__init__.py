@@ -13,7 +13,7 @@ from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
 from ... import (WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0)
 from sxs.metadata import Metadata
-from . import corotating_paired_xor
+from . import corotating_paired_xor, rotating_paired_xor_multishuffle_bzip2
 
 
 def translate_data_types_GWFrames_to_waveforms(d):
