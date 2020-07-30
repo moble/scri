@@ -12,7 +12,7 @@ import copy
 import numpy as np
 import quaternion
 import scipy.constants as spc
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import CubicSpline
 from quaternion.numba_wrapper import njit, xrange, GOT_NUMBA
 from . import *
 
@@ -598,7 +598,6 @@ class WaveformBase(_object):
         modulus and phase.
         """
         from quaternion.means import mean_rotor_in_chordal_metric
-        from scipy.interpolate import InterpolatedUnivariateSpline
         from scri.extrapolation import intersection
         import scri.waveform_modes
 
@@ -688,35 +687,35 @@ class WaveformBase(_object):
                 w_c.frame[0] = -w_c.frame[0]
 
         # Now loop over each mode filling in the waveform data
-        for Mode in range(w_a.n_modes):
+        for AMode in range(w_a.n_modes):
             # Assume that all the ell,m data are the same, but not necessarily in the same order
-            BMode = self.index(w_a.LM[Mode][0], w_a.LM[Mode][1])
+            BMode = self.index(w_a.LM[AMode][0], w_a.LM[AMode][1])
             # Initialize the interpolators for this data set
-            splineReA = InterpolatedUnivariateSpline(w_a.t, w_a.data[:, Mode].real)
-            splineImA = InterpolatedUnivariateSpline(w_a.t, w_a.data[:, Mode].imag)
-            splineReB = InterpolatedUnivariateSpline(self.t, self.data[:, BMode].real)
-            splineImB = InterpolatedUnivariateSpline(self.t, self.data[:, BMode].imag)
+            # (Can't just re-view here because data are not contiguous)
+            splineReA = CubicSpline(w_a.t, w_a.data[:, AMode].real)
+            splineImA = CubicSpline(w_a.t, w_a.data[:, AMode].imag)
+            splineReB = CubicSpline(self.t, self.data[:, BMode].real)
+            splineImB = CubicSpline(self.t, self.data[:, BMode].imag)
             # Assign the data from the transition
-
-            w_c.data[:, Mode] = (splineReA(w_c.t) - splineReB(w_c.t)) + 1j * (splineImA(w_c.t) - splineImB(w_c.t))
+            w_c.data[:, AMode] = (splineReA(w_c.t) - splineReB(w_c.t)) + 1j * (splineImA(w_c.t) - splineImB(w_c.t))
 
         return w_c
 
     @property
     def data_dot(self):
-        return quaternion.calculus.derivative(self.data, self.t)
+        return CubicSpline(self.t, self.data).derivative()(self.t)
 
     @property
     def data_ddot(self):
-        return quaternion.calculus.derivative(self.data, self.t, derivative_order=2)
+        return CubicSpline(self.t, self.data).derivative(2)(self.t)
 
     @property
     def data_int(self):
-        return quaternion.calculus.antiderivative(self.data, self.t)
+        return CubicSpline(self.t, self.data).antiderivative()(self.t)
 
     @property
     def data_iint(self):
-        return quaternion.calculus.antiderivative(self.data, self.t, integral_order=2)
+        return CubicSpline(self.t, self.data).antiderivative(2)(self.t)
 
     # Data representations
     def _append_history(self, hist, additional_depth=0):
@@ -977,16 +976,7 @@ class WaveformBase(_object):
         W.t = np.copy(tprime)
         W.frame = quaternion.squad(self.frame, self.t, W.t)
         W.data = np.empty((W.n_times,) + self.data.shape[1:], dtype=self.data.dtype)
-        if self.data.dtype == np.dtype(complex):
-            for i in range(W.n_data_sets):
-                W.data_2d[:, i] = splev(W.t, splrep(self.t, self.data_2d[:, i].real, s=0), der=0) + 1j * splev(
-                    W.t, splrep(self.t, self.data_2d[:, i].imag, s=0), der=0
-                )
-        elif self.data.dtype == np.dtype(float):
-            for i in range(W.n_data_sets):
-                W.data_2d[:, i] = splev(W.t, splrep(self.t, self.data_2d[:, i], s=0), der=0)
-        else:
-            raise TypeError(f"Unknown self.data.dtype={self.data.dtype}")
+        W.data_2d[:] = CubicSpline(self.t, self.data_2d.view(float))(W.t).view(complex)
         W.__history_depth__ -= 1
         W._append_history(f"{W} = {self}.interpolate({tprime})")
         return W
