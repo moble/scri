@@ -76,9 +76,7 @@ def to_corotating_frame(
         frame = np.exp(quaternion.as_quat_array(log_frame))
     W.rotate_decomposition_basis(frame)
     W._append_history(
-        "{}.to_corotating_frame({}, {}, {}, {}, {})".format(
-            W, R0, tolerance, z_alignment_region, return_omega, truncate_log_frame
-        )
+        f"{W}.to_corotating_frame({R0}, {tolerance}, {z_alignment_region}, {return_omega}, {truncate_log_frame})"
     )
     W.frameType = Corotating
     if return_omega:
