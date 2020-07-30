@@ -557,7 +557,7 @@ class WaveformGrid(WaveformBase):
         # Determine the new time slices.  The set u' is chosen so that on each slice of constant u'_i, the average value
         # of u is precisely u_i.  But then, we have to narrow that set down, so that every physical point on all the
         # u'_i' slices correspond to data in the range of input data.
-        time_translation = sf.constant_from_ell_0_mode(supertranslation[0])
+        time_translation = sf.constant_from_ell_0_mode(supertranslation[0]).real
         uprm_i = (1 / gamma) * (w_modes.t - time_translation)
         uprm_min = (kconformal_j_k * (w_modes.t[0] - alphasupertranslation_j_k)).max()
         uprm_max = (kconformal_j_k * (w_modes.t[-1] - alphasupertranslation_j_k)).min()
