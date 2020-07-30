@@ -7,6 +7,7 @@ from .waveform_base import WaveformBase, waveform_alterations
 
 import sys
 import warnings
+import pprint
 import numbers
 import math
 import numpy as np
@@ -125,11 +126,6 @@ def process_transformation_kwargs(ell_max, **kwargs):
     gamma = 1 / math.sqrt(1 - beta ** 2)
     varphi = math.atanh(beta)
 
-    if kwargs:
-        import pprint
-
-        warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
-
     # These are the angles in the transformed system at which we need to know the function values
     thetaprm_j_phiprm_k = np.array(
         [
@@ -191,6 +187,7 @@ def process_transformation_kwargs(ell_max, **kwargs):
         R_j_k,
         Bprm_j_k,
         thetaprm_j_phiprm_k,
+        kwargs,
     )
 
 
@@ -455,6 +452,7 @@ class WaveformGrid(WaveformBase):
             R_j_k,
             Bprm_j_k,
             thetaprm_j_phiprm_k,
+            kwargs,
         ) = process_transformation_kwargs(w_modes.ell_max, **kwargs)
 
         # TODO: Incorporate the w_modes.frame information into rotors, which will require time dependence throughout
@@ -589,11 +587,6 @@ class WaveformGrid(WaveformBase):
         # Reshape, to have correct final dimensions
         fprm_iprm_j_k = fprm_iprm_j_k.reshape((fprm_iprm_j_k.shape[0], n_theta * n_phi) + w_modes.data.shape[2:])
 
-        if kwargs:
-            import pprint
-
-            warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
-
         # Encapsulate into a new grid waveform
         g = cls(
             t=uprm_iprm,
@@ -607,6 +600,10 @@ class WaveformGrid(WaveformBase):
             m_is_scaled_out=w_modes.m_is_scaled_out,
             constructor_statement=f"{cls.__name__}.from_modes({w_modes}, **{original_kwargs})",
         )
+
+        if kwargs:
+            warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
+
         return g
 
     @classmethod
