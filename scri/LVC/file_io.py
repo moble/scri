@@ -17,7 +17,7 @@ def read_from_h5(file_name, **kwargs):
     phase_re = re.compile('phase_l(?P<ell>.*)_m(?P<m>.*)')
     amp_re = re.compile('amp_l(?P<ell>.*)_m(?P<m>.*)')
     
-    with h5py.File(file_name) as f:
+    with h5py.File(file_name, 'r') as f:
         t = f['NRtimes'][:]
         ell_m = np.array([[int(match['ell']), int(match['m'])] for key in f for match in [phase_re.match(key)] if match])
         ell_min = np.min(ell_m[:, 0])
