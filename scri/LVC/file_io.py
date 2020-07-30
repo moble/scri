@@ -24,18 +24,18 @@ def read_from_h5(file_name, **kwargs):
         data = np.empty((t.size, sf.LM_total_size(ell_min, ell_max)), dtype=complex)
         for ell in range(ell_min, ell_max+1):
             for m in range(-ell, ell+1):
-                amp = Spline(f['amp_l{0}_m{1}/X'.format(ell, m)][:],
-                             f['amp_l{0}_m{1}/Y'.format(ell, m)][:],
-                             k=int(f['amp_l{0}_m{1}/deg'.format(ell, m)][()]))(t)
-                phase = Spline(f['phase_l{0}_m{1}/X'.format(ell, m)][:],
-                               f['phase_l{0}_m{1}/Y'.format(ell, m)][:],
-                               k=int(f['phase_l{0}_m{1}/deg'.format(ell, m)][()]))(t)
+                amp = Spline(f[f'amp_l{ell}_m{m}/X'][:],
+                             f[f'amp_l{ell}_m{m}/Y'][:],
+                             k=int(f[f'amp_l{ell}_m{m}/deg'][()]))(t)
+                phase = Spline(f[f'phase_l{ell}_m{m}/X'][:],
+                               f[f'phase_l{ell}_m{m}/Y'][:],
+                               k=int(f[f'phase_l{ell}_m{m}/deg'][()]))(t)
                 data[:, sf.LM_index(ell, m, ell_min)] = amp * np.exp(1j * phase)
         if 'auxiliary-info' in f and 'history.txt' in f['auxiliary-info']:
             history = ("### " + f['auxiliary-info/history.txt'][()].decode().replace('\n', '\n### ')).split('\n')
         else:
             history = [""]
-        constructor_statement = "scri.LVC.read_from_h5('{0}')".format(file_name)
+        constructor_statement = f"scri.LVC.read_from_h5('{file_name}')"
         w = WaveformModes(t=t, data=data, ell_min=ell_min, ell_max=ell_max,
                           frameType=Inertial, dataType=h,
                           history=history, constructor_statement=constructor_statement,

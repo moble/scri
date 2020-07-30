@@ -149,8 +149,8 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
         fig.text(.5, .91,
                  directory
                  + SXS_BBH
-                 + '\n$x_i$ = [{0}]'.format(', '.join([str(tmp) for tmp in x_i]))
-                 + '\n$v_i$ = [{0}]'.format(', '.join([str(tmp) for tmp in v_i])),
+                 + '\n$x_i$ = [{}]'.format(', '.join([str(tmp) for tmp in x_i]))
+                 + '\n$v_i$ = [{}]'.format(', '.join([str(tmp) for tmp in v_i])),
                  fontsize=8, ha='center')
         fig.text(0.004, 0.004, str(max_displacement), fontsize=24, ha='left', va='bottom',
                  bbox=dict(facecolor=mpl.cm.jet(max_d_color), alpha=max_d_color, boxstyle='square,pad=0.2'))
@@ -158,11 +158,11 @@ def estimate_avg_com_motion(path_to_horizons_h5='Horizons.h5',
                                  'CoM_before_and_after_transformation.pdf'))
         plt.close()
 
-    print("Optimal x_i: [{0}, {1}, {2}]".format(*x_i))
-    print("Optimal v_i: [{0}, {1}, {2}]".format(*v_i))
+    print("Optimal x_i: [{}, {}, {}]".format(*x_i))
+    print("Optimal v_i: [{}, {}, {}]".format(*v_i))
     if fit_acceleration:
-        print("Optimal a_i: [{0}, {1}, {2}]".format(*a_i))
-    print("t_i, t_f: {0}, {1}".format(t_i, t_f))
+        print("Optimal a_i: [{}, {}, {}]".format(*a_i))
+    print(f"t_i, t_f: {t_i}, {t_f}")
 
     if fit_acceleration:
         return x_i, v_i, a_i, t_i, t_f
@@ -263,11 +263,11 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
         plt.figure(1)
         for line, index, (ell, m) in zip(lines1, indices1, LM_indices1):
             plt.semilogy(w_m.t, abs(w_m.data[:, index]), color=plt.getp(line, 'color'), lw=1.5,
-                         label='({0}, {1})'.format(ell, m))
+                         label=f'({ell}, {m})')
         plt.figure(2)
         for line, index, (ell, m) in zip(lines2, indices2, LM_indices2):
             plt.semilogy(w_m.t, abs(w_m.data[:, index]), color=plt.getp(line, 'color'), lw=1.5,
-                         label='({0}, {1})'.format(ell, m))
+                         label=f'({ell}, {m})')
         for fig, num in [(fig1, 1), (fig2, 2)]:
             plt.figure(num)
             plt.axvline(t_merger, color='black', lw=2, alpha=0.125)
@@ -280,13 +280,13 @@ def remove_avg_com_motion(path_to_waveform_h5='rhOverM_Asymptotic_GeometricUnits
             fig.text(.5, .91,
                      os.path.abspath(path_to_waveform_h5)
                      + SXS_BBH
-                     + '\n$x_0$ = [{0}]'.format(', '.join([str(tmp) for tmp in x_0]))
-                     + '\n$v_0$ = [{0}]'.format(', '.join([str(tmp) for tmp in v_0])),
+                     + '\n$x_0$ = [{}]'.format(', '.join([str(tmp) for tmp in x_0]))
+                     + '\n$v_0$ = [{}]'.format(', '.join([str(tmp) for tmp in v_0])),
                      fontsize=8, ha='center')
             fig.text(0.004, 0.004, str(max_displacement), fontsize=24, ha='left', va='bottom',
                      bbox=dict(facecolor=mpl.cm.jet(max_d_color), alpha=max_d_color, boxstyle='square,pad=0.2'))
             plt.legend(loc='upper left', framealpha=0.9)
-            fig.savefig(os.path.join(directory, 'Modes_{0}_{1}_{2}.pdf'.format(w_m.descriptor_string, subdir[:-4], num)))
+            fig.savefig(os.path.join(directory, 'Modes_{}_{}_{}.pdf'.format(w_m.descriptor_string, subdir[:-4], num)))
             plt.close()
 
     return w_m

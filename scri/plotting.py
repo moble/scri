@@ -33,9 +33,9 @@ class WaveformTimeScale(mscale.ScaleBase):
 
             def tick_values(self, vmin, vmax):
                 self.set_params(nbins=6, prune=None)
-                ticks = list(super(StretchingLocator, self).tick_values(max(vmin, self.t_initial), min(vmax, self.t_merger)))
+                ticks = list(super().tick_values(max(vmin, self.t_initial), min(vmax, self.t_merger)))
                 self.set_params(nbins=11-len(ticks), prune='both')
-                ticks += list(super(StretchingLocator, self).tick_values(max(vmin, self.t_merger), min(vmax, self.t_ringdown)))
+                ticks += list(super().tick_values(max(vmin, self.t_merger), min(vmax, self.t_ringdown)))
                 self.set_params(nbins=9, prune=None)
                 return np.array(ticks)
 

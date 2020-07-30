@@ -32,7 +32,7 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
     R = np.array([quaternion.quaternion.sqrt(-quaternion.quaternion(0, *q).normalized() * quaternion.z) for q in dpa])
     R = quaternion.minimal_rotation(R, W.t, iterations=3)
     W.rotate_decomposition_basis(R)
-    W._append_history('{0}.to_coprecessing_frame({1}, {2})'.format(W, RoughDirection, RoughDirectionIndex))
+    W._append_history(f'{W}.to_coprecessing_frame({RoughDirection}, {RoughDirectionIndex})')
     W.frameType = Coprecessing
     return W
 
@@ -73,7 +73,7 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
         log_frame = np.round(log_frame * power_of_2) / power_of_2
         frame = np.exp(quaternion.as_quat_array(log_frame))
     W.rotate_decomposition_basis(frame)
-    W._append_history('{0}.to_corotating_frame({1}, {2}, {3}, {4}, {5})'.format(
+    W._append_history('{}.to_corotating_frame({}, {}, {}, {}, {})'.format(
         W, R0, tolerance, z_alignment_region, return_omega, truncate_log_frame))
     W.frameType = Corotating
     if return_omega:
@@ -91,7 +91,7 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
 @waveform_alterations
 def to_inertial_frame(W):
     W.rotate_decomposition_basis(~W.frame)
-    W._append_history('{0}.to_inertial_frame()'.format(W))
+    W._append_history(f'{W}.to_inertial_frame()')
     W.frameType = Inertial
     return W
 
@@ -260,7 +260,7 @@ def rotate_physical_system(W, R_phys):
 
     """
     W = rotate_decomposition_basis(W, ~R_phys)
-    W._append_history('{0}.rotate_physical_system({1})'.format(W, R_phys))
+    W._append_history(f'{W}.rotate_physical_system({R_phys})')
     return W  # Probably no return, but just in case...
 
 
@@ -289,7 +289,7 @@ def rotate_decomposition_basis(W, R_basis):
             raise ValueError("Input dimension mismatch.  R_basis.shape={1}".format(R_basis.shape))
         if (W.n_times != len(R_basis)):
             raise ValueError(
-                "Input dimension mismatch.  (W.n_times={0}) != (len(R_basis)={1})".format(W.n_times, len(R_basis)))
+                "Input dimension mismatch.  (W.n_times={}) != (len(R_basis)={})".format(W.n_times, len(R_basis)))
         _rotate_decomposition_basis_by_series(W.data, quaternion.as_spinor_array(R_basis), W.ell_min, W.ell_max, D)
 
         # Update the frame data, using right-multiplication
@@ -319,7 +319,7 @@ def rotate_decomposition_basis(W, R_basis):
     opts = np.get_printoptions()
     np.set_printoptions(threshold=6)
     W.__history_depth__ -= 1
-    W._append_history('{0}.rotate_decomposition_basis({1})'.format(W, R_basis))
+    W._append_history(f'{W}.rotate_decomposition_basis({R_basis})')
     np.set_printoptions(**opts)
 
     return W

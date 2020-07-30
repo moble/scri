@@ -36,8 +36,8 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
                 a = supertranslation[i_pos]
                 b = supertranslation[i_neg]
                 if abs(a - (-1.)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
-                    raise ValueError("\nsupertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_pos, a, ell, m)
-                                     + "supertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_neg, b, ell, -m)
+                    raise ValueError(f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
+                                     + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
                                      + "Will result in an imaginary supertranslation.")
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
@@ -46,7 +46,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
         st_trans = np.array(kwargs.pop('spacetime_translation'), dtype=float)
         if st_trans.shape != (4,) or st_trans.dtype != 'float':
             raise TypeError("\nInput argument `spacetime_translation` should be a float array of shape (4,).\n"
-                            "Got a {0} array of shape {1}.".format(st_trans.dtype, st_trans.shape))
+                            "Got a {} array of shape {}.".format(st_trans.dtype, st_trans.shape))
         spacetime_translation = st_trans[:]
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
@@ -54,7 +54,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
         s_trans = np.array(kwargs.pop('space_translation'), dtype=float)
         if s_trans.shape != (3,) or s_trans.dtype != 'float':
             raise TypeError("\nInput argument `space_translation` should be an array of floats of shape (3,).\n"
-                            "Got a {0} array of shape {1}.".format(s_trans.dtype, s_trans.shape))
+                            "Got a {} array of shape {}.".format(s_trans.dtype, s_trans.shape))
         spacetime_translation[1:4] = s_trans[:]
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
     if 'time_translation' in kwargs:

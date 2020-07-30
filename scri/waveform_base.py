@@ -92,11 +92,11 @@ def test_with_assertions(errs, val, msg=''):
     np.testing.assert_(val, 'Failed assertion:\n\t' + msg)
 
 
-class _object(object):
+class _object:
     """Useless class to allow multiple inheritance"""
 
     def __init__(self, *args, **kwargs):
-        super(_object, self).__init__()
+        super().__init__()
 
 
 class WaveformBase(_object):
@@ -224,7 +224,7 @@ class WaveformBase(_object):
 
         """
         original_kwargs = kwargs.copy()
-        super(WaveformBase, self).__init__(*args, **kwargs)  # to ensure proper calling in multiple inheritance
+        super().__init__(*args, **kwargs)  # to ensure proper calling in multiple inheritance
         override_exception_from_invalidity = kwargs.pop('override_exception_from_invalidity', False)
         self.__num = type(self).__num
         self.__history_depth__ = 0
@@ -241,11 +241,11 @@ class WaveformBase(_object):
             self.r_is_scaled_out = kwargs.pop('r_is_scaled_out', False)
             self.m_is_scaled_out = kwargs.pop('m_is_scaled_out', False)
             if 'constructor_statement' in kwargs:
-                self._append_history('{0} = {1}'.format(self, kwargs.pop('constructor_statement')))
+                self._append_history('{} = {}'.format(self, kwargs.pop('constructor_statement')))
             else:
                 opts = np.get_printoptions()
                 np.set_printoptions(threshold=6)
-                self._append_history('{0} = {1}(**{2})'.format(self, type(self).__name__,
+                self._append_history('{} = {}(**{})'.format(self, type(self).__name__,
                                                                pprint.pformat(original_kwargs, indent=4)))
                 np.set_printoptions(**opts)
         elif len(args) == 1 and isinstance(args[0], type(self)):
@@ -260,9 +260,9 @@ class WaveformBase(_object):
             self.dataType = other.dataType
             self.r_is_scaled_out = other.r_is_scaled_out
             self.m_is_scaled_out = other.m_is_scaled_out
-            self._append_history(['', '{0} = {1}({2})'.format(self, type(self).__name__, other)])
+            self._append_history(['', '{} = {}({})'.format(self, type(self).__name__, other)])
         else:
-            raise ValueError("Did not understand input arguments to `{0}` constructor.\n".format(type(self).__name__) +
+            raise ValueError("Did not understand input arguments to `{}` constructor.\n".format(type(self).__name__) +
                              "Note that explicit data values must be passed as keywords,\n" +
                              "whereas objects to be copied must be passed as the sole argument.")
         hostname = socket.gethostname()
@@ -271,12 +271,12 @@ class WaveformBase(_object):
         self.__history_depth__ = 1
         self.ensure_validity(alter=True, assertions=(not override_exception_from_invalidity))
         self.__history_depth__ = 0
-        self._append_history(['hostname = {0}'.format(hostname),
-                              'cwd = {0}'.format(cwd),
-                              'datetime = {0}'.format(time),
+        self._append_history([f'hostname = {hostname}',
+                              f'cwd = {cwd}',
+                              f'datetime = {time}',
                               version_info()], 1)
         if kwargs:
-            warning = '\nIn `{0}` initializer, unused keyword arguments:\n'.format(type(self).__name__)
+            warning = '\nIn `{}` initializer, unused keyword arguments:\n'.format(type(self).__name__)
             warning += pprint.pformat(kwargs, indent=4)
             warnings.warn(warning)
 
@@ -310,20 +310,20 @@ class WaveformBase(_object):
         # Ensure that the various data are correct and compatible
         test(errors,
              isinstance(self.t, np.ndarray),
-             'isinstance(self.t, np.ndarray) # type(self.t)={0}'.format(type(self.t)))
+             'isinstance(self.t, np.ndarray) # type(self.t)={}'.format(type(self.t)))
         test(errors,
              self.t.dtype == np.dtype(np.float),
-             'self.t.dtype == np.dtype(np.float) # self.t.dtype={0}'.format(self.t.dtype))
+             f'self.t.dtype == np.dtype(np.float) # self.t.dtype={self.t.dtype}')
         if alter and self.t.ndim == 2 and self.t.shape[1] == 1:
             self.t = self.t[:, 0]
             alterations += ['{0}.t = {0}.t[:,0]'.format(self)]
         test(errors,
              not self.t.size or self.t.ndim == 1,
-             'not self.t.size or self.t.ndim==1 # self.t.size={0}; self.t.ndim={1}'.format(self.t.size, self.t.ndim))
+             f'not self.t.size or self.t.ndim==1 # self.t.size={self.t.size}; self.t.ndim={self.t.ndim}')
         test(errors,
              self.t.size <= 1 or np.all(np.diff(self.t) > 0.0),
              'self.t.size<=1 or np.all(np.diff(self.t)>0.0) '
-             '# self.t.size={0}; max(np.diff(self.t))={1}'.format(self.t.size, (
+             '# self.t.size={}; max(np.diff(self.t))={}'.format(self.t.size, (
                  max(np.diff(self.t)) if self.t.size > 1 else np.nan)))
         test(errors,
              np.all(np.isfinite(self.t)),
@@ -331,10 +331,10 @@ class WaveformBase(_object):
 
         if alter and self.frame is None:
             self.frame = np.empty((0,), dtype=np.quaternion)
-            alterations += ['{0}.frame = np.empty((0,), dtype=np.quaternion)'.format(self)]
+            alterations += [f'{self}.frame = np.empty((0,), dtype=np.quaternion)']
         test(errors,
              isinstance(self.frame, np.ndarray),
-             'isinstance(self.frame, np.ndarray) # type(self.frame)={0}'.format(type(self.frame)))
+             'isinstance(self.frame, np.ndarray) # type(self.frame)={}'.format(type(self.frame)))
         if alter and self.frame.dtype == np.dtype(np.float):
             try:  # Might fail because of shape
                 self.frame = quaternion.as_quat_array(self.frame)
@@ -343,25 +343,25 @@ class WaveformBase(_object):
                 pass
         test(errors,
              self.frame.dtype == np.dtype(np.quaternion),
-             'self.frame.dtype == np.dtype(np.quaternion) # self.frame.dtype={0}'.format(self.frame.dtype))
+             f'self.frame.dtype == np.dtype(np.quaternion) # self.frame.dtype={self.frame.dtype}')
         test(errors,
              self.frame.size <= 1 or self.frame.size == self.t.size,
              'self.frame.size<=1 or self.frame.size==self.t.size '
-             '# self.frame.size={0}; self.t.size={1}'.format(self.frame.size, self.t.size))
+             '# self.frame.size={}; self.t.size={}'.format(self.frame.size, self.t.size))
         test(errors,
              np.all(np.isfinite(self.frame)),
              'np.all(np.isfinite(self.frame))')
 
         test(errors,
              isinstance(self.data, np.ndarray),
-             'isinstance(self.data, np.ndarray) # type(self.data)={0}'.format(type(self.data)))
+             'isinstance(self.data, np.ndarray) # type(self.data)={}'.format(type(self.data)))
         test(errors,
              self.data.ndim >= 1,
-             'self.data.ndim >= 1 # self.data.ndim={0}'.format(self.data.ndim))
+             f'self.data.ndim >= 1 # self.data.ndim={self.data.ndim}')
         test(errors,
              self.data.shape[0] == self.t.shape[0],
              'self.data.shape[0]==self.t.shape[0] '
-             '# self.data.shape[0]={0}; self.t.shape[0]={1}'.format(self.data.shape[0], self.t.shape[0]))
+             '# self.data.shape[0]={}; self.t.shape[0]={}'.format(self.data.shape[0], self.t.shape[0]))
         test(errors,
              np.all(np.isfinite(self.data)),
              'np.all(np.isfinite(self.data))')
@@ -369,39 +369,39 @@ class WaveformBase(_object):
         # Information about this object
         if alter and not self.history:
             self.history = ['']
-            alterations += ["{0}.history = ['']".format(self)]
+            alterations += [f"{self}.history = ['']"]
         if alter and isinstance(self.history, str):
             self.history = self.history.split('\n')
             alterations += ["{0}.history = {0}.history.split('\n')".format(self)]
         test(errors,
              isinstance(self.history, list),
-             'isinstance(self.history, list) # type(self.history)={0}'.format(type(self.history)))
+             'isinstance(self.history, list) # type(self.history)={}'.format(type(self.history)))
         test(errors,
              isinstance(self.history[0], str),
-             'isinstance(self.history[0], str) # type(self.history[0])={0}'.format(type(self.history[0])))
+             'isinstance(self.history[0], str) # type(self.history[0])={}'.format(type(self.history[0])))
         test(errors,
              isinstance(self.frameType, numbers.Integral),
-             'isinstance(self.frameType, numbers.Integral) # type(self.frameType)={0}'.format(type(self.frameType)))
+             'isinstance(self.frameType, numbers.Integral) # type(self.frameType)={}'.format(type(self.frameType)))
         test(errors,
              self.frameType in FrameType,
-             'self.frameType in FrameType # self.frameType={0}'.format(self.frameType))
+             f'self.frameType in FrameType # self.frameType={self.frameType}')
         test(errors,
              isinstance(self.dataType, numbers.Integral),
-             'isinstance(self.dataType, numbers.Integral) # type(self.dataType)={0}'.format(type(self.dataType)))
+             'isinstance(self.dataType, numbers.Integral) # type(self.dataType)={}'.format(type(self.dataType)))
         test(errors,
              self.dataType in DataType,
-             'self.dataType in DataType # self.dataType={0}'.format(self.dataType))
+             f'self.dataType in DataType # self.dataType={self.dataType}')
         test(errors,
              isinstance(self.r_is_scaled_out, bool),
-             'isinstance(self.r_is_scaled_out, bool) # type(self.r_is_scaled_out)={0}'.format(
+             'isinstance(self.r_is_scaled_out, bool) # type(self.r_is_scaled_out)={}'.format(
                  type(self.r_is_scaled_out)))
         test(errors,
              isinstance(self.m_is_scaled_out, bool),
-             'isinstance(self.m_is_scaled_out, bool) # type(self.m_is_scaled_out)={0}'.format(
+             'isinstance(self.m_is_scaled_out, bool) # type(self.m_is_scaled_out)={}'.format(
                  type(self.m_is_scaled_out)))
         test(errors,
              isinstance(self.num, numbers.Integral),
-             'isinstance(self.num, numbers.Integral) # type(self.num)={0}'.format(type(self.num)))
+             'isinstance(self.num, numbers.Integral) # type(self.num)={}'.format(type(self.num)))
 
         if alterations:
             self._append_history(alterations)
@@ -412,7 +412,7 @@ class WaveformBase(_object):
 
         self.__history_depth__ -= 1
         self._append_history('WaveformBase.ensure_validity' +
-                             '({0}, alter={1}, assertions={2})'.format(self, alter, assertions))
+                             f'({self}, alter={alter}, assertions={assertions})')
 
         return True
 
@@ -706,7 +706,7 @@ class WaveformBase(_object):
 
     def __str__(self):
         # "The goal of __str__ is to be readable; the goal of __repr__ is to be unambiguous." --- stackoverflow
-        return '{0}_{1}'.format(type(self).__name__, self.num)
+        return '{}_{}'.format(type(self).__name__, self.num)
 
     def __repr__(self):
         # "The goal of __str__ is to be readable; the goal of __repr__ is to be unambiguous." --- stackoverflow
@@ -759,8 +759,8 @@ class WaveformBase(_object):
         # Make sure to preserve auto-incremented num
         self.__num = new_num
         self.frame = quaternion.as_quat_array(self.frame)
-        self._append_history('copied, deepcopied, or unpickled as {0}'.format(self), 1)
-        self._append_history('{0} = {1}'.format(self, '{0}'.format(self).replace(str(self.num), str(old_num))))
+        self._append_history(f'copied, deepcopied, or unpickled as {self}', 1)
+        self._append_history('{} = {}'.format(self, f'{self}'.replace(str(self.num), str(old_num))))
 
     @waveform_alterations
     def deepcopy(self):
@@ -771,7 +771,7 @@ class WaveformBase(_object):
         """
         W = self.copy()
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}.deepcopy()'.format(W, self))
+        W._append_history(f'{W} = {self}.deepcopy()')
         return W
 
     @waveform_alterations
@@ -787,7 +787,7 @@ class WaveformBase(_object):
         state.pop('_WaveformBase__num')
         W.__dict__.update(state)
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}.copy()'.format(W, self))
+        W._append_history(f'{W} = {self}.copy()')
         return W
 
     @waveform_alterations
@@ -811,7 +811,7 @@ class WaveformBase(_object):
         state.pop('data')
         W.__dict__.update(state)
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}.copy_without_data()'.format(W, self))
+        W._append_history(f'{W} = {self}.copy_without_data()')
         return W
 
     def _allclose(self, other, report_all=True, rtol=1e-10, atol=1e-10,
@@ -842,7 +842,7 @@ class WaveformBase(_object):
         """
         equality = True
         if not type(self) == type(other):  # not isinstance(other, self.__class__):
-            warnings.warn("\n  (type(self)={0}) != (type(other)={1})".format(type(self), type(other)))
+            warnings.warn("\n  (type(self)={}) != (type(other)={})".format(type(self), type(other)))
             equality = False
             if not report_all and not equality:
                 return False
@@ -863,10 +863,10 @@ class WaveformBase(_object):
                 if val.dtype == np.quaternion:
                     if not np.allclose(quaternion.as_float_array(val),
                                        quaternion.as_float_array(other.__dict__[key]), rtol, atol):
-                        warnings.warn("\n  `{0}` fields differ".format(key))
+                        warnings.warn(f"\n  `{key}` fields differ")
                         equality = False
                 elif not np.allclose(val, other.__dict__[key], rtol, atol):
-                    warnings.warn("\n  `{0}` fields differ".format(key))
+                    warnings.warn(f"\n  `{key}` fields differ")
                     equality = False
             else:
                 if not val == other.__dict__[key]:
@@ -904,10 +904,10 @@ class WaveformBase(_object):
             W.frame = self.frame[key]
             W.data = self.data[key]
         else:
-            raise ValueError("Could not understand input `{0}` (of type `{1}`) ".format(key, type(key)))
+            raise ValueError("Could not understand input `{}` (of type `{}`) ".format(key, type(key)))
 
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}[{2}]'.format(W, self, key))
+        W._append_history(f'{W} = {self}[{key}]')
 
         return W
 
@@ -935,9 +935,9 @@ class WaveformBase(_object):
             for i in range(W.n_data_sets):
                 W.data_2d[:, i] = splev(W.t, splrep(self.t, self.data_2d[:, i], s=0), der=0)
         else:
-            raise TypeError("Unknown self.data.dtype={0}".format(self.data.dtype))
+            raise TypeError(f"Unknown self.data.dtype={self.data.dtype}")
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}.interpolate({2})'.format(W, self, tprime))
+        W._append_history(f'{W} = {self}.interpolate({tprime})')
         return W
 
 
@@ -1005,8 +1005,8 @@ class WaveformBase(_object):
         W.r_is_scaled_out = False
 
         W.__history_depth__ -= 1
-        W._append_history('{0} = {1}.SI_units(current_unit_mass_in_solar_masses={2}, '
-                          'distance_from_source_in_megaparsecs={3})'.format(W, self, current_unit_mass_in_solar_masses,
+        W._append_history('{} = {}.SI_units(current_unit_mass_in_solar_masses={}, '
+                          'distance_from_source_in_megaparsecs={})'.format(W, self, current_unit_mass_in_solar_masses,
                                                                             distance_from_source_in_megaparsecs))
 
         return W

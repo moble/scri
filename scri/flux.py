@@ -77,7 +77,7 @@ def sparse_expectation_value(abar, rows, columns, values, b):
 
 def matrix_expectation_value(a, M, b,
                              allow_LM_differ=False, allow_times_differ=False):
-    """The matrix expectation value <a|M|b>(u), where M is a linear operator.
+    r"""The matrix expectation value <a|M|b>(u), where M is a linear operator.
 
     Treat two spin-s waveforms a, b (in the modal representation) as vectors.
     Then we can form the 'expectation value'
@@ -211,12 +211,12 @@ def p_z(ell_min, ell_max, s=-2):
 
     This function is specific to the case where waveforms have s=-2.
 
-    p^z = \cos\theta = 2 \sqrt{\pi/3} Y_{1,0}
+    p^z = \\cos\theta = 2 \\sqrt{\\pi/3} Y_{1,0}
     This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
 
     The matrix elements yielded are
-    < s, ellp, mp | \cos\theta | s, ell, m > =
-      \sqrt{ \frac{2*ell+1}{2*ellp+1} } *
+    < s, ellp, mp | \\cos\theta | s, ell, m > =
+      \\sqrt{ \frac{2*ell+1}{2*ellp+1} } *
       < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
     where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
     Because of the magnetic selection rules, we only have mp == m
@@ -242,10 +242,10 @@ def p_z(ell_min, ell_max, s=-2):
 
 @swsh_indices_to_matrix_indices
 def p_plusminus(ell_min, ell_max, sign, s=-2):
-    u"""Produce the function p_plus or p_minus, based on sign.
+    """Produce the function p_plus or p_minus, based on sign.
 
-      p^+ = -\sqrt{8 \pi / 3} Y_{1,+1} = \sin\theta e^{+i\phi}
-      p^- = +\sqrt{8 \pi / 3} Y_{1,-1} = \sin\theta e^{-i\phi}
+      p^+ = -\\sqrt{8 \\pi / 3} Y_{1,+1} = \\sin\theta e^{+i\\phi}
+      p^- = +\\sqrt{8 \\pi / 3} Y_{1,-1} = \\sin\theta e^{-i\\phi}
 
     This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a confusing name.
 
@@ -261,11 +261,11 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
     prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
 
     def swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
-        """Compute a matrix element treating Y_{\ell, m} as a linear operator
+        """Compute a matrix element treating Y_{\\ell, m} as a linear operator
 
         From the rules for the Wigner D matrices, we get the result that
         <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
-          \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
+          \\sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\\pi*(2*l3+1)} } *
           < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
         where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
         See e.g. Campbell and Morgan (1971).
@@ -337,7 +337,7 @@ def momentum_flux(h):
 
 @swsh_indices_to_matrix_indices
 def j_z(ell_min, ell_max):
-    """Generator for j^z matrix elements (for use with matrix_expectation_value)
+    r"""Generator for j^z matrix elements (for use with matrix_expectation_value)
 
     Matrix elements yielded are
 
@@ -353,7 +353,7 @@ def j_z(ell_min, ell_max):
 
 @swsh_indices_to_matrix_indices
 def j_plusminus(ell_min, ell_max, sign):
-    """Produce the function j_plus or j_minus, based on sign.
+    r"""Produce the function j_plus or j_minus, based on sign.
 
     The conventions for these matrix elements, to agree with Ruiz+ (2008) [0707.4654], should be:
 

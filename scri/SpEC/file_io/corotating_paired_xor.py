@@ -188,7 +188,7 @@ def load(file_name, ignore_validation=False):
         invalid(f'JSON file "{json_path}" cannot be found, but is expected for this data format.')
         json_data = {}
     else:
-        with open(json_path, 'r') as f:
+        with open(json_path) as f:
             json_data = json.load(f)
 
         dataType = json_data.get('data_info', {}).get('data_type', 'UnknownDataType')

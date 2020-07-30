@@ -4,7 +4,7 @@ from spherical_functions import LM_total_size
 from .. import ModesTimeSeries
 
 
-class AsymptoticBondiData(object):
+class AsymptoticBondiData:
     """Class to store asymptotic Bondi data
 
     This class stores time data, along with the corresponding values of psi0 through psi4 and sigma.
@@ -160,7 +160,7 @@ class AsymptoticBondiData(object):
 
         The Bondi mass aspect is given by
 
-            \Psi = \psi_2 + \eth \eth \bar{\sigma} + \sigma * \dot{\bar{\sigma}}
+            \\Psi = \\psi_2 + \\eth \\eth \bar{\\sigma} + \\sigma * \\dot{\bar{\\sigma}}
 
         Note that the last term is a product between two fields.  If, for example, these both have
         ell_max=8, then their full product would have ell_max=16, meaning that we would go from
@@ -176,7 +176,7 @@ class AsymptoticBondiData(object):
             errors due to aliasing.)  If a callable is passed, it is passed on to the
             spherical_functions.Modes.multiply method.  See that function's docstring for details.
             The default behavior will result in the output having ell_max equal to the largest of
-            any of the individual Modes objects in the equation for \Psi above -- but not the
+            any of the individual Modes objects in the equation for \\Psi above -- but not the
             product.
 
         """

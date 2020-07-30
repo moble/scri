@@ -419,7 +419,7 @@ def _LLDominantEigenvector(dpa, dpa_i, i_index):
 def LLDominantEigenvector(
     W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=0
 ):
-    """Calculate the principal axis of the LL matrix
+    r"""Calculate the principal axis of the LL matrix
 
     \param Lmodes L modes to evaluate (optional)
     \param RoughDirection Vague guess about the preferred initial (optional)

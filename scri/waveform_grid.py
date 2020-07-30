@@ -26,7 +26,7 @@ def process_transformation_kwargs(ell_max, **kwargs):
         if supertranslation.dtype != 'complex' and supertranslation.size > 0:
             # I don't actually think this can ever happen...
             raise TypeError("\nInput argument `supertranslation` should be a complex array with size>0.\n"
-                            "Got a {0} array of shape {1}.".format(supertranslation.dtype,
+                            "Got a {} array of shape {}.".format(supertranslation.dtype,
                                                                    supertranslation.shape))
         # Make sure the array has size at least 4, by padding with zeros
         if supertranslation.size <= 4:
@@ -38,7 +38,7 @@ def process_transformation_kwargs(ell_max, **kwargs):
             raise ValueError('\nInput supertranslation parameter must contain modes from ell=0 up to some ell_max, '
                              'including\nall relevant m modes in standard order (see `spherical_functions` '
                              'documentation for details).\nThus, it must be an array with length given by a '
-                             'perfect square; its length is {0}'.format(len(supertranslation)))
+                             'perfect square; its length is {}'.format(len(supertranslation)))
         # Check that the resulting supertranslation will be real
         for ell in range(ell_max_supertranslation+1):
             for m in range(ell+1):
@@ -47,8 +47,8 @@ def process_transformation_kwargs(ell_max, **kwargs):
                 a = supertranslation[i_pos]
                 b = supertranslation[i_neg]
                 if abs(a - (-1.)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
-                    raise ValueError("\nsupertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_pos, a, ell, m)
-                                     + "supertranslation[{0}]={1}  # (ell,m)=({2},{3})\n".format(i_neg, b, ell, -m)
+                    raise ValueError(f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
+                                     + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
                                      + "Will result in an imaginary supertranslation.")
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
@@ -57,7 +57,7 @@ def process_transformation_kwargs(ell_max, **kwargs):
         st_trans = np.array(kwargs.pop('spacetime_translation'), dtype=float)
         if st_trans.shape != (4,) or st_trans.dtype != 'float':
             raise TypeError("\nInput argument `spacetime_translation` should be a float array of shape (4,).\n"
-                            "Got a {0} array of shape {1}.".format(st_trans.dtype, st_trans.shape))
+                            "Got a {} array of shape {}.".format(st_trans.dtype, st_trans.shape))
         spacetime_translation = st_trans[:]
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
@@ -65,14 +65,14 @@ def process_transformation_kwargs(ell_max, **kwargs):
         s_trans = np.array(kwargs.pop('space_translation'), dtype=float)
         if s_trans.shape != (3,) or s_trans.dtype != 'float':
             raise TypeError("\nInput argument `space_translation` should be an array of floats of shape (3,).\n"
-                            "Got a {0} array of shape {1}.".format(s_trans.dtype, s_trans.shape))
+                            "Got a {} array of shape {}.".format(s_trans.dtype, s_trans.shape))
         spacetime_translation[1:4] = s_trans[:]
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
     if 'time_translation' in kwargs:
         t_trans = kwargs.pop('time_translation')
         if not isinstance(t_trans, float):
             raise TypeError("\nInput argument `time_translation` should be a single float.\n"
-                            "Got {0}.".format(t_trans))
+                            "Got {}.".format(t_trans))
         spacetime_translation[0] = t_trans
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
 
@@ -84,38 +84,38 @@ def process_transformation_kwargs(ell_max, **kwargs):
     n_theta = kwargs.pop('n_theta', 2*ell_max+1)
     n_phi = kwargs.pop('n_phi', 2*ell_max+1)
     if n_theta < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
-        warning = ("n_theta={0} is small; because of the supertranslation, ".format(n_theta)
-                   + "it will lose accuracy for anything less than 2*ell+1={0}".format(ell_max))
+        warning = (f"n_theta={n_theta} is small; because of the supertranslation, "
+                   + f"it will lose accuracy for anything less than 2*ell+1={ell_max}")
         warnings.warn(warning)
     if n_theta < 2*w_ell_max+1:
-        raise ValueError('n_theta={0} is too small; '.format(n_theta)
-                         + 'must be at least 2*ell+1={0}'.format(2*w_ell_max+1))
+        raise ValueError(f'n_theta={n_theta} is too small; '
+                         + 'must be at least 2*ell+1={}'.format(2*w_ell_max+1))
     if n_phi < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
-        warning = ("n_phi={0} is small; because of the supertranslation, ".format(n_phi)
-                   + "it will lose accuracy for anything less than 2*ell+1={0}".format(ell_max))
+        warning = (f"n_phi={n_phi} is small; because of the supertranslation, "
+                   + f"it will lose accuracy for anything less than 2*ell+1={ell_max}")
         warnings.warn(warning)
     if n_phi < 2*w_ell_max+1:
-        raise ValueError('n_phi={0} is too small; '.format(n_phi)
-                         + 'must be at least 2*ell+1={0}'.format(2*w_ell_max+1))
+        raise ValueError(f'n_phi={n_phi} is too small; '
+                         + 'must be at least 2*ell+1={}'.format(2*w_ell_max+1))
 
     # Get the rotor for the frame rotation
     frame_rotation = np.quaternion(*np.array(kwargs.pop('frame_rotation', [1, 0, 0, 0]), dtype=float))
     if frame_rotation.abs() < 3e-16:
-        raise ValueError('frame_rotation={0} should be a unit quaternion'.format(frame_rotation))
+        raise ValueError(f'frame_rotation={frame_rotation} should be a unit quaternion')
     frame_rotation = frame_rotation.normalized()
 
     # Get the boost velocity vector
     boost_velocity = np.array(kwargs.pop('boost_velocity', [0.0]*3), dtype=float)
     beta = np.linalg.norm(boost_velocity)
     if boost_velocity.shape != (3,) or beta >= 1.0:
-        raise ValueError('Input boost_velocity=`{0}` should be a 3-vector with '
+        raise ValueError('Input boost_velocity=`{}` should be a 3-vector with '
                          'magnitude strictly less than 1.0.'.format(boost_velocity))
     gamma = 1 / math.sqrt(1 - beta**2)
     varphi = math.atanh(beta)
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
 
     # These are the angles in the transformed system at which we need to know the function values
     thetaprm_j_phiprm_k = np.array([[[thetaprm_j, phiprm_k]
@@ -174,7 +174,7 @@ class WaveformGrid(WaveformBase):
         # Do not directly access __n_theta or __n_phi; use n_theta or n_phi instead
         self.__n_theta = kwargs.pop('n_theta', 0)
         self.__n_phi = kwargs.pop('n_phi', 0)
-        super(WaveformGrid, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
@@ -198,27 +198,27 @@ class WaveformGrid(WaveformBase):
 
         test(errors,
              isinstance(self.__n_theta, numbers.Integral),
-             'isinstance(self.__n_theta, numbers.Integral)  # type(self.__n_theta)={0}'.format(type(self.__n_theta)))
+             'isinstance(self.__n_theta, numbers.Integral)  # type(self.__n_theta)={}'.format(type(self.__n_theta)))
         test(errors,
              isinstance(self.__n_phi, numbers.Integral),
-             'isinstance(self.__n_phi, numbers.Integral)  # type(self.__n_phi)={0}'.format(type(self.__n_phi)))
+             'isinstance(self.__n_phi, numbers.Integral)  # type(self.__n_phi)={}'.format(type(self.__n_phi)))
         test(errors,
              self.__n_theta >= 0,
-             'self.__n_theta>=0 # {0}'.format(self.__n_theta))
+             f'self.__n_theta>=0 # {self.__n_theta}')
         test(errors,
              self.__n_phi >= 0,
-             'self.__n_phi>=0 # {0}'.format(self.__n_phi))
+             f'self.__n_phi>=0 # {self.__n_phi}')
 
         test(errors,
              self.data.dtype == np.dtype(np.complex),
-             'self.data.dtype == np.dtype(np.complex)  # self.data.dtype={0}'.format(self.data.dtype))
+             f'self.data.dtype == np.dtype(np.complex)  # self.data.dtype={self.data.dtype}')
         test(errors,
              self.data.ndim >= 2,
-             'self.data.ndim >= 2 # self.data.ndim={0}'.format(self.data.ndim))
+             f'self.data.ndim >= 2 # self.data.ndim={self.data.ndim}')
         test(errors,
              self.data.shape[1] == self.__n_theta * self.__n_phi,
              'self.data.shape[1] == self.__n_theta * self.__n_phi  '
-             '# self.data.shape={0}; self.__n_theta * self.__n_phi={1}'.format(self.data.shape[1],
+             '# self.data.shape={}; self.__n_theta * self.__n_phi={}'.format(self.data.shape[1],
                                                                                self.__n_theta * self.__n_phi))
 
         if alterations:
@@ -229,11 +229,11 @@ class WaveformGrid(WaveformBase):
             return False
 
         # Call the base class's version
-        super(WaveformGrid, self).ensure_validity(alter, assertions)
+        super().ensure_validity(alter, assertions)
 
         self.__history_depth__ -= 1
         self._append_history('WaveformModes.ensure_validity' +
-                             '({0}, alter={1}, assertions={2})'.format(self, alter, assertions))
+                             f'({self}, alter={alter}, assertions={assertions})')
 
         return True
 
@@ -261,7 +261,7 @@ class WaveformGrid(WaveformBase):
         if ell_max is None:
             ell_max = int((max(self.n_theta, self.n_phi)-1)//2)
         if not isinstance(ell_max, numbers.Integral) or ell_max < 0:
-            raise ValueError("Input `ell_max` should be a nonnegative integer; got `{0}` instead".format(ell_max))
+            raise ValueError(f"Input `ell_max` should be a nonnegative integer; got `{ell_max}` instead")
 
         final_dim = int(np.prod(self.data.shape[2:]))
         old_data = self.data.reshape((self.n_times, self.n_theta, self.n_phi, final_dim))
@@ -284,7 +284,7 @@ class WaveformGrid(WaveformBase):
                           ell_min=ell_min, ell_max=ell_max,
                           frameType=self.frameType, dataType=self.dataType,
                           r_is_scaled_out=self.r_is_scaled_out, m_is_scaled_out=self.m_is_scaled_out,
-                          constructor_statement="{0}.to_modes({1})".format(self, ell_max))
+                          constructor_statement=f"{self}.to_modes({ell_max})")
         return m
 
     @classmethod
@@ -375,10 +375,10 @@ class WaveformGrid(WaveformBase):
         # and evaluate the SWSHs.  But for now, let's just reject any waveforms in a non-inertial frame
         if not isinstance(w_modes, WaveformModes):
             raise TypeError("\nInput waveform object must be an instance of `WaveformModes`; "
-                            "this is of type `{0}`".format(type(w_modes).__name__))
+                            "this is of type `{}`".format(type(w_modes).__name__))
         if w_modes.frameType != Inertial:
             raise ValueError("\nInput waveform object must be in an inertial frame; "
-                             "this is in a frame of type `{0}`".format(w_modes.frame_type_string))
+                             "this is in a frame of type `{}`".format(w_modes.frame_type_string))
 
         # The first task is to establish a set of constant u' slices on which the new grid should be evaluated.  This
         # is done simply by translating the original set of slices by the time translation (the lowest moment of the
@@ -513,14 +513,14 @@ class WaveformGrid(WaveformBase):
 
         if kwargs:
             import pprint
-            warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+            warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
 
         # Encapsulate into a new grid waveform
         g = cls(t=uprm_iprm, data=fprm_iprm_j_k, history=w_modes.history,
                 n_theta=n_theta, n_phi=n_phi,
                 frameType=w_modes.frameType, dataType=w_modes.dataType,
                 r_is_scaled_out=w_modes.r_is_scaled_out, m_is_scaled_out=w_modes.m_is_scaled_out,
-                constructor_statement="{0}.from_modes({1}, **{2})".format(cls.__name__, w_modes, original_kwargs))
+                constructor_statement=f"{cls.__name__}.from_modes({w_modes}, **{original_kwargs})")
         return g
 
     @classmethod
@@ -535,14 +535,14 @@ class WaveformGrid(WaveformBase):
         """
         if not isinstance(w_modes, WaveformModes):
             raise TypeError("Expected WaveformModes object in argument 1; "
-                            "got `{0}` instead.".format(type(w_modes).__name__))
+                            "got `{}` instead.".format(type(w_modes).__name__))
         ell_max = kwargs.pop('ell_max', w_modes.ell_max)
         return WaveformGrid.from_modes(w_modes, **kwargs).to_modes(ell_max)
 
     def __repr__(self):
         # "The goal of __str__ is to be readable; the goal of __repr__ is to be unambiguous." --- stackoverflow
-        rep = super(WaveformGrid, self).__repr__()
-        rep += "\n# n_theta={0}, n_phi={1}".format(self.n_theta, self.n_phi)
+        rep = super().__repr__()
+        rep += f"\n# n_theta={self.n_theta}, n_phi={self.n_phi}"
         return rep
 
 

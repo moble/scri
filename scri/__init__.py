@@ -35,12 +35,12 @@ def version_info():
     import scipy
     import numba
     import numpy
-    versions = '\n'.join(['scri.__version__ = {0}'.format(__version__),
-                          'spherical_functions.__version__ = {0}'.format(spherical_functions.__version__),
-                          'quaternion.__version__ = {0}'.format(quaternion.__version__),
-                          'scipy.__version__ = {0}'.format(scipy.__version__),
-                          'numba.__version__ = {0}'.format(numba.__version__),
-                          'numpy.__version__ = {0}'.format(numpy.__version__)])
+    versions = '\n'.join([f'scri.__version__ = {__version__}',
+                          f'spherical_functions.__version__ = {spherical_functions.__version__}',
+                          f'quaternion.__version__ = {quaternion.__version__}',
+                          f'scipy.__version__ = {scipy.__version__}',
+                          f'numba.__version__ = {numba.__version__}',
+                          f'numpy.__version__ = {numpy.__version__}'])
     return versions
 
 

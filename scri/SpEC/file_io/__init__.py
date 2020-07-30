@@ -95,7 +95,7 @@ def read_from_h5(file_name, **kwargs):
     pattern_Ylm = re.compile(r"""Y_l(?P<L>[0-9]+)_m(?P<M>[-+0-9]+)\.dat""")
 
     # Initialize an empty object to be filled with goodies
-    w = WaveformModes(constructor_statement='scri.SpEC.read_from_h5("{0}", **{1})'.format(file_name, kwargs))
+    w = WaveformModes(constructor_statement=f'scri.SpEC.read_from_h5("{file_name}", **{kwargs})')
 
     # Get an h5py handle to the desired part of the h5 file
     try:
@@ -105,8 +105,8 @@ def read_from_h5(file_name, **kwargs):
         root_group = ''  # FileName is just a file, not a group in a file
     try:
         f_h5 = h5py.File(file_name, 'r')
-    except IOError:
-        print("\n`read_from_h5` could not open the file '{0}'\n\n".format(file_name))
+    except OSError:
+        print(f"\n`read_from_h5` could not open the file '{file_name}'\n\n")
         raise
     if root_group:
         f = f_h5[root_group]
@@ -151,8 +151,8 @@ def read_from_h5(file_name, **kwargs):
             if 'frameType' in kwargs:
                 w.frameType = int(kwargs.pop('frameType'))
             else:
-                warning = ("\n`frameType` was not found in '{0}' or the keyword arguments.\n".format(file_name) +
-                           "Using default value `{0}`.  You may want to set it manually.\n\n".format(FrameNames[1]))
+                warning = (f"\n`frameType` was not found in '{file_name}' or the keyword arguments.\n" +
+                           "Using default value `{}`.  You may want to set it manually.\n\n".format(FrameNames[1]))
                 warnings.warn(warning)
                 w.frameType = 1
         try:
@@ -166,12 +166,12 @@ def read_from_h5(file_name, **kwargs):
                     if type_name.lower() in file_name.lower():
                         found = True
                         w.dataType = type_int
-                        warning = ("\n`dataType` was not found in '{0}' or the keyword arguments.\n".format(file_name) +
-                                   "Using default value `{0}`.  You may want to set it manually.".format(type_name))
+                        warning = (f"\n`dataType` was not found in '{file_name}' or the keyword arguments.\n" +
+                                   f"Using default value `{type_name}`.  You may want to set it manually.")
                         warnings.warn(warning)
                         break
                 if not found:
-                    warning = ("\n`dataType` was not found in '{0}' or the keyword arguments.\n".format(file_name) +
+                    warning = (f"\n`dataType` was not found in '{file_name}' or the keyword arguments.\n" +
                                "You may want to set it manually.")
                     warnings.warn(warning)
         try:
@@ -180,7 +180,7 @@ def read_from_h5(file_name, **kwargs):
             if 'r_is_scaled_out' in kwargs:
                 w.r_is_scaled_out = bool(kwargs.pop('r_is_scaled_out'))
             else:
-                warning = ("\n`r_is_scaled_out` was not found in '{0}' or the keyword arguments.\n".format(file_name) +
+                warning = (f"\n`r_is_scaled_out` was not found in '{file_name}' or the keyword arguments.\n" +
                            "Using default value `True`.  You may want to set it manually.\n\n")
                 warnings.warn(warning)
                 w.r_is_scaled_out = True
@@ -190,7 +190,7 @@ def read_from_h5(file_name, **kwargs):
             if 'm_is_scaled_out' in kwargs:
                 w.m_is_scaled_out = bool(kwargs.pop('m_is_scaled_out'))
             else:
-                warning = ("\n`m_is_scaled_out` was not found in '{0}' or the keyword arguments.\n".format(file_name) +
+                warning = (f"\n`m_is_scaled_out` was not found in '{file_name}' or the keyword arguments.\n" +
                            "Using default value `True`.  You may want to set it manually.\n\n")
                 warnings.warn(warning)
                 w.m_is_scaled_out = True
@@ -198,9 +198,9 @@ def read_from_h5(file_name, **kwargs):
         # Get the names of all the data sets in the h5 file, and check for matches
         YLMdata = [data_set for data_set in list(f) for m in [pattern_Ylm.search(data_set)] if m]
         if len(YLMdata) == 0:
-            raise ValueError("Couldn't understand data set names in '{0}'.\n".format(file_name) +
+            raise ValueError(f"Couldn't understand data set names in '{file_name}'.\n" +
                              "Maybe you need to add the directory within the h5 file.\n" +
-                             "E.g.: '{0}/Extrapolated_N2.dir'.".format(file_name))
+                             f"E.g.: '{file_name}/Extrapolated_N2.dir'.")
 
         # Sort the data set names by increasing ell, then increasing m
         YLMdata = sorted(YLMdata, key=lambda data_set: [int(pattern_Ylm.search(data_set).group('L')),
@@ -209,7 +209,7 @@ def read_from_h5(file_name, **kwargs):
                               for data_set in YLMdata for m in [pattern_Ylm.search(data_set)] if m]))
         ell_min, ell_max = min(LM[:, 0]), max(LM[:, 0])
         if not np.array_equal(LM, sf.LM_range(ell_min, ell_max)):
-            raise ValueError("Input [ell,m] modes are not complete.  Found modes:\n{0}\n".format(LM))
+            raise ValueError(f"Input [ell,m] modes are not complete.  Found modes:\n{LM}\n")
         n_modes = len(LM)
 
         # Get the time data (assuming all are equal)
@@ -222,8 +222,8 @@ def read_from_h5(file_name, **kwargs):
         w.data = np.empty((n_times, n_modes), dtype=complex)
         for m, DataSet in enumerate(YLMdata):
             if f[DataSet].shape[0] != n_times:
-                raise ValueError("The number of time steps in this dataset should be {0}; ".format(n_times) +
-                                 "it is {0} in '{1}'.".format(f[DataSet].shape[0], DataSet))
+                raise ValueError(f"The number of time steps in this dataset should be {n_times}; " +
+                                 "it is {} in '{}'.".format(f[DataSet].shape[0], DataSet))
             w.data[:, m] = f[DataSet][:, 1:3].view(dtype=np.complex)[monotonic, 0]
 
         # Now that the data is set, we can set these
@@ -234,7 +234,7 @@ def read_from_h5(file_name, **kwargs):
             if hasattr(f, 'attrs') and 'space_translation' in f.attrs:
                 w.space_translation = np.array(list(f.attrs['space_translation']))
             elif old_history:
-                pattern = r"'{0}': array\((.*?)\)".format('space_translation')
+                pattern = r"'{}': array\((.*?)\)".format('space_translation')
                 matches = re.search(pattern, old_history)
                 if matches:
                     w.space_translation = np.array(ast.literal_eval(matches.group(1)))
@@ -244,7 +244,7 @@ def read_from_h5(file_name, **kwargs):
             if hasattr(f, 'attrs') and 'boost_velocity' in f.attrs:
                 w.boost_velocity = np.array(list(f.attrs['boost_velocity']))
             elif old_history:
-                pattern = r"'{0}': array\((.*?)\)".format('boost_velocity')
+                pattern = r"'{}': array\((.*?)\)".format('boost_velocity')
                 matches = re.search(pattern, old_history)
                 if matches:
                     w.boost_velocity = np.array(ast.literal_eval(matches.group(1)))
@@ -274,7 +274,7 @@ def read_from_h5(file_name, **kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
 
     return w
 
@@ -305,8 +305,8 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_forma
     # Open the file for output
     try:
         f = h5py.File(file_name, file_write_mode)
-    except IOError:  # If that did not work...
-        print("write_to_h5 was unable to open the file '{0}'.\n\n".format(file_name))
+    except OSError:  # If that did not work...
+        print(f"write_to_h5 was unable to open the file '{file_name}'.\n\n")
         raise  # re-raise the exception after the informative message above
     try:
         # If we are writing to a group within the file, create it
@@ -316,7 +316,7 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_forma
             g = f
         # Now write all the data to various groups in the file
         g.attrs['OutputFormatVersion'] = 'scri.SpEC'
-        g.create_dataset("History.txt", data='\n'.join(w.history) + '\n\nwrite_to_h5({0}, {1})\n'.format(w, file_name))
+        g.create_dataset("History.txt", data='\n'.join(w.history) + f'\n\nwrite_to_h5({w}, {file_name})\n')
         g.attrs['FrameType'] = w.frameType
         g.attrs['DataType'] = translate_data_types_waveforms_to_GWFrames(w.dataType)
         g.attrs['RIsScaledOut'] = int(w.r_is_scaled_out)
@@ -327,12 +327,12 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_forma
             try:
                 g.attrs[attr] = attributes[attr]
             except:
-                warning = "scri.SpEC.write_to_h5 unable to output attribute {0}={1}".format(attr, attributes[attr])
+                warning = "scri.SpEC.write_to_h5 unable to output attribute {}={}".format(attr, attributes[attr])
                 warnings.warn(warning)
         if use_NRAR_format:
             for i_m in range(w.n_modes):
                 ell, m = w.LM[i_m]
-                Data_m = g.create_dataset("Y_l{0}_m{1}.dat".format(ell, m),
+                Data_m = g.create_dataset(f"Y_l{ell}_m{m}.dat",
                                           data=[[t, d.real, d.imag] for t, d in zip(w.t, w.data[:, i_m])],
                                           compression="gzip", shuffle=True)
                 Data_m.attrs['ell'] = ell
@@ -346,7 +346,7 @@ def write_to_h5(w, file_name, file_write_mode='w', attributes={}, use_NRAR_forma
             Data = g.create_group("Data")
             for i_m in range(w.n_modes):
                 ell,m = w.LM[i_m]
-                Data_m = Data.create_dataset("l{0}_m{1:+}".format(int(ell), int(m)), data=w.data[:,i_m],
+                Data_m = Data.create_dataset("l{}_m{:+}".format(int(ell), int(m)), data=w.data[:,i_m],
                                              compression="gzip", shuffle=True)
                 Data_m.attrs['ell'] = ell
                 Data_m.attrs['m'] = m

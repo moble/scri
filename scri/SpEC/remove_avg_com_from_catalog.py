@@ -1,4 +1,3 @@
-
 import sys
 from os import walk
 from os.path import join, exists
