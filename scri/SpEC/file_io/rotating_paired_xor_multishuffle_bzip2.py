@@ -36,6 +36,8 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
         if not h5_path.parent.exists():
             h5_path.parent.mkdir(parents=True)
 
+    shuffle = scri.utilities.multishuffle(shuffle_widths)
+
     if L2norm_fractional_tolerance == 0.0:
         log_frame = quaternion.as_float_array(np.log(w.frame))[:, 1:]
     else:
@@ -83,8 +85,6 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
         xor(w.data)
         xor(log_frame)
 
-        shuffle = scri.utilities.multishuffle(shuffle_widths)
-
     # Make sure we have a place to keep all this
     with contextlib.ExitStack() as context:
         if file_name is None:
@@ -95,18 +95,33 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
 
         # Write the H5 file
         with h5py.File(h5_path, 'w') as f:
-            f.attrs['sxs_format'] = f'{sxs_formats[0]}'
-            f.attrs['n_times'] = w.n_times
-            f.attrs['ell_min'] = w.ell_min
-            f.attrs['ell_max'] = w.ell_max
-            f.attrs['shuffle_widths'] = np.array(shuffle_widths, dtype=np.uint8)
-            #warnings.warn(f'sxs_format is being set to "{sxs_formats[0]}"')
-            data = np.void(bz2.compress(
-                shuffle(w.t.view(np.uint64)).tobytes()
-                + shuffle(w.data.view(np.uint64).flatten('F')).tobytes()
-                + shuffle(log_frame.view(np.uint64).flatten('F')).tobytes()
-            ))
-            f.create_dataset('data', data=data)
+            if L2norm_fractional_tolerance != 0.0:
+                f.attrs['sxs_format'] = f'{sxs_formats[0]}'
+                f.attrs['n_times'] = w.n_times
+                f.attrs['ell_min'] = w.ell_min
+                f.attrs['ell_max'] = w.ell_max
+                f.attrs['shuffle_widths'] = np.array(shuffle_widths, dtype=np.uint8)
+                #warnings.warn(f'sxs_format is being set to "{sxs_formats[0]}"')
+                data = np.void(bz2.compress(
+                    shuffle(w.t.view(np.uint64)).tobytes()
+                    + shuffle(w.data.view(np.uint64).flatten('F')).tobytes()
+                    + shuffle(log_frame.view(np.uint64).flatten('F')).tobytes()
+                ))
+                f.create_dataset('data', data=data)
+            else:
+                compression_options = {
+                    'compression': 'gzip',
+                    'compression_opts': 9,
+                    'shuffle': True,
+                }
+                f.attrs['sxs_format'] = f'{sxs_formats[0]}'
+                f.create_dataset('time', data=w.t.view(np.uint64), chunks=(w.n_times,), **compression_options)
+                f.create_dataset('modes', data=w.data.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
+                f['modes'].attrs['ell_min'] = w.ell_min
+                f['modes'].attrs['ell_max'] = w.ell_max
+                if log_frame.size > 1:
+                    f.create_dataset('log_frame', data=log_frame.view(np.uint64),
+                                     chunks=(w.n_times, 1), **compression_options)
 
         # Get some numbers for the JSON file
         h5_size = os.stat(h5_path).st_size
