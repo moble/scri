@@ -1,4 +1,3 @@
-from __future__ import print_function
 import numpy as np
 
 mode_regex = r"""Y_l(?P<L>[0-9]+)_m(?P<M>[-+0-9]+)\.dat"""

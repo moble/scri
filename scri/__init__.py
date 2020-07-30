@@ -23,7 +23,6 @@ WaveformInDetectorFT: (Complex) Fourier transform of a `WaveformInDetector`
 """
 
 
-from __future__ import print_function, division, absolute_import
 
 import sys
 

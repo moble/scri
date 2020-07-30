@@ -16,7 +16,6 @@ Other options may be passed to the `estimate_avg_com_motion` function; see its d
 
 """
 
-from __future__ import print_function, division, absolute_import
 
 
 def com_motion(path_to_horizons_h5):

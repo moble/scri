@@ -1,7 +1,6 @@
 # Copyright (c) 2019, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-from __future__ import print_function, division, absolute_import
 
 import numpy as np
 import quaternion

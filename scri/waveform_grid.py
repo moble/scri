@@ -1,7 +1,6 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-from __future__ import print_function, division, absolute_import
 
 from . import Inertial, WaveformModes, SpinWeights, DataNames
 from . import h, hdot, sigma, news, psi0, psi1, psi2, psi3, psi4
