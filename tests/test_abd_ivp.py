@@ -241,6 +241,7 @@ def test6():
 def test7():
     """Test random values for all ℓ modes"""
     ell_max = 8
+    np.random.seed(1234)
 
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         sigma[:] = 0.01 * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1] * 2,))).view(complex)
@@ -254,6 +255,6 @@ def test7():
         check_modes(abd.psi3, sf.LM_range(2, ell_max))
         check_modes(abd.psi4, sf.LM_range(abs(abd.psi4.s), ell_max))
         check_modes(abd.sigma, sf.LM_range(abs(abd.sigma.s), ell_max))
-        assert np.max(np.abs(abd.bondi_violation_norms)) <= 4e-6
+        assert np.max(np.abs(abd.bondi_violation_norms)) <= 4.5e-6
 
     construct_and_validate(modifier, validator, ell_max=ell_max)
