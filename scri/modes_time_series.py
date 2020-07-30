@@ -17,17 +17,18 @@ class ModesTimeSeries(spherical_functions.Modes):
     some other quantity without affecting the time array stored in this class.
 
     """
+
     def __new__(cls, input_array, *args, **kwargs):
         if len(args) > 2:
             raise ValueError("Only one positional argument may be passed")
         if len(args) == 1:
-            kwargs['time'] = args[0]
-        metadata = copy.copy(getattr(input_array, '_metadata', {}))
+            kwargs["time"] = args[0]
+        metadata = copy.copy(getattr(input_array, "_metadata", {}))
         metadata.update(**kwargs)
         input_array = np.asanyarray(input_array).view(complex)
-        time = metadata.get('time', None)
+        time = metadata.get("time", None)
         if time is None:
-            raise ValueError('Time data must be specified as part of input array or as constructor parameter')
+            raise ValueError("Time data must be specified as part of input array or as constructor parameter")
         time = np.asarray(time).view(float)
         if time.ndim != 1:
             raise ValueError(f"Input time array must have exactly 1 dimension; it has {time.ndim}.")
@@ -36,24 +37,27 @@ class ModesTimeSeries(spherical_functions.Modes):
         elif input_array.ndim == 1:
             input_array = input_array[np.newaxis, :]
         elif input_array.shape[-2] != time.shape[0] and input_array.shape[-2] != 1:
-            raise ValueError(f"Second-to-last axis of input array must have size 1 or same size as time array.\n            Their shapes are {input_array.shape} and {time.shape}, respectively.")
+            raise ValueError(
+                f"Second-to-last axis of input array must have size 1 or same size as time array.\n            Their shapes are {input_array.shape} and {time.shape}, respectively."
+            )
         obj = spherical_functions.Modes(input_array, **kwargs).view(cls)
-        obj._metadata['time'] = time
+        obj._metadata["time"] = time
         return obj
 
     def __array_finalize__(self, obj):
-        if obj is None: return
+        if obj is None:
+            return
         super().__array_finalize__(obj)
-        if 'time' not in self._metadata:
-            self._metadata['time'] = None
+        if "time" not in self._metadata:
+            self._metadata["time"] = None
 
     @property
     def time(self):
-        return self._metadata['time']
+        return self._metadata["time"]
 
     @time.setter
     def time(self, new_time):
-        self._metadata['time'][:] = new_time
+        self._metadata["time"][:] = new_time
         return self.time
 
     u = time
@@ -68,12 +72,16 @@ class ModesTimeSeries(spherical_functions.Modes):
         if out is not None:
             out = np.asarray(out)
             if out.shape != new_shape:
-                raise ValueError(f"Output array should have shape {new_shape} for consistency with new time array and modes array")
+                raise ValueError(
+                    f"Output array should have shape {new_shape} for consistency with new time array and modes array"
+                )
             if out.dtype != np.complex:
                 raise ValueError(f"Output array should have dtype `complex`; it has dtype {out.dtype}")
         result = out or np.empty(new_shape, dtype=complex)
         if derivative_order > 3:
-            raise ValueError(f"{type(self)} interpolation uses CubicSpline, and cannot take a derivative of order {derivative_order}")
+            raise ValueError(
+                f"{type(self)} interpolation uses CubicSpline, and cannot take a derivative of order {derivative_order}"
+            )
         spline = CubicSpline(self.u, self.view(np.ndarray), axis=-2)
         if derivative_order < 0:
             spline = spline.antiderivative(-derivative_order)
@@ -81,7 +89,7 @@ class ModesTimeSeries(spherical_functions.Modes):
             spline = spline.derivative(derivative_order)
         result[:] = spline(new_time)
         metadata = self._metadata.copy()
-        metadata['time'] = new_time
+        metadata["time"] = new_time
         return type(self)(result, **metadata)
 
     def antiderivative(self, antiderivative_order=1):

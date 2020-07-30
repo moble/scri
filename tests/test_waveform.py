@@ -1,7 +1,6 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-
 import numpy as np
 import quaternion
 from numpy import *
@@ -45,11 +44,12 @@ def test_nontrivial_construction(linear_waveform):
 
 def test_pickling():
     import pickle
+
     W1 = scri.WaveformModes()
     W1_str = pickle.dumps(W1)
     W2 = pickle.loads(W1_str)
-    assert '_WaveformBase__num' in W1.__dict__.keys()
-    assert '_WaveformBase__num' in W2.__dict__.keys()
+    assert "_WaveformBase__num" in W1.__dict__.keys()
+    assert "_WaveformBase__num" in W2.__dict__.keys()
     assert W1._allclose(W2, rtol=0, atol=0, compare_history_beginnings=True)
 
 
@@ -77,7 +77,7 @@ def test_indexing(linear_waveform):
     w = linear_waveform
     for i, (ell, m) in enumerate(w.LM):
         assert w.index(ell, m) == i
-        assert np.allclose(w.data[:, w.index(ell, m)], (m - 1j * m)*w.t, rtol=0, atol=0)
+        assert np.allclose(w.data[:, w.index(ell, m)], (m - 1j * m) * w.t, rtol=0, atol=0)
     assert np.all(w.indices(w.LM) == range(w.n_modes))
 
 
@@ -85,7 +85,7 @@ def test_empty_slice(linear_waveform):
     W = linear_waveform[:0, :0]
     assert W.ensure_validity(alter=False)
     # Check that these things are copied from linear_waveform
-    assert W.history[:1] == ['# Called from linear_waveform']
+    assert W.history[:1] == ["# Called from linear_waveform"]
     assert W.frameType == scri.Corotating
     assert W.dataType == scri.h
     assert W.r_is_scaled_out  # == True
@@ -110,12 +110,12 @@ def test_empty_mode_slice(linear_waveform):
     assert W.LM.size == 0
     assert W.ell_min == 0
     assert W.ell_max == -1
-    assert W.history[:1] == ['# Called from linear_waveform']
+    assert W.history[:1] == ["# Called from linear_waveform"]
     assert W.frameType == linear_waveform.frameType
     assert W.dataType == linear_waveform.dataType
     assert W.r_is_scaled_out == linear_waveform.r_is_scaled_out
     assert W.m_is_scaled_out == linear_waveform.m_is_scaled_out
-    assert W.num != linear_waveform.num   # Check that this is valid, but not the same
+    assert W.num != linear_waveform.num  # Check that this is valid, but not the same
 
 
 def test_time_slice(linear_waveform):
@@ -127,7 +127,7 @@ def test_time_slice(linear_waveform):
     assert np.all(W.LM == linear_waveform.LM)
     assert W.ell_min == linear_waveform.ell_min
     assert W.ell_max == linear_waveform.ell_max
-    assert W.history[:1] == ['# Called from linear_waveform']
+    assert W.history[:1] == ["# Called from linear_waveform"]
     assert W.frameType == linear_waveform.frameType
     assert W.dataType == linear_waveform.dataType
     assert W.r_is_scaled_out == linear_waveform.r_is_scaled_out
@@ -139,7 +139,7 @@ def test_time_slice(linear_waveform):
 def test_time_and_mode_slice(linear_waveform):
     W = linear_waveform[10:50, :5]
     assert W.ensure_validity(alter=False)
-    assert W.history[:1] == ['# Called from linear_waveform']
+    assert W.history[:1] == ["# Called from linear_waveform"]
     assert W.frameType == scri.Corotating
     assert W.dataType == scri.h
     assert W.r_is_scaled_out  # == True
@@ -148,7 +148,8 @@ def test_time_and_mode_slice(linear_waveform):
     assert np.all(W.t == linear_waveform.t[10:50])
     assert np.all(W.frame == linear_waveform.frame[10:50])
     assert np.all(
-        W.LM == np.array([[ell, m] for ell in range(linear_waveform.ell_min, 5) for m in range(-ell, ell + 1)]))
+        W.LM == np.array([[ell, m] for ell in range(linear_waveform.ell_min, 5) for m in range(-ell, ell + 1)])
+    )
     assert np.all(W.data == linear_waveform.data[10:50, :21])
 
 
@@ -157,12 +158,18 @@ def test_norms(linear_waveform):
     W.data[0, :] = 6.0 * W.data[-1, :]
     W.data[10, :] = 5.0 * W.data[-1, :]
     assert W.ensure_validity(alter=False)
-    assert np.allclose(W.norm(), np.sum(np.abs(W.data) ** 2, axis=-1), rtol=1.e-15)
-    assert np.allclose(W.norm(take_sqrt=True), np.sqrt(np.sum(np.abs(W.data) ** 2, axis=-1)), rtol=1.e-15)
-    assert np.allclose(W.norm(indices=slice(W.data.shape[0] // 4, None, None)),
-                       np.sum(np.abs(W.data[(W.data.shape[0] // 4):]) ** 2, axis=-1), rtol=1.e-15)
-    assert np.allclose(W.norm(indices=slice(W.data.shape[0] // 4, None, None), take_sqrt=True),
-                       np.sqrt(np.sum(np.abs(W.data[(W.data.shape[0] // 4):]) ** 2, axis=-1)), rtol=1.e-15)
+    assert np.allclose(W.norm(), np.sum(np.abs(W.data) ** 2, axis=-1), rtol=1.0e-15)
+    assert np.allclose(W.norm(take_sqrt=True), np.sqrt(np.sum(np.abs(W.data) ** 2, axis=-1)), rtol=1.0e-15)
+    assert np.allclose(
+        W.norm(indices=slice(W.data.shape[0] // 4, None, None)),
+        np.sum(np.abs(W.data[(W.data.shape[0] // 4) :]) ** 2, axis=-1),
+        rtol=1.0e-15,
+    )
+    assert np.allclose(
+        W.norm(indices=slice(W.data.shape[0] // 4, None, None), take_sqrt=True),
+        np.sqrt(np.sum(np.abs(W.data[(W.data.shape[0] // 4) :]) ** 2, axis=-1)),
+        rtol=1.0e-15,
+    )
     assert W.max_norm_index() == W.data.shape[0] - 1
     assert W.max_norm_index(0) == 0
     assert W.max_norm_index(1) == 0
@@ -224,16 +231,16 @@ def test_constant_interpolation(constant_waveform):
     W_out = W_in.interpolate(t_out)
     assert W_in.ensure_validity(alter=False)
     assert W_out.ensure_validity(alter=False)
-    assert W_out.history[:1] == ['# Called from constant_waveform']
+    assert W_out.history[:1] == ["# Called from constant_waveform"]
     assert W_out.frameType == scri.Corotating
     assert W_out.dataType == scri.h
     assert W_out.r_is_scaled_out  # == True
     assert W_out.m_is_scaled_out  # == True
     assert W_out.num != W_in.num
     assert np.all(W_out.t == t_out)
-    assert np.all(W_out.frame == np.array([W_in.frame[0], ] * len(t_out)))
+    assert np.all(W_out.frame == np.array([W_in.frame[0],] * len(t_out)))
     assert np.all(W_out.LM == W_in.LM)
-    assert np.allclose(W_out.data, np.array([W_in.data[0, :], ] * len(t_out)), rtol=interpolation_precision)
+    assert np.allclose(W_out.data, np.array([W_in.data[0, :],] * len(t_out)), rtol=interpolation_precision)
 
 
 def test_linear_interpolation(linear_waveform):
@@ -245,7 +252,7 @@ def test_linear_interpolation(linear_waveform):
     W_out = W_in.interpolate(t_out)
     assert W_in.ensure_validity(alter=False)
     assert W_out.ensure_validity(alter=False)
-    assert W_out.history[:1] == ['# Called from linear_waveform']
+    assert W_out.history[:1] == ["# Called from linear_waveform"]
     assert W_out.frameType == scri.Corotating
     assert W_out.dataType == scri.h
     assert W_out.r_is_scaled_out  # == True
@@ -269,10 +276,10 @@ def test_involution_properties(random_waveform):
     The objective here is to apply the involutions twice, and ensure that we get the same thing out.
 
     """
-    for direction in ['x_', 'y_', 'z_', '']:
+    for direction in ["x_", "y_", "z_", ""]:
         w_in = WaveformModes(random_waveform)
         w_out = getattr(getattr(w_in, f"{direction}parity_conjugate"), f"{direction}parity_conjugate")
-        assert w_in._allclose(w_out, rtol=0., atol=0., compare_history_beginnings=True)
+        assert w_in._allclose(w_out, rtol=0.0, atol=0.0, compare_history_beginnings=True)
 
 
 def test_idempotents(random_waveform):
@@ -282,10 +289,10 @@ def test_idempotents(random_waveform):
     goes for anti-symmetric parts.
 
     """
-    for direction in ['x_', 'y_', 'z_', '']:
+    for direction in ["x_", "y_", "z_", ""]:
         w_in = getattr(random_waveform, f"{direction}parity_symmetric_part")
         w_out = getattr(w_in, f"{direction}parity_symmetric_part")
-        assert w_in._allclose(w_out, rtol=0., atol=0., compare_history_beginnings=True)
+        assert w_in._allclose(w_out, rtol=0.0, atol=0.0, compare_history_beginnings=True)
 
 
 def test_null_compositions(random_waveform):
@@ -297,14 +304,16 @@ def test_null_compositions(random_waveform):
     w_in = WaveformModes(random_waveform)
     w_in.data = np.zeros_like(w_in.data)
     w_in.frame = np.zeros_like(w_in.frame)
-    for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(getattr(random_waveform, f"{direction}parity_symmetric_part"),
-                        f"{direction}parity_antisymmetric_part")
-        assert w_in._allclose(w_out, rtol=0., atol=0.)
-    for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(getattr(random_waveform, f"{direction}parity_antisymmetric_part"),
-                        f"{direction}parity_symmetric_part")
-        assert w_in._allclose(w_out, rtol=0., atol=0.)
+    for direction in ["x_", "y_", "z_", ""]:
+        w_out = getattr(
+            getattr(random_waveform, f"{direction}parity_symmetric_part"), f"{direction}parity_antisymmetric_part"
+        )
+        assert w_in._allclose(w_out, rtol=0.0, atol=0.0)
+    for direction in ["x_", "y_", "z_", ""]:
+        w_out = getattr(
+            getattr(random_waveform, f"{direction}parity_antisymmetric_part"), f"{direction}parity_symmetric_part"
+        )
+        assert w_in._allclose(w_out, rtol=0.0, atol=0.0)
 
 
 def test_parity_violation_measures(random_waveform):
@@ -317,16 +326,20 @@ def test_parity_violation_measures(random_waveform):
     w_in = WaveformModes(random_waveform)
     zeros = np.zeros_like(w_in.data[:, 0])
     ones = np.ones_like(w_in.data[:, 0])
-    for direction in ['x_', 'y_', 'z_', '']:
+    for direction in ["x_", "y_", "z_", ""]:
         w_out = getattr(random_waveform, f"{direction}parity_symmetric_part")
         assert np.allclose(getattr(w_out, f"{direction}parity_violation_squared"), zeros, atol=1e-15)
         assert np.allclose(getattr(w_out, f"{direction}parity_violation_normalized"), zeros, atol=1e-15)
-    for direction in ['x_', 'y_', 'z_', '']:
+    for direction in ["x_", "y_", "z_", ""]:
         w_out = getattr(random_waveform, f"{direction}parity_antisymmetric_part")
-        assert np.allclose(getattr(w_in, f"{direction}parity_violation_squared"), w_out.norm(), atol=0., rtol=1e-15)
-        assert np.allclose(getattr(w_in, f"{direction}parity_violation_normalized"),
-                           np.sqrt(w_out.norm()/w_in.norm()), atol=0., rtol=1e-15)
-        assert np.allclose(getattr(w_out, f"{direction}parity_violation_normalized"), ones, atol=0., rtol=1e-15)
+        assert np.allclose(getattr(w_in, f"{direction}parity_violation_squared"), w_out.norm(), atol=0.0, rtol=1e-15)
+        assert np.allclose(
+            getattr(w_in, f"{direction}parity_violation_normalized"),
+            np.sqrt(w_out.norm() / w_in.norm()),
+            atol=0.0,
+            rtol=1e-15,
+        )
+        assert np.allclose(getattr(w_out, f"{direction}parity_violation_normalized"), ones, atol=0.0, rtol=1e-15)
 
 
 @pytest.mark.xfail
@@ -347,7 +360,7 @@ def test_SI_units(linear_waveform):
     W_out = W_in.SI_units(TotalMassInSolarMasses, DistanceInMegaparsecs)
     assert W_in.ensure_validity(alter=False)
     assert W_out.ensure_validity(alter=False)
-    assert W_out.history[:1] == ['# Called from linear_waveform']
+    assert W_out.history[:1] == ["# Called from linear_waveform"]
     assert W_out.frameType == scri.Corotating
     assert W_out.dataType == scri.h
     assert not W_out.r_is_scaled_out  # != True
@@ -355,8 +368,3 @@ def test_SI_units(linear_waveform):
     assert W_out.num != W_in.num
     assert np.allclose(W_out.t, W_in.t * MassInSeconds, rtol=units_precision)
     assert np.allclose(W_out.data, W_in.data * MassInSeconds * SpeedOfLight / DistanceInMeters, rtol=units_precision)
-
-
-
-
-

@@ -1,7 +1,6 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-
 from .waveform_base import WaveformBase, waveform_alterations
 
 import warnings
@@ -133,8 +132,8 @@ class WaveformModes(WaveformBase):
         else:
             # Do not directly access __ell_min, __ell_max, or __LM outside of this initializer function; use ell_min,
             # ell_max, or LM instead
-            self.__ell_min = kwargs.pop('ell_min', 0)
-            self.__ell_max = kwargs.pop('ell_max', -1)
+            self.__ell_min = kwargs.pop("ell_min", 0)
+            self.__ell_max = kwargs.pop("ell_max", -1)
             self.__LM = sf.LM_range(self.__ell_min, self.__ell_max)
         super().__init__(*args, **kwargs)
 
@@ -153,58 +152,69 @@ class WaveformModes(WaveformBase):
 
         if assertions:
             from .waveform_base import test_with_assertions
+
             test = test_with_assertions
         else:
             from .waveform_base import test_without_assertions
+
             test = test_without_assertions
 
         # We first need to check that the ell values make sense,
         # because we'll use these below
-        test(errors,
-             isinstance(self.__ell_min, numbers.Integral),
-             'isinstance(self.__ell_min, numbers.Integral) # type(self.__ell_min)={}'.format(type(self.__ell_min)))
-        test(errors,
-             isinstance(self.__ell_max, numbers.Integral),
-             'isinstance(self.__ell_max, numbers.Integral) # type(self.__ell_max)={}'.format(type(self.__ell_max)))
-        test(errors,
-             self.__ell_min >= 0,
-             f'self.__ell_min>=0 # {self.__ell_min}')
-        test(errors,
-             self.__ell_max >= self.__ell_min - 1,
-             'self.__ell_max>=self.__ell_min-1 # self.__ell_max={}; self.__ell_min-1={}'.format(self.__ell_max,
-                                                                                                  self.__ell_min - 1))
+        test(
+            errors,
+            isinstance(self.__ell_min, numbers.Integral),
+            "isinstance(self.__ell_min, numbers.Integral) # type(self.__ell_min)={}".format(type(self.__ell_min)),
+        )
+        test(
+            errors,
+            isinstance(self.__ell_max, numbers.Integral),
+            "isinstance(self.__ell_max, numbers.Integral) # type(self.__ell_max)={}".format(type(self.__ell_max)),
+        )
+        test(errors, self.__ell_min >= 0, f"self.__ell_min>=0 # {self.__ell_min}")
+        test(
+            errors,
+            self.__ell_max >= self.__ell_min - 1,
+            "self.__ell_max>=self.__ell_min-1 # self.__ell_max={}; self.__ell_min-1={}".format(
+                self.__ell_max, self.__ell_min - 1
+            ),
+        )
         if alter and not np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max)):
             self.__LM = sf.LM_range(self.ell_min, self.ell_max)
             alterations += [
-                '{}._{}__LM = sf.LM_range({}, {})'.format(self, type(self).__name__, self.ell_min, self.ell_max)]
-        test(errors,
-             np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max)),
-             'np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max))')
+                "{}._{}__LM = sf.LM_range({}, {})".format(self, type(self).__name__, self.ell_min, self.ell_max)
+            ]
+        test(
+            errors,
+            np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max)),
+            "np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max))",
+        )
 
-        test(errors,
-             self.data.dtype == np.dtype(np.complex),
-             f'self.data.dtype == np.dtype(np.complex) # self.data.dtype={self.data.dtype}')
-        test(errors,
-             self.data.ndim >= 2,
-             f'self.data.ndim >= 2 # self.data.ndim={self.data.ndim}')
-        test(errors,
-             self.data.shape[1] == self.__LM.shape[0],
-             'self.data.shape[1]==self.__LM.shape[0] '
-             '# self.data.shape={}; self.__LM.shape[0]={}'.format(self.data.shape[1], self.__LM.shape[0]))
+        test(
+            errors,
+            self.data.dtype == np.dtype(np.complex),
+            f"self.data.dtype == np.dtype(np.complex) # self.data.dtype={self.data.dtype}",
+        )
+        test(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
+        test(
+            errors,
+            self.data.shape[1] == self.__LM.shape[0],
+            "self.data.shape[1]==self.__LM.shape[0] "
+            "# self.data.shape={}; self.__LM.shape[0]={}".format(self.data.shape[1], self.__LM.shape[0]),
+        )
 
         if alterations:
             self._append_history(alterations)
-            print("The following alterations were made:\n\t" + '\n\t'.join(alterations))
+            print("The following alterations were made:\n\t" + "\n\t".join(alterations))
         if errors:
-            print("The following conditions were found to be incorrectly False:\n\t" + '\n\t'.join(errors))
+            print("The following conditions were found to be incorrectly False:\n\t" + "\n\t".join(errors))
             return False
 
         # Call the base class's version
         super().ensure_validity(alter, assertions)
 
         self.__history_depth__ -= 1
-        self._append_history('WaveformModes.ensure_validity' +
-                             f'({self}, alter={alter}, assertions={assertions})')
+        self._append_history("WaveformModes.ensure_validity" + f"({self}, alter={alter}, assertions={assertions})")
 
         return True
 
@@ -222,10 +232,12 @@ class WaveformModes(WaveformBase):
         self.__ell_min = new_ell_min
         self.__LM = sf.LM_range(self.ell_min, self.ell_max)
         if self.n_modes != self.__LM.shape[0]:
-            warning = f"\nWaveform's data.shape={self.data.shape} does not agree with " \
-                      + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n" \
-                      + "Hopefully you are about to reset `data`.  To suppress this warning,\n" \
-                      + "reset `data` before resetting ell_min and/or ell_max."
+            warning = (
+                f"\nWaveform's data.shape={self.data.shape} does not agree with "
+                + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n"
+                + "Hopefully you are about to reset `data`.  To suppress this warning,\n"
+                + "reset `data` before resetting ell_min and/or ell_max."
+            )
             warnings.warn(warning)
 
     @property
@@ -237,10 +249,12 @@ class WaveformModes(WaveformBase):
         self.__ell_max = new_ell_max
         self.__LM = sf.LM_range(self.ell_min, self.ell_max)
         if self.n_modes != self.__LM.shape[0]:
-            warning = f"\nWaveform's data.shape={self.data.shape} does not agree with " \
-                      + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n" \
-                      + "Hopefully you are about to reset `data`.  To suppress this warning,\n" \
-                      + "reset `data` before resetting ell_min and/or ell_max."
+            warning = (
+                f"\nWaveform's data.shape={self.data.shape} does not agree with "
+                + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n"
+                + "Hopefully you are about to reset `data`.  To suppress this warning,\n"
+                + "reset `data` before resetting ell_min and/or ell_max."
+            )
             warnings.warn(warning)
 
     @property
@@ -255,10 +269,12 @@ class WaveformModes(WaveformBase):
         self.__ell_max = new_ells[1]
         self.__LM = sf.LM_range(self.ell_min, self.ell_max)
         if self.n_modes != self.__LM.shape[0]:
-            warning = f"\nWaveform's data.shape={self.data.shape} does not agree with " \
-                      + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n" \
-                      + "Hopefully you are about to reset `data`.  To avoid this warning,\n" \
-                      + "reset `data` before resetting ell_min and/or ell_max."
+            warning = (
+                f"\nWaveform's data.shape={self.data.shape} does not agree with "
+                + f"(ell_min,ell_max)=({self.ell_min},{self.ell_max}).\n"
+                + "Hopefully you are about to reset `data`.  To avoid this warning,\n"
+                + "reset `data` before resetting ell_min and/or ell_max."
+            )
             warnings.warn(warning)
 
     @property
@@ -325,13 +341,13 @@ class WaveformModes(WaveformBase):
         if tol != 0.0:
             tol_per_mode = tol / np.sqrt(self.n_modes)
             absolute_tolerance = np.linalg.norm(self.data, axis=1) * tol_per_mode
-            power_of_2 = 2 ** (np.floor(-np.log2(absolute_tolerance))).astype('int')[:, np.newaxis]
+            power_of_2 = 2 ** (np.floor(-np.log2(absolute_tolerance))).astype("int")[:, np.newaxis]
             self.data *= power_of_2
             np.round(self.data, out=self.data)
             self.data /= power_of_2
-        self._append_history(f'{self}.truncate(tol={tol})')
+        self._append_history(f"{self}.truncate(tol={tol})")
 
-    def ladder_factor(self, operations, s, ell, eth_convention='NP'):
+    def ladder_factor(self, operations, s, ell, eth_convention="NP"):
         """Compute the 'ladder factor' for applying a sequence of spin
         raising/lower operations on a SWSH of given s, ell.
 
@@ -350,41 +366,41 @@ class WaveformModes(WaveformBase):
         float
         """
 
-        op_dict = {'ð': +1, 'ð̅': -1, '+': +1, '-': -1, +1: +1, -1: -1}
-        conv_dict = {'NP': 1., 'GHP': 0.5}
+        op_dict = {"ð": +1, "ð̅": -1, "+": +1, "-": -1, +1: +1, -1: -1}
+        conv_dict = {"NP": 1.0, "GHP": 0.5}
 
         # Normalize combining unicode characters
-        if (isinstance(operations, str)):
-            operations = operations.replace('ð̅', '-').replace('ð', '+')
+        if isinstance(operations, str):
+            operations = operations.replace("ð̅", "-").replace("ð", "+")
 
         keys = op_dict.keys()
         key_strings = {key for key in keys if isinstance(key, str)}
         if not set(operations).issubset(keys):
-            raise ValueError("operations must be a string composed of "
-                             "{} or a list with "
-                             "elements coming from the set {}"
-                             .format(key_strings, set(keys)))
+            raise ValueError(
+                "operations must be a string composed of "
+                "{} or a list with "
+                "elements coming from the set {}".format(key_strings, set(keys))
+            )
 
         if eth_convention not in conv_dict:
-            raise ValueError("eth_convention must be one of {}"
-                             .format(set(conv_dict.keys())))
+            raise ValueError("eth_convention must be one of {}".format(set(conv_dict.keys())))
 
         convention_factor = conv_dict[eth_convention]
 
-        ladder = 1.
-        sign_factor = 1.
+        ladder = 1.0
+        sign_factor = 1.0
 
         for op in reversed(operations):
             sign = op_dict[op]
             sign_factor *= sign
-            ladder *= (ell - s * sign) * (ell + s * sign + 1.) if (ell >= abs(s)) else 0.
+            ladder *= (ell - s * sign) * (ell + s * sign + 1.0) if (ell >= abs(s)) else 0.0
             ladder *= convention_factor
             s += sign
 
         ladder = sign_factor * np.sqrt(ladder)
         return ladder
 
-    def apply_eth(self, operations, eth_convention='NP'):
+    def apply_eth(self, operations, eth_convention="NP"):
         """Apply spin raising/lowering operators to waveform mode data
         in a specified order.  This does not modify the original
         waveform object.
@@ -411,10 +427,8 @@ class WaveformModes(WaveformBase):
         mode_data = self.data.copy()
 
         for ell in range(self.ell_min, self.ell_max + 1):
-            ladder_factor = self.ladder_factor(operations, s, ell,
-                                               eth_convention=eth_convention)
-            lm_indices = [sf.LM_index(ell, m, self.ell_min)
-                          for m in range(-ell, ell + 1)]
+            ladder_factor = self.ladder_factor(operations, s, ell, eth_convention=eth_convention)
+            lm_indices = [sf.LM_index(ell, m, self.ell_min) for m in range(-ell, ell + 1)]
             mode_data[:, lm_indices] *= ladder_factor
 
         return mode_data
@@ -424,18 +438,16 @@ class WaveformModes(WaveformBase):
         """Returns the spin-raised waveform mode data.
 
         """
-        return self.apply_eth(operations='+')
-    
+        return self.apply_eth(operations="+")
+
     @property
     def ethbar(self):
         """Returns the spin-lowered waveform mode data.
 
         """
-        return self.apply_eth(operations='-')
+        return self.apply_eth(operations="-")
 
-    def inner_product(self, b,
-                      t1=None, t2=None,
-                      allow_LM_differ=False, allow_times_differ=False):
+    def inner_product(self, b, t1=None, t2=None, allow_LM_differ=False, allow_times_differ=False):
         """Compute the all-angles inner product <self, b>.
 
         self and b should have the same spin-weight, set of (ell,m)
@@ -471,28 +483,28 @@ class WaveformModes(WaveformBase):
 
         from .extrapolation import intersection
 
-        if (self.spin_weight != b.spin_weight):
+        if self.spin_weight != b.spin_weight:
             raise ValueError("Spin weights must match in inner_product")
 
         LM_clip = None
-        if ((self.ell_min != b.ell_min) or (self.ell_max != b.ell_max)):
-            if (allow_LM_differ):
-                LM_clip = slice( max(self.ell_min, b.ell_min),
-                                 min(self.ell_max, b.ell_max) + 1 )
-                if (LM_clip.start >= LM_clip.stop):
-                    raise ValueError("Intersection of (ell,m) modes is "
-                                     "empty.  Assuming this is not desired.")
+        if (self.ell_min != b.ell_min) or (self.ell_max != b.ell_max):
+            if allow_LM_differ:
+                LM_clip = slice(max(self.ell_min, b.ell_min), min(self.ell_max, b.ell_max) + 1)
+                if LM_clip.start >= LM_clip.stop:
+                    raise ValueError("Intersection of (ell,m) modes is " "empty.  Assuming this is not desired.")
             else:
-                raise ValueError("ell_min and ell_max must match in inner_product "
-                                 "(use allow_LM_differ=True to override)")
+                raise ValueError(
+                    "ell_min and ell_max must match in inner_product " "(use allow_LM_differ=True to override)"
+                )
 
         t_clip = None
         if not np.array_equal(self.t, b.t):
-            if (allow_times_differ):
+            if allow_times_differ:
                 t_clip = intersection(self.t, b.t)
             else:
-                raise ValueError("Time samples must match in inner_product "
-                                 "(use allow_times_differ=True to override)")
+                raise ValueError(
+                    "Time samples must match in inner_product " "(use allow_times_differ=True to override)"
+                )
 
         ##########
 
@@ -500,19 +512,19 @@ class WaveformModes(WaveformBase):
         A = self
         B = b
 
-        if (LM_clip is not None):
-            A = A[:,LM_clip]
-            B = B[:,LM_clip]
+        if LM_clip is not None:
+            A = A[:, LM_clip]
+            B = B[:, LM_clip]
 
-        if (t_clip is not None):
+        if t_clip is not None:
             times = t_clip
             A = A.interpolate(t_clip)
             B = B.interpolate(t_clip)
 
-        if (t1 is None):
+        if t1 is None:
             t1 = times[0]
 
-        if (t2 is None):
+        if t2 is None:
             t2 = times[-1]
 
         integrand = np.sum(np.conj(A.data) * B.data, axis=1)
@@ -539,14 +551,14 @@ class WaveformModes(WaveformBase):
 
         """
         for ell in range(self.ell_min, self.ell_max + 1):
-            for m in range(1, ell+1):
+            for m in range(1, ell + 1):
                 i_plus = self.index(ell, m)
                 i_minus = self.index(ell, -m)
                 mode_plus = self.data[..., i_plus].copy()
                 mode_minus = self.data[..., i_minus].copy()
                 self.data[..., i_plus] = (mode_plus + np.conjugate(mode_minus)) / np.sqrt(2)
                 self.data[..., i_minus] = (mode_plus - np.conjugate(mode_minus)) / np.sqrt(2)
-        self._append_history(f'{self}.convert_to_conjugate_pairs()')
+        self._append_history(f"{self}.convert_to_conjugate_pairs()")
 
     @waveform_alterations
     def convert_from_conjugate_pairs(self):
@@ -557,14 +569,14 @@ class WaveformModes(WaveformBase):
 
         """
         for ell in range(self.ell_min, self.ell_max + 1):
-            for m in range(1, ell+1):
+            for m in range(1, ell + 1):
                 i_plus = self.index(ell, m)
                 i_minus = self.index(ell, -m)
                 mode_plus = self.data[..., i_plus].copy()
                 mode_minus = self.data[..., i_minus].copy()
                 self.data[..., i_plus] = (mode_plus + mode_minus) / np.sqrt(2)
                 self.data[..., i_minus] = np.conjugate(mode_plus - mode_minus) / np.sqrt(2)
-        self._append_history(f'{self}.convert_from_conjugate_pairs()')
+        self._append_history(f"{self}.convert_from_conjugate_pairs()")
 
     # Involutions
     @property
@@ -588,7 +600,7 @@ class WaveformModes(WaveformBase):
             lm_indices = [sf.LM_index(ell, m, W.ell_min) for m in range(-ell, ell + 1) if (m % 2) != 0]
             W.data[:, lm_indices] = -np.conjugate(self.data[:, lm_indices])
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.x_parity_conjugate')
+        W._append_history(f"{W} = {self}.x_parity_conjugate")
         return W
 
     @property
@@ -599,7 +611,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data + W.data)
         W.frame = np.x_parity_symmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.x_parity_symmetric_part')
+        W._append_history(f"{W} = {self}.x_parity_symmetric_part")
         return W
 
     @property
@@ -610,7 +622,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data - W.data)
         W.frame = np.x_parity_antisymmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.x_parity_antisymmetric_part')
+        W._append_history(f"{W} = {self}.x_parity_antisymmetric_part")
         return W
 
     @property
@@ -639,7 +651,7 @@ class WaveformModes(WaveformBase):
         W.ells = self.ells
         W.frame = np.y_parity_conjugate(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.y_parity_conjugate')
+        W._append_history(f"{W} = {self}.y_parity_conjugate")
         return W
 
     @property
@@ -650,7 +662,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data + W.data)
         W.frame = np.y_parity_symmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.y_parity_symmetric_part')
+        W._append_history(f"{W} = {self}.y_parity_symmetric_part")
         return W
 
     @property
@@ -661,7 +673,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data - W.data)
         W.frame = np.y_parity_antisymmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.y_parity_antisymmetric_part')
+        W._append_history(f"{W} = {self}.y_parity_antisymmetric_part")
         return W
 
     @property
@@ -698,7 +710,7 @@ class WaveformModes(WaveformBase):
                 lm_indices = [sf.LM_index(ell, m, W.ell_min) for m in range(-ell, ell + 1)]
                 W.data[:, lm_indices] = -np.conjugate(self.data[:, list(reversed(lm_indices))])
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.z_parity_conjugate')
+        W._append_history(f"{W} = {self}.z_parity_conjugate")
         return W
 
     @property
@@ -709,7 +721,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data + W.data)
         W.frame = np.z_parity_symmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.z_parity_symmetric_part')
+        W._append_history(f"{W} = {self}.z_parity_symmetric_part")
         return W
 
     @property
@@ -720,7 +732,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data - W.data)
         W.frame = np.z_parity_antisymmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.z_parity_antisymmetric_part')
+        W._append_history(f"{W} = {self}.z_parity_antisymmetric_part")
         return W
 
     @property
@@ -755,7 +767,7 @@ class WaveformModes(WaveformBase):
             lm_indices = [sf.LM_index(ell, m, W.ell_min) for m in range(-ell, ell + 1) if ((ell + s + m) % 2) != 0]
             W.data[:, lm_indices] = -np.conjugate(self.data[:, list(reversed(lm_indices))])
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.parity_conjugate')
+        W._append_history(f"{W} = {self}.parity_conjugate")
         return W
 
     @property
@@ -766,7 +778,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data + W.data)
         W.frame = np.parity_symmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.parity_symmetric_part')
+        W._append_history(f"{W} = {self}.parity_symmetric_part")
         return W
 
     @property
@@ -777,7 +789,7 @@ class WaveformModes(WaveformBase):
         W.data = 0.5 * (self.data - W.data)
         W.frame = np.parity_antisymmetric_part(self.frame)
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.parity_antisymmetric_part')
+        W._append_history(f"{W} = {self}.parity_antisymmetric_part")
         return W
 
     @property
@@ -795,7 +807,7 @@ class WaveformModes(WaveformBase):
         W = super().copy_without_data()
         W.ells = 0, -1
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}.copy_without_data()')
+        W._append_history(f"{W} = {self}.copy_without_data()")
         return W
 
     @waveform_alterations
@@ -815,16 +827,20 @@ class WaveformModes(WaveformBase):
             # Return a subset of the data from a subset of times
             if isinstance(key[1], int):
                 if key[1] < self.ell_min or key[1] > self.ell_max:
-                    raise ValueError("Requested ell value {} lies outside ".format(key[1]) +
-                                     f"WaveformModes object's ell range ({self.ell_min},{self.ell_max}).")
+                    raise ValueError(
+                        "Requested ell value {} lies outside ".format(key[1])
+                        + f"WaveformModes object's ell range ({self.ell_min},{self.ell_max})."
+                    )
                 new_ell_min = key[1]
                 new_ell_max = key[1]
-                new_slice = slice(new_ell_min ** 2 - self.ell_min ** 2,
-                                  new_ell_max * (new_ell_max + 2) + 1 - self.ell_min ** 2)
+                new_slice = slice(
+                    new_ell_min ** 2 - self.ell_min ** 2, new_ell_max * (new_ell_max + 2) + 1 - self.ell_min ** 2
+                )
             elif isinstance(key[1], slice):
                 if key[1].step and key[1].step != 1:
                     raise ValueError(
-                        "Can only slice WaveformModes over contiguous ell values (step={})".format(key[1].step))
+                        "Can only slice WaveformModes over contiguous ell values (step={})".format(key[1].step)
+                    )
                 if not key[1].start and key[1].stop == 0:
                     new_ell_min = 0
                     new_ell_max = -1
@@ -840,10 +856,12 @@ class WaveformModes(WaveformBase):
                         new_ell_max = key[1].stop - 1
                     if new_ell_min < self.ell_min or new_ell_max > self.ell_max:
                         raise ValueError(
-                            f"Requested ell range [{new_ell_min},{new_ell_max}] lies outside " +
-                            f"WaveformBase's ell range [{self.ell_min},{self.ell_max}].")
-                    new_slice = slice(new_ell_min ** 2 - self.ell_min ** 2,
-                                      new_ell_max * (new_ell_max + 2) + 1 - self.ell_min ** 2)
+                            f"Requested ell range [{new_ell_min},{new_ell_max}] lies outside "
+                            + f"WaveformBase's ell range [{self.ell_min},{self.ell_max}]."
+                        )
+                    new_slice = slice(
+                        new_ell_min ** 2 - self.ell_min ** 2, new_ell_max * (new_ell_max + 2) + 1 - self.ell_min ** 2
+                    )
             else:
                 raise ValueError("Don't know what to do with slice of type `{}`".format(type(key[1])))
             W = super().__getitem__((key[0], new_slice))
@@ -858,7 +876,7 @@ class WaveformModes(WaveformBase):
 
         W.history.pop()  # remove WaveformBase history append, to be replaced next
         W.__history_depth__ -= 1
-        W._append_history(f'{W} = {self}[{key}]')
+        W._append_history(f"{W} = {self}[{key}]")
 
         return W
 
@@ -867,7 +885,6 @@ class WaveformModes(WaveformBase):
         rep = super().__repr__()
         rep += f"\n# ell_min={self.ell_min}, ell_max={self.ell_max}"
         return rep
-
 
     # N.B.: There are additional methods attached to `WaveformModes` in the `waveform_base` file.  These functions
     # cannot be added here, because they depend on `WaveformGrid` objects, which depend on `WaveformModes` objects.

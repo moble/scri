@@ -51,7 +51,7 @@ def bondi_violations(self):
 
     """
     constraints = self.bondi_constraints(True, True)
-    return [lhs-rhs for (lhs, rhs) in constraints]
+    return [lhs - rhs for (lhs, rhs) in constraints]
 
 
 @property
@@ -252,6 +252,7 @@ def constraint_mass_aspect(self, lhs=True, rhs=True):
 
     """
     import numpy as np
+
     if lhs:
         lhs_value = np.imag(self.psi2)
     if rhs:

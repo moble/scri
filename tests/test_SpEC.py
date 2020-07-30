@@ -1,7 +1,6 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-
 import pytest
 import os.path
 import numpy as np
@@ -9,10 +8,10 @@ import h5py
 import scri
 import scri.SpEC
 
-
 # NOTE: if test_file_io() comes after test_NRAR_extrapolation() in this file, then the
 # output of the latter can be used in test_file_io(). Otherwise, test_file_io() will
-# just generate the data it needs indepenedently. 
+# just generate the data it needs indepenedently.
+
 
 @pytest.fixture(scope="session")  # The following will exist for an entire run of pytest
 def tempdir(tmp_path_factory):
@@ -20,9 +19,7 @@ def tempdir(tmp_path_factory):
     tmpdir = tmp_path_factory.mktemp("test_extrapolation")
     filename = tmpdir / "rh_FiniteRadii_CodeUnits.h5"
     scri.sample_waveforms.create_fake_finite_radius_strain_h5file(
-        output_file_path=filename,
-        ell_max=3,
-        t_1=2000.0,
+        output_file_path=filename, ell_max=3, t_1=2000.0,
     )
     return tmpdir
 
@@ -43,8 +40,9 @@ def test_NRAR_extrapolation(tempdir):
         OutputDirectory=output_dir,
         ChMass=1.0,
         UseStupidNRARFormat=True,
-        DifferenceFiles="", # Computing DifferenceFiles and making plots are tested in test_extrapolation() so
-        PlotFormat="")      # to save time we don't do it here.
+        DifferenceFiles="",  # Computing DifferenceFiles and making plots are tested in test_extrapolation() so
+        PlotFormat="",
+    )  # to save time we don't do it here.
 
 
 def test_file_io(tempdir):
@@ -61,7 +59,8 @@ def test_file_io(tempdir):
             ChMass=1.0,
             UseStupidNRARFormat=True,
             DifferenceFiles="",
-            PlotFormat="")
+            PlotFormat="",
+        )
     output_dir.mkdir()
 
     input_file = str(input_file)

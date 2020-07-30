@@ -22,8 +22,9 @@ def construct_and_validate(modifier, validator, ell_max=8):
 def check_modes(modes, nonzero_ℓm):
     import numpy as np
     import spherical_functions as sf
+
     non_zero_indices = np.array([modes.index(ℓ, m) for ℓ, m in nonzero_ℓm], dtype=int)
-    zero_indices = np.array(list(set(range(sf.LM_total_size(0, modes.ell_max)))-set(non_zero_indices)), dtype=int)
+    zero_indices = np.array(list(set(range(sf.LM_total_size(0, modes.ell_max))) - set(non_zero_indices)), dtype=int)
     assert not np.any(modes[..., zero_indices]), f"nonzero values among indices {zero_indices}"
     for non_zero_index in non_zero_indices:
         assert np.any(modes[..., non_zero_index]), f"no nonzero values at index {non_zero_index}"
@@ -31,12 +32,13 @@ def check_modes(modes, nonzero_ℓm):
 
 def test0():
     """Set only terms that are forbidden by spin weights; ensure all zeros"""
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
 
     def validator(abd):
         check_modes(abd.psi0, [])
@@ -56,13 +58,14 @@ def test1():
     Ensures that first terms of ψ̇₁u = -ðψ₂ + 2σψ₃ and ψ̇₀ = -ðψ₁ + 3σψ₂ don't get excited
     
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
         psi2[sf.LM_index(0, 0, 0)] = 0.234
 
@@ -85,13 +88,14 @@ def test2():
     Checks first term of ψ̇₁ = -ðψ₂ + 2σψ₃
     
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
         psi2[sf.LM_index(0, 0, 0)] = 0.234
         psi2[sf.LM_index(1, -1, 0)] = 0.345
@@ -114,13 +118,14 @@ def test3():
     Checks first term of ψ̇₀ = -ðψ₁ + 3σψ₂
     
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
         psi2[sf.LM_index(0, 0, 0)] = 0.234
         psi2[sf.LM_index(1, -1, 0)] = 0.345
@@ -150,13 +155,14 @@ def test4():
     modes in {(2, -2), (2, 0), (2, 2), (3, 0), (4, 0), (4, 4)}.
     
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
         psi2[0] = 0.234
         sigma[sf.LM_index(2, 2, 0)] = 0.5678
@@ -179,13 +185,14 @@ def test5():
     Checks second term of ψ̇₁ = -ðψ₂ + 2σψ₃
 
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
         sigma[sf.LM_index(2, 2, 0)] = 0.5678
         sigmadot[sf.LM_index(2, 2, 0)] = 0.6789
@@ -208,15 +215,16 @@ def test6():
     Checks second term of ψ̇₂ = -ðψ₃ + σψ₄
 
     """
+
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
         # Nonsensical values that should have no effect
-        psi0[:sf.LM_index(1, 1, 0)] = 1.234
+        psi0[: sf.LM_index(1, 1, 0)] = 1.234
         psi1[0] = 0.123
-        sigma[:sf.LM_index(1, 1, 0)] = 0.567
-        sigmadot[:sf.LM_index(1, 1, 0)] = 0.678
-        sigmaddot[:sf.LM_index(1, 1, 0)] = 0.789
+        sigma[: sf.LM_index(1, 1, 0)] = 0.567
+        sigmadot[: sf.LM_index(1, 1, 0)] = 0.678
+        sigmaddot[: sf.LM_index(1, 1, 0)] = 0.789
         # Actual values that should carry through
-        sigmaddot[sf.LM_index(2, 2, 0)] = 0.1 / 10_000**2  # 10_000 = max(time)**2
+        sigmaddot[sf.LM_index(2, 2, 0)] = 0.1 / 10_000 ** 2  # 10_000 = max(time)**2
 
     def validator(abd):
         check_modes(abd.psi0, [[2, -2], [2, 0], [2, 2], [3, 0], [3, 2], [4, 0], [4, 2], [5, 2], [6, 2]])
@@ -235,9 +243,9 @@ def test7():
     ell_max = 8
 
     def modifier(sigma, sigmadot, sigmaddot, psi2, psi1, psi0):
-        sigma[:] = 0.01 * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1]*2,))).view(complex)
-        sigmadot[:] = (0.01/100) * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1]*2,))).view(complex)
-        sigmaddot[:] = (0.01/100**2) * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1]*2,))).view(complex)
+        sigma[:] = 0.01 * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1] * 2,))).view(complex)
+        sigmadot[:] = (0.01 / 100) * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1] * 2,))).view(complex)
+        sigmaddot[:] = (0.01 / 100 ** 2) * np.random.rand(*(sigma.shape[:-1] + (sigma.shape[-1] * 2,))).view(complex)
 
     def validator(abd):
         check_modes(abd.psi0, sf.LM_range(abs(abd.psi0.s), ell_max))
@@ -249,4 +257,3 @@ def test7():
         assert np.max(np.abs(abd.bondi_violation_norms)) <= 4e-6
 
     construct_and_validate(modifier, validator, ell_max=ell_max)
-

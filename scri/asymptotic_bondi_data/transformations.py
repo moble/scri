@@ -11,87 +11,98 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
     # Build the supertranslation and spacetime_translation arrays
     supertranslation = np.zeros((4,), dtype=complex)  # For now; may be resized below
     ell_max_supertranslation = 1  # For now; may be increased below
-    if 'supertranslation' in kwargs:
-        supertranslation = np.array(kwargs.pop('supertranslation'), dtype=complex)
-        if supertranslation.dtype != 'complex' and supertranslation.size > 0:
+    if "supertranslation" in kwargs:
+        supertranslation = np.array(kwargs.pop("supertranslation"), dtype=complex)
+        if supertranslation.dtype != "complex" and supertranslation.size > 0:
             # I don't actually think this can ever happen...
-            raise TypeError("Input argument `supertranslation` should be a complex array with size>0.  "
-                            f"Got a {supertranslation.dtype} array of shape {supertranslation.shape}")
+            raise TypeError(
+                "Input argument `supertranslation` should be a complex array with size>0.  "
+                f"Got a {supertranslation.dtype} array of shape {supertranslation.shape}"
+            )
         # Make sure the array has size at least 4, by padding with zeros
         if supertranslation.size <= 4:
-            supertranslation = np.lib.pad(supertranslation, (0, 4-supertranslation.size),
-                                          'constant', constant_values=(0.0,))
+            supertranslation = np.lib.pad(
+                supertranslation, (0, 4 - supertranslation.size), "constant", constant_values=(0.0,)
+            )
         # Check that the shape is a possible array of scalar modes with complete (ell,m) data
         ell_max_supertranslation = int(np.sqrt(len(supertranslation))) - 1
-        if (ell_max_supertranslation + 1)**2 != len(supertranslation):
-            raise ValueError("Input supertranslation parameter must contain modes from ell=0 up to some ell_max, "
-                             "including\n           all relevant m modes in standard order (see `spherical_functions` "
-                             "documentation for details).\n           Thus, it must be an array with length given by a "
-                             "perfect square; its length is {len(supertranslation)}")
+        if (ell_max_supertranslation + 1) ** 2 != len(supertranslation):
+            raise ValueError(
+                "Input supertranslation parameter must contain modes from ell=0 up to some ell_max, "
+                "including\n           all relevant m modes in standard order (see `spherical_functions` "
+                "documentation for details).\n           Thus, it must be an array with length given by a "
+                "perfect square; its length is {len(supertranslation)}"
+            )
         # Check that the resulting supertranslation will be real
-        for ell in range(ell_max_supertranslation+1):
-            for m in range(ell+1):
+        for ell in range(ell_max_supertranslation + 1):
+            for m in range(ell + 1):
                 i_pos = sf.LM_index(ell, m, 0)
                 i_neg = sf.LM_index(ell, -m, 0)
                 a = supertranslation[i_pos]
                 b = supertranslation[i_neg]
-                if abs(a - (-1.)**m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
-                    raise ValueError(f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
-                                     + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
-                                     + "Will result in an imaginary supertranslation.")
+                if abs(a - (-1.0) ** m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
+                    raise ValueError(
+                        f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
+                        + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
+                        + "Will result in an imaginary supertranslation."
+                    )
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
     spacetime_translation[1:4] = -sf.vector_from_ell_1_modes(supertranslation[1:4]).real
-    if 'spacetime_translation' in kwargs:
-        st_trans = np.array(kwargs.pop('spacetime_translation'), dtype=float)
-        if st_trans.shape != (4,) or st_trans.dtype != 'float':
-            raise TypeError("\nInput argument `spacetime_translation` should be a float array of shape (4,).\n"
-                            "Got a {} array of shape {}.".format(st_trans.dtype, st_trans.shape))
+    if "spacetime_translation" in kwargs:
+        st_trans = np.array(kwargs.pop("spacetime_translation"), dtype=float)
+        if st_trans.shape != (4,) or st_trans.dtype != "float":
+            raise TypeError(
+                "\nInput argument `spacetime_translation` should be a float array of shape (4,).\n"
+                "Got a {} array of shape {}.".format(st_trans.dtype, st_trans.shape)
+            )
         spacetime_translation = st_trans[:]
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
-    if 'space_translation' in kwargs:
-        s_trans = np.array(kwargs.pop('space_translation'), dtype=float)
-        if s_trans.shape != (3,) or s_trans.dtype != 'float':
-            raise TypeError("\nInput argument `space_translation` should be an array of floats of shape (3,).\n"
-                            "Got a {} array of shape {}.".format(s_trans.dtype, s_trans.shape))
+    if "space_translation" in kwargs:
+        s_trans = np.array(kwargs.pop("space_translation"), dtype=float)
+        if s_trans.shape != (3,) or s_trans.dtype != "float":
+            raise TypeError(
+                "\nInput argument `space_translation` should be an array of floats of shape (3,).\n"
+                "Got a {} array of shape {}.".format(s_trans.dtype, s_trans.shape)
+            )
         spacetime_translation[1:4] = s_trans[:]
         supertranslation[1:4] = sf.vector_as_ell_1_modes(-spacetime_translation[1:4])
-    if 'time_translation' in kwargs:
-        t_trans = kwargs.pop('time_translation')
+    if "time_translation" in kwargs:
+        t_trans = kwargs.pop("time_translation")
         if not isinstance(t_trans, float):
-            raise TypeError("Input argument `time_translation` should be a single float.  "
-                            f"Got {t_trans}")
+            raise TypeError("Input argument `time_translation` should be a single float.  " f"Got {t_trans}")
         spacetime_translation[0] = t_trans
         supertranslation[0] = sf.constant_as_ell_0_mode(spacetime_translation[0])
 
     # Decide on the number of points to use in each direction.  A nontrivial supertranslation will
     # introduce power in higher modes, so for best accuracy, we need to account for that.  But we'll
     # make it a firm requirement to have enough points to capture the original waveform, at least
-    output_ell_max = kwargs.pop('output_ell_max', input_ell_max)
-    working_ell_max = kwargs.pop('working_ell_max', 2*input_ell_max + ell_max_supertranslation)
+    output_ell_max = kwargs.pop("output_ell_max", input_ell_max)
+    working_ell_max = kwargs.pop("working_ell_max", 2 * input_ell_max + ell_max_supertranslation)
     if working_ell_max < input_ell_max:
         raise ValueError(f"working_ell_max={working_ell_max} is too small; it must be at least ell_max={input_ell_max}")
 
     # Get the rotor for the frame rotation
-    frame_rotation = np.quaternion(*np.array(kwargs.pop('frame_rotation', [1, 0, 0, 0]), dtype=float))
+    frame_rotation = np.quaternion(*np.array(kwargs.pop("frame_rotation", [1, 0, 0, 0]), dtype=float))
     if frame_rotation.abs() < 3e-16:
         raise ValueError(f"frame_rotation={frame_rotation} should be a single unit quaternion")
     frame_rotation = frame_rotation.normalized()
 
     # Get the boost velocity vector
-    boost_velocity = np.array(kwargs.pop('boost_velocity', [0.0]*3), dtype=float)
+    boost_velocity = np.array(kwargs.pop("boost_velocity", [0.0] * 3), dtype=float)
     beta = np.linalg.norm(boost_velocity)
     if boost_velocity.dtype != float or boost_velocity.shape != (3,) or beta >= 1.0:
-        raise ValueError(f"Input boost_velocity=`{boost_velocity}` should be a 3-vector with "
-                         "magnitude strictly less than 1.0")
+        raise ValueError(
+            f"Input boost_velocity=`{boost_velocity}` should be a 3-vector with " "magnitude strictly less than 1.0"
+        )
 
     return frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max
 
 
 def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
     beta = np.linalg.norm(boost_velocity)
-    gamma = 1 / math.sqrt(1 - beta**2)
+    gamma = 1 / math.sqrt(1 - beta ** 2)
     rapidity = math.atanh(beta)
 
     # Construct the function that modifies our rotor grid to account for the boost
@@ -110,17 +121,19 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
             # bivector spanned by v and r', which is the same as the direction of the bivector
             # spanned by v and r, since either will be normalized, and one cross product is zero iff
             # the other is zero.
-            rprm = np.array([math.cos(phiprm)*math.sin(thetaprm),
-                             math.sin(phiprm)*math.sin(thetaprm),
-                             math.cos(thetaprm)])
+            rprm = np.array(
+                [math.cos(phiprm) * math.sin(thetaprm), math.sin(phiprm) * math.sin(thetaprm), math.cos(thetaprm)]
+            )
             Thetaprm = math.acos(np.dot(vhat, rprm))
-            Theta = 2 * math.atan(math.exp(-rapidity) * math.tan(Thetaprm/2.0))
+            Theta = 2 * math.atan(math.exp(-rapidity) * math.tan(Thetaprm / 2.0))
             rprm_cross_vhat = np.quaternion(0.0, *np.cross(rprm, vhat))
             if rprm_cross_vhat.abs() > 1e-200:
                 return (rprm_cross_vhat.normalized() * (Thetaprm - Theta) / 2).exp()
             else:
                 return quaternion.one
+
     else:
+
         def Bprm_j_k(thetaprm, phiprm):
             return quaternion.one
 
@@ -132,9 +145,9 @@ def boosted_grid(frame_rotation, boost_velocity, n_theta, n_phi):
     for j in range(n_theta):
         for k in range(n_phi):
             thetaprm_j, phiprm_k = thetaprm_phiprm[j, k]
-            R_j_k[j, k] = (Bprm_j_k(thetaprm_j, phiprm_k)
-                           * frame_rotation
-                           * quaternion.from_spherical_coords(thetaprm_j, phiprm_k))
+            R_j_k[j, k] = (
+                Bprm_j_k(thetaprm_j, phiprm_k) * frame_rotation * quaternion.from_spherical_coords(thetaprm_j, phiprm_k)
+            )
 
     return R_j_k
 
@@ -164,24 +177,26 @@ def conformal_factors(boost_velocity, distorted_grid_rotors):
 
     """
     from quaternion import rotate_vectors
+
     β = np.linalg.norm(boost_velocity)
-    γ = 1 / math.sqrt(1 - β**2)
+    γ = 1 / math.sqrt(1 - β ** 2)
 
     # Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.  As modes
     # in the undistorted frame, we have ð(v·r) = √2 (v·r), but this is now an s=1 field, so it has
     # to be evaluated as such.
-    v_dot_r = sf.Grid(
-        np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity),
-        spin_weight=0
+    v_dot_r = sf.Grid(np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity), spin_weight=0)[
+        np.newaxis, :, :
+    ]
+    ðv_dot_r = sf.Grid(
+        sf.Modes(math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0), spin_weight=1).evaluate(
+            distorted_grid_rotors
+        ),
+        spin_weight=1,
     )[np.newaxis, :, :]
-    ðv_dot_r = sf.Grid(sf.Modes(
-        math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0),
-        spin_weight=1
-    ).evaluate(distorted_grid_rotors), spin_weight=1)[np.newaxis, :, :]
     one_over_k = γ * (1 - v_dot_r)
     k = 1.0 / one_over_k
     ðk_over_k = ðv_dot_r / (1 - v_dot_r)
-    one_over_k_cubed = one_over_k**3
+    one_over_k_cubed = one_over_k ** 3
     return k, ðk_over_k, one_over_k, one_over_k_cubed
 
 
@@ -272,12 +287,13 @@ def transform(self, **kwargs):
     from scipy.interpolate import CubicSpline
 
     # Parse the input arguments, and define the basic parameters for this function
-    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max,  = \
-        _process_transformation_kwargs(self.ell_max, **kwargs)
+    frame_rotation, boost_velocity, supertranslation, working_ell_max, output_ell_max, = _process_transformation_kwargs(
+        self.ell_max, **kwargs
+    )
     n_theta = 2 * working_ell_max + 1
     n_phi = n_theta
     β = np.linalg.norm(boost_velocity)
-    γ = 1 / math.sqrt(1 - β**2)
+    γ = 1 / math.sqrt(1 - β ** 2)
 
     # Make this into a Modes object, so it can keep track of its spin weight, etc., through the
     # various operations needed below.
@@ -294,8 +310,8 @@ def transform(self, **kwargs):
     # variation in u, the second axis variation in θ', and the third axis variation in ϕ'.
     u = self.u
     α = sf.Grid(supertranslation.evaluate(distorted_grid_rotors), spin_weight=0).real[np.newaxis, :, :]
-    ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+1)[np.newaxis, :, :]
-    ððα = sf.Grid(supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s+2)[np.newaxis, :, :]
+    ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors), spin_weight=α.s + 1)[np.newaxis, :, :]
+    ððα = sf.Grid(supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s + 2)[np.newaxis, :, :]
     k, ðk_over_k, one_over_k, one_over_k_cubed = conformal_factors(boost_velocity, distorted_grid_rotors)
 
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
@@ -370,12 +386,11 @@ def transform(self, **kwargs):
     # narrow that set down, so that every grid point on all the u'_i' slices correspond to data in
     # the range of input data.
     timeprime = (u - sf.constant_from_ell_0_mode(supertranslation[0]).real) / γ
-    timeprime_of_initialtime_directionprime = (k * (u[0] - α))
-    timeprime_of_finaltime_directionprime = (k * (u[-1] - α))
+    timeprime_of_initialtime_directionprime = k * (u[0] - α)
+    timeprime_of_finaltime_directionprime = k * (u[-1] - α)
     earliest_complete_timeprime = np.max(timeprime_of_initialtime_directionprime.view(np.ndarray))
     latest_complete_timeprime = np.min(timeprime_of_finaltime_directionprime.view(np.ndarray))
-    timeprime = timeprime[(timeprime >= earliest_complete_timeprime)
-                          & (timeprime <= latest_complete_timeprime)]
+    timeprime = timeprime[(timeprime >= earliest_complete_timeprime) & (timeprime <= latest_complete_timeprime)]
 
     # This will store the values of f'(u', θ', ϕ') for the various functions `f`
     fprime_of_timeprime_directionprime = np.zeros((6, timeprime.size, n_theta, n_phi), dtype=complex)
@@ -390,9 +405,7 @@ def transform(self, **kwargs):
             timeprime_of_timenaught_directionprime_i_j = k_i_j * (u - α_i_j)
             # f'(u', θ', ϕ')
             fprime_of_timeprime_directionprime[:, :, i, j] = CubicSpline(
-                timeprime_of_timenaught_directionprime_i_j,
-                fprime_of_timenaught_directionprime[:, :, i, j],
-                axis=1
+                timeprime_of_timenaught_directionprime_i_j, fprime_of_timenaught_directionprime[:, :, i, j], axis=1
             )(timeprime)
 
     # Finally, transform back from the distorted grid to the SWSH mode weights as measured in that

@@ -1,7 +1,6 @@
 # Copyright (c) 2018, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-
 import numpy as np
 import quaternion
 from numpy import *

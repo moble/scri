@@ -1,7 +1,6 @@
 # Copyright (c) 2019, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-
 import numpy as np
 import quaternion
 import spinsfast
@@ -29,24 +28,29 @@ def silly_momentum_flux(h):
 
     """
     import spinsfast
+
     hdot = h.data_dot
     zeros = np.zeros((hdot.shape[0], 4), dtype=hdot.dtype)
     data = np.concatenate((zeros, hdot), axis=1)  # Pad with zeros for spinsfast
     ell_min = 0
-    ell_max = 2*h.ell_max + 1  # Maximum ell value required for nhat*|hdot|^2
-    n_theta = 2*ell_max + 1
+    ell_max = 2 * h.ell_max + 1  # Maximum ell value required for nhat*|hdot|^2
+    n_theta = 2 * ell_max + 1
     n_phi = n_theta
     hdot_map = spinsfast.salm2map(data, h.spin_weight, h.ell_max, n_theta, n_phi)
     hdot_mag_squared_map = hdot_map * hdot_map.conjugate()
 
     theta = np.linspace(0.0, np.pi, num=n_theta, endpoint=True)
-    phi = np.linspace(0.0, 2*np.pi, num=n_phi, endpoint=False)
+    phi = np.linspace(0.0, 2 * np.pi, num=n_phi, endpoint=False)
     x = np.outer(np.sin(theta), np.cos(phi))
     y = np.outer(np.sin(theta), np.sin(phi))
     z = np.outer(np.cos(theta), np.ones_like(phi))
 
-    pdot = np.array([spinsfast.map2salm(hdot_mag_squared_map*n/(16*np.pi), 0, 0)[..., 0].real * (2*np.sqrt(np.pi))
-                     for n in [x, y, z]]).T
+    pdot = np.array(
+        [
+            spinsfast.map2salm(hdot_mag_squared_map * n / (16 * np.pi), 0, 0)[..., 0].real * (2 * np.sqrt(np.pi))
+            for n in [x, y, z]
+        ]
+    ).T
 
     return pdot
 
@@ -59,33 +63,34 @@ def silly_angular_momentum_flux(h, hdot=None):
 
     """
     import spinsfast
+
     hdot = hdot or h.data_dot
     zeros = np.zeros((hdot.shape[0], 4), dtype=hdot.dtype)
     data = np.concatenate((zeros, hdot), axis=1)  # Pad with zeros for spinsfast
     ell_min = 0
-    ell_max = 2*h.ell_max  # Maximum ell value required to fully resolve Ji{h} * hdot
-    n_theta = 2*ell_max + 1
+    ell_max = 2 * h.ell_max  # Maximum ell value required to fully resolve Ji{h} * hdot
+    n_theta = 2 * ell_max + 1
     n_phi = n_theta
     hdot_map = spinsfast.salm2map(data, h.spin_weight, h.ell_max, n_theta, n_phi)
 
     jdot = np.zeros((h.n_times, 3), dtype=float)
 
     # Compute J_+ h
-    for ell in range(h.ell_min, h.ell_max+1):
+    for ell in range(h.ell_min, h.ell_max + 1):
         i = h.index(ell, -ell) + 4
         data[:, i] = 0.0j
         for m in range(-ell, ell):
-            i = h.index(ell, m+1) + 4
+            i = h.index(ell, m + 1) + 4
             j = h.index(ell, m)
-            data[:, i] = 1.j * np.sqrt((ell-m)*(ell+m+1)) * h.data[:, j]
+            data[:, i] = 1.0j * np.sqrt((ell - m) * (ell + m + 1)) * h.data[:, j]
     jplus_h_map = spinsfast.salm2map(data, h.spin_weight, h.ell_max, n_theta, n_phi)
 
     # Compute J_- h
-    for ell in range(h.ell_min, h.ell_max+1):
-        for m in range(-ell+1, ell+1):
-            i = h.index(ell, m-1) + 4
+    for ell in range(h.ell_min, h.ell_max + 1):
+        for m in range(-ell + 1, ell + 1):
+            i = h.index(ell, m - 1) + 4
             j = h.index(ell, m)
-            data[:, i] = 1.j * np.sqrt((ell+m)*(ell-m+1)) * h.data[:, j]
+            data[:, i] = 1.0j * np.sqrt((ell + m) * (ell - m + 1)) * h.data[:, j]
         i = h.index(ell, ell) + 4
         data[:, i] = 0.0j
     jminus_h_map = spinsfast.salm2map(data, h.spin_weight, h.ell_max, n_theta, n_phi)
@@ -93,16 +98,22 @@ def silly_angular_momentum_flux(h, hdot=None):
     # Combine jplus and jminus to compute x-y components, then conjugate, multiply by hdot, and integrate
     jx_h_map = 0.5 * (jplus_h_map + jminus_h_map)
     jy_h_map = -0.5j * (jplus_h_map - jminus_h_map)
-    jdot[:, 0] = -spinsfast.map2salm(jx_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2*np.sqrt(np.pi)) / (16*np.pi)
-    jdot[:, 1] = -spinsfast.map2salm(jy_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2*np.sqrt(np.pi)) / (16*np.pi)
+    jdot[:, 0] = (
+        -spinsfast.map2salm(jx_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2 * np.sqrt(np.pi)) / (16 * np.pi)
+    )
+    jdot[:, 1] = (
+        -spinsfast.map2salm(jy_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2 * np.sqrt(np.pi)) / (16 * np.pi)
+    )
 
     # Compute J_z h, then conjugate, multiply by hdot, and integrate
-    for ell in range(h.ell_min, h.ell_max+1):
-        for m in range(-ell, ell+1):
+    for ell in range(h.ell_min, h.ell_max + 1):
+        for m in range(-ell, ell + 1):
             i = h.index(ell, m)
-            data[:, i+4] = 1.j * m * h.data[:, i]
+            data[:, i + 4] = 1.0j * m * h.data[:, i]
     jz_h_map = spinsfast.salm2map(data, h.spin_weight, h.ell_max, n_theta, n_phi)
-    jdot[:, 2] = -spinsfast.map2salm(jz_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2*np.sqrt(np.pi)) / (16*np.pi)
+    jdot[:, 2] = (
+        -spinsfast.map2salm(jz_h_map.conjugate() * hdot_map, 0, 0)[..., 0].real * (2 * np.sqrt(np.pi)) / (16 * np.pi)
+    )
 
     return jdot
 
@@ -110,6 +121,7 @@ def silly_angular_momentum_flux(h, hdot=None):
 def test_momentum_flux():
     import numpy as np
     import scri
+
     h = scri.sample_waveforms.fake_precessing_waveform(t_1=1_000.0)
     pdot1 = silly_momentum_flux(h)
     pdot2 = scri.momentum_flux(h)
@@ -119,8 +131,8 @@ def test_momentum_flux():
 def test_angular_momentum_flux():
     import numpy as np
     import scri
+
     h = scri.sample_waveforms.fake_precessing_waveform(t_1=1_000.0)
     jdot1 = silly_angular_momentum_flux(h)
     jdot2 = scri.angular_momentum_flux(h)
     assert np.allclose(jdot1, jdot2, rtol=1e-13, atol=1e-13)
-

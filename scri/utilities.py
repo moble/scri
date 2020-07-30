@@ -10,7 +10,7 @@ maxexp = np.finfo(float).maxexp * np.log(2) * 0.99
 @jit
 def _transition_function(x, x0, x1, y0, y1):
     transition = np.empty_like(x)
-    ydiff = y1-y0
+    ydiff = y1 - y0
     i = 0
     while x[i] <= x0:
         i += 1
@@ -18,7 +18,7 @@ def _transition_function(x, x0, x1, y0, y1):
     transition[:i0] = y0
     while x[i] < x1:
         tau = (x[i] - x0) / (x1 - x0)
-        exponent = 1.0/tau - 1.0/(1.0-tau)
+        exponent = 1.0 / tau - 1.0 / (1.0 - tau)
         if exponent >= maxexp:
             transition[i] = y0
         else:
@@ -79,18 +79,24 @@ def transition_function_derivative(x, x0, x1, y0=0.0, y1=1.0):
 
     """
     transition_prime = np.zeros_like(x)
-    ydiff = y1-y0
+    ydiff = y1 - y0
     i = 0
     while x[i] <= x0:
         i += 1
     while x[i] < x1:
         tau = (x[i] - x0) / (x1 - x0)
-        exponent = 1.0/tau - 1.0/(1.0-tau)
+        exponent = 1.0 / tau - 1.0 / (1.0 - tau)
         if exponent >= maxexp:
             transition_prime[i] = 0.0
         else:
-            exponential = np.exp(1.0/tau - 1.0/(1.0-tau))
-            transition_prime[i] = -ydiff * exponential * (-1.0/tau**2 - 1.0/(1.0-tau)**2) * (1/(x1 - x0)) / (1.0 + exponential)**2
+            exponential = np.exp(1.0 / tau - 1.0 / (1.0 - tau))
+            transition_prime[i] = (
+                -ydiff
+                * exponential
+                * (-1.0 / tau ** 2 - 1.0 / (1.0 - tau) ** 2)
+                * (1 / (x1 - x0))
+                / (1.0 + exponential) ** 2
+            )
         i += 1
     return transition_prime
 
@@ -122,15 +128,15 @@ def bump_function(x, x0, x1, x2, x3, y0=0.0, y12=1.0, y3=0.0):
 
     """
     bump = np.empty_like(x)
-    ydiff01 = y12-y0
-    ydiff23 = y3-y12
+    ydiff01 = y12 - y0
+    ydiff23 = y3 - y12
     i = 0
     while x[i] <= x0:
         i += 1
     bump[:i] = y0
     while x[i] < x1:
         tau = (x[i] - x0) / (x1 - x0)
-        exponent = 1.0/tau - 1.0/(1.0-tau)
+        exponent = 1.0 / tau - 1.0 / (1.0 - tau)
         if exponent >= maxexp:
             bump[i] = y0
         else:
@@ -142,7 +148,7 @@ def bump_function(x, x0, x1, x2, x3, y0=0.0, y12=1.0, y3=0.0):
     bump[i1:i] = y12
     while x[i] < x3:
         tau = (x[i] - x2) / (x3 - x2)
-        exponent = 1.0/tau - 1.0/(1.0-tau)
+        exponent = 1.0 / tau - 1.0 / (1.0 - tau)
         if exponent >= maxexp:
             bump[i] = y12
         else:
@@ -175,11 +181,12 @@ def transition_to_constant(f, t, t1, t2):
 
     """
     from quaternion import indefinite_integral
+
     transition, i1, i2 = transition_function(t, t1, t2, y0=1.0, y1=0.0, return_indices=True)
     transition_dot = transition_function_derivative(t, t1, t2, y0=1.0, y1=0.0)
     f_transitioned = f * transition
     f_transitioned[i1:i2] -= indefinite_integral(f[i1:i2] * transition_dot[i1:i2], t[i1:i2])
-    f_transitioned[i2:] = f_transitioned[i2-1]
+    f_transitioned[i2:] = f_transitioned[i2 - 1]
     return f_transitioned
 
 
@@ -203,8 +210,8 @@ def xor_timeseries(c):
 
     """
     u = c.view(np.uint64)
-    for i in range(u.shape[0]-1, 0, -1):
-        u[i] = np.bitwise_xor(u[i-1], u[i])
+    for i in range(u.shape[0] - 1, 0, -1):
+        u[i] = np.bitwise_xor(u[i - 1], u[i])
     return c
 
 
@@ -218,7 +225,7 @@ def xor_timeseries_reverse(c):
     """
     u = c.view(np.uint64)
     for i in range(1, u.shape[0]):
-        u[i] = np.bitwise_xor(u[i-1], u[i])
+        u[i] = np.bitwise_xor(u[i - 1], u[i])
     return c
 
 
@@ -249,14 +256,14 @@ def fletcher32(data):
     j = 0
     block_size = 360  # largest number of sums that can be performed without overflow
     while j < size:
-        block_length = min(block_size, size-j)
+        block_length = min(block_size, size - j)
         for i in range(block_length):
             c0 += data[j]
             c1 += c0
             j += 1
         c0 %= np.uint32(65535)
         c1 %= np.uint32(65535)
-    return (c1 << np.uint32(16) | c0)
+    return c1 << np.uint32(16) | c0
 
 
 def multishuffle(shuffle_widths, forward=True):
@@ -331,13 +338,14 @@ def multishuffle(shuffle_widths, forward=True):
 
     bit_width = np.sum(shuffle_widths, dtype=np.int64)  # uint64 casts to float under floor division...
     if bit_width not in [8, 16, 32, 64]:
-        raise ValueError(f'Total bit width must be one of [8, 16, 32, 64], not {bit_width}')
-    dtype = np.dtype(f'u{bit_width//8}')
+        raise ValueError(f"Total bit width must be one of [8, 16, 32, 64], not {bit_width}")
+    dtype = np.dtype(f"u{bit_width//8}")
     bit_width = dtype.type(bit_width)
     reversed_shuffle_widths = np.array(list(reversed(shuffle_widths)), dtype=dtype)
     one = dtype.type(1)
 
     if forward:
+
         def shuffle(a):
             a = a.view(dtype)
             if a.ndim != 1:
@@ -350,7 +358,7 @@ def multishuffle(shuffle_widths, forward=True):
             b_array_bit = np.uint64(0)
             for i, shuffle_width in enumerate(reversed_shuffle_widths):
                 mask_shift = np.sum(reversed_shuffle_widths[:i])
-                mask = dtype.type(2**shuffle_width-1)
+                mask = dtype.type(2 ** shuffle_width - 1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
@@ -358,9 +366,10 @@ def multishuffle(shuffle_widths, forward=True):
                     masked = (a[a_array_index] >> mask_shift) & mask
                     b[b_array_index] += masked << b_element_bit
                     if b_element_bit + shuffle_width > bit_width:
-                        b[b_array_index+one] += masked >> (bit_width - b_element_bit)
+                        b[b_array_index + one] += masked >> (bit_width - b_element_bit)
                     b_array_bit += shuffle_width
             return b
+
         return nb.njit(shuffle)
     else:
         # This function is almost the same as above, except for:
@@ -378,7 +387,7 @@ def multishuffle(shuffle_widths, forward=True):
             b_array_bit = dtype.type(0)
             for i, shuffle_width in enumerate(reversed_shuffle_widths):
                 mask_shift = np.sum(reversed_shuffle_widths[:i])
-                mask = dtype.type(2**shuffle_width-1)
+                mask = dtype.type(2 ** shuffle_width - 1)
                 pieces_per_element = bit_width // shuffle_width
                 for a_array_index in range(a.size):
                     b_array_index = b_array_bit // bit_width
@@ -386,7 +395,10 @@ def multishuffle(shuffle_widths, forward=True):
                     masked = (b[b_array_index] >> b_element_bit) & mask
                     a[a_array_index] += masked << mask_shift
                     if b_element_bit + shuffle_width > bit_width:
-                        a[a_array_index] += ((b[b_array_index+one] << (bit_width - b_element_bit)) & mask) << mask_shift
+                        a[a_array_index] += (
+                            (b[b_array_index + one] << (bit_width - b_element_bit)) & mask
+                        ) << mask_shift
                     b_array_bit += shuffle_width
             return a
+
         return nb.njit(unshuffle)

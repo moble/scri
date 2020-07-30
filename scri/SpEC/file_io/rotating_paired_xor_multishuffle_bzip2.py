@@ -1,8 +1,10 @@
 # Copyright (c) 2020, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-sxs_formats = ['rotating_paired_xor_multishuffle_bzip2',]
-default_shuffle_widths = [8, 8, 4, 4, 4, 2,] + [1,]*34
+sxs_formats = [
+    "rotating_paired_xor_multishuffle_bzip2",
+]
+default_shuffle_widths = [8, 8, 4, 4, 4, 2,] + [1,] * 34
 
 
 def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, shuffle_widths=default_shuffle_widths):
@@ -28,11 +30,11 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
     if file_name is None:
         # We'll just be creating a temp directory below, to check
         warnings.warn(
-            '\nInput `file_name` is None.  Running in temporary directory.\n'
-            'Note that this option is mostly for debugging purposes.'
+            "\nInput `file_name` is None.  Running in temporary directory.\n"
+            "Note that this option is mostly for debugging purposes."
         )
     else:
-        h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
+        h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix(".h5")
         if not h5_path.parent.exists():
             h5_path.parent.mkdir(parents=True)
 
@@ -60,8 +62,9 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
             )
             log_frame = log_frame[:, 1:]
         if w.frameType != scri.Corotating:
-            raise ValueError("Frame type of input waveform must be 'Corotating' or 'Inertial'; "
-                             f"it is {w.frame_type_string}")
+            raise ValueError(
+                "Frame type of input waveform must be 'Corotating' or 'Inertial'; " f"it is {w.frame_type_string}"
+            )
 
         # Convert mode structure to conjugate pairs
         w.convert_to_conjugate_pairs()
@@ -72,7 +75,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
         # Compute log(frame)
         if log_frame is None:
             log_frame = quaternion.as_float_array(np.log(w.frame))[:, 1:]
-            power_of_2 = 2 ** (-np.floor(np.log2(L2norm_fractional_tolerance/10))).astype('int')
+            power_of_2 = 2 ** (-np.floor(np.log2(L2norm_fractional_tolerance / 10))).astype("int")
             log_frame = np.round(log_frame * power_of_2) / power_of_2
 
         # Change -0.0 to 0.0 (~.5% compression for non-precessing systems)
@@ -89,88 +92,87 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
     with contextlib.ExitStack() as context:
         if file_name is None:
             temp_dir = context.enter_context(tempfile.TemporaryDirectory())
-            h5_path = pathlib.Path(f'{temp_dir}') / 'test.h5'
+            h5_path = pathlib.Path(f"{temp_dir}") / "test.h5"
         else:
             print(f'Saving H5 to "{h5_path}"')
 
         # Write the H5 file
-        with h5py.File(h5_path, 'w') as f:
+        with h5py.File(h5_path, "w") as f:
             if L2norm_fractional_tolerance != 0.0:
-                f.attrs['sxs_format'] = f'{sxs_formats[0]}'
-                f.attrs['n_times'] = w.n_times
-                f.attrs['ell_min'] = w.ell_min
-                f.attrs['ell_max'] = w.ell_max
-                f.attrs['shuffle_widths'] = np.array(shuffle_widths, dtype=np.uint8)
-                #warnings.warn(f'sxs_format is being set to "{sxs_formats[0]}"')
-                data = np.void(bz2.compress(
-                    shuffle(w.t.view(np.uint64)).tobytes()
-                    + shuffle(w.data.view(np.uint64).flatten('F')).tobytes()
-                    + shuffle(log_frame.view(np.uint64).flatten('F')).tobytes()
-                ))
-                f.create_dataset('data', data=data)
+                f.attrs["sxs_format"] = f"{sxs_formats[0]}"
+                f.attrs["n_times"] = w.n_times
+                f.attrs["ell_min"] = w.ell_min
+                f.attrs["ell_max"] = w.ell_max
+                f.attrs["shuffle_widths"] = np.array(shuffle_widths, dtype=np.uint8)
+                # warnings.warn(f'sxs_format is being set to "{sxs_formats[0]}"')
+                data = np.void(
+                    bz2.compress(
+                        shuffle(w.t.view(np.uint64)).tobytes()
+                        + shuffle(w.data.view(np.uint64).flatten("F")).tobytes()
+                        + shuffle(log_frame.view(np.uint64).flatten("F")).tobytes()
+                    )
+                )
+                f.create_dataset("data", data=data)
             else:
                 compression_options = {
-                    'compression': 'gzip',
-                    'compression_opts': 9,
-                    'shuffle': True,
+                    "compression": "gzip",
+                    "compression_opts": 9,
+                    "shuffle": True,
                 }
-                f.attrs['sxs_format'] = f'{sxs_formats[0]}'
-                f.create_dataset('time', data=w.t.view(np.uint64), chunks=(w.n_times,), **compression_options)
-                f.create_dataset('modes', data=w.data.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
-                f['modes'].attrs['ell_min'] = w.ell_min
-                f['modes'].attrs['ell_max'] = w.ell_max
+                f.attrs["sxs_format"] = f"{sxs_formats[0]}"
+                f.create_dataset("time", data=w.t.view(np.uint64), chunks=(w.n_times,), **compression_options)
+                f.create_dataset("modes", data=w.data.view(np.uint64), chunks=(w.n_times, 1), **compression_options)
+                f["modes"].attrs["ell_min"] = w.ell_min
+                f["modes"].attrs["ell_max"] = w.ell_max
                 if log_frame.size > 1:
-                    f.create_dataset('log_frame', data=log_frame.view(np.uint64),
-                                     chunks=(w.n_times, 1), **compression_options)
+                    f.create_dataset(
+                        "log_frame", data=log_frame.view(np.uint64), chunks=(w.n_times, 1), **compression_options
+                    )
 
         # Get some numbers for the JSON file
         h5_size = os.stat(h5_path).st_size
         if file_name is None:
-            print(f'Output H5 file size: {h5_size:_} B')
+            print(f"Output H5 file size: {h5_size:_} B")
         md5sum = md5checksum(h5_path)
 
         # Write the corresponding JSON file
-        json_path = h5_path.with_suffix('.json')
+        json_path = h5_path.with_suffix(".json")
         json_data = {
-            'sxs_format': sxs_formats[0],
-            'data_info': {
-                'data_type': w.data_type_string,
-                'spin_weight': int(w.spin_weight),
-                'ell_min': int(w.ell_min),
-                'ell_max': int(w.ell_max),
+            "sxs_format": sxs_formats[0],
+            "data_info": {
+                "data_type": w.data_type_string,
+                "spin_weight": int(w.spin_weight),
+                "ell_min": int(w.ell_min),
+                "ell_max": int(w.ell_max),
             },
-            'transformations': {
-                'truncation': L2norm_fractional_tolerance,
+            "transformations": {
+                "truncation": L2norm_fractional_tolerance,
                 # see below for 'boost_velocity'
                 # see below for 'space_translation'
             },
-            'version_info': {
-                'python': sys.version,
-                'numpy': np.__version__,
-                'scipy': scipy.__version__,
-                'h5py': h5py.__version__,
-                'quaternion': quaternion.__version__,
-                'spherical_functions': sf.__version__,
-                'scri': scri.__version__,
-                'sxs': sxs.__version__,
+            "version_info": {
+                "python": sys.version,
+                "numpy": np.__version__,
+                "scipy": scipy.__version__,
+                "h5py": h5py.__version__,
+                "quaternion": quaternion.__version__,
+                "spherical_functions": sf.__version__,
+                "scri": scri.__version__,
+                "sxs": sxs.__version__,
                 # see below 'spec_version_hist'
             },
-            'validation': {
-                'h5_file_size': h5_size,
-                'n_times': w.n_times,
-                'md5sum': md5sum
-            }
+            "validation": {"h5_file_size": h5_size, "n_times": w.n_times, "md5sum": md5sum},
         }
-        if hasattr(w, 'boost_velocity'):
-            json_data['transformations']['boost_velocity'] = w.boost_velocity.tolist()
-        if hasattr(w, 'space_translation'):
-            json_data['transformations']['space_translation'] = w.space_translation.tolist()
-        if hasattr(w, 'version_hist'):
-            json_data['version_info']['spec_version_history'] = w.version_hist
+        if hasattr(w, "boost_velocity"):
+            json_data["transformations"]["boost_velocity"] = w.boost_velocity.tolist()
+        if hasattr(w, "space_translation"):
+            json_data["transformations"]["space_translation"] = w.space_translation.tolist()
+        if hasattr(w, "version_hist"):
+            json_data["version_info"]["spec_version_history"] = w.version_hist
         if file_name is not None:
             print(f'Saving JSON to "{json_path}"')
-        with json_path.open('w') as f:
-            json.dump(json_data, f, indent=2, separators=(',', ': '), ensure_ascii=True)
+        with json_path.open("w") as f:
+            json.dump(json_data, f, indent=2, separators=(",", ": "), ensure_ascii=True)
 
     return w, log_frame
 
@@ -194,8 +196,8 @@ def load(file_name, ignore_validation=False, check_md5=True):
         else:
             raise ValueError(message)
 
-    h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix('.h5')
-    json_path = h5_path.with_suffix('.json')
+    h5_path = pathlib.Path(file_name).expanduser().resolve().with_suffix(".h5")
+    json_path = h5_path.with_suffix(".json")
 
     # This will be used for validation
     h5_size = os.stat(h5_path).st_size
@@ -207,63 +209,59 @@ def load(file_name, ignore_validation=False, check_md5=True):
         with open(json_path) as f:
             json_data = json.load(f)
 
-        dataType = json_data.get('data_info', {}).get('data_type', 'UnknownDataType')
+        dataType = json_data.get("data_info", {}).get("data_type", "UnknownDataType")
         dataType = scri.DataType[scri.DataNames.index(dataType)]
 
         # Make sure this is our format
-        sxs_format = json_data.get('sxs_format', '')
+        sxs_format = json_data.get("sxs_format", "")
         if sxs_format not in sxs_formats:
             invalid(
-                f'\nThe `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n'
-                f'    {sxs_formats}.'
+                f'\nThe `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n' f"    {sxs_formats}."
             )
 
         # Make sure the expected H5 file size matches the observed value
-        json_h5_file_size = json_data.get('validation', {}).get('h5_file_size', 0)
+        json_h5_file_size = json_data.get("validation", {}).get("h5_file_size", 0)
         if json_h5_file_size != h5_size:
             invalid(
-                f'\nMismatch between `validation/h5_file_size` key in JSON file ({json_h5_file_size}) '
+                f"\nMismatch between `validation/h5_file_size` key in JSON file ({json_h5_file_size}) "
                 f'and observed file size ({h5_size}) of "{h5_path}".'
             )
 
         # Make sure the expected H5 file hash matches the observed value
         if check_md5:
             md5sum = md5checksum(h5_path)
-            json_md5sum = json_data.get('validation', {}).get('md5sum', '')
+            json_md5sum = json_data.get("validation", {}).get("md5sum", "")
             if json_md5sum != md5sum:
-                invalid(
-                    f'\nMismatch between `validation/md5sum` key in JSON file and observed MD5 checksum.'
-                )
+                invalid(f"\nMismatch between `validation/md5sum` key in JSON file and observed MD5 checksum.")
 
-    with h5py.File(h5_path, 'r') as f:
+    with h5py.File(h5_path, "r") as f:
         # Make sure this is our format
-        sxs_format = f.attrs['sxs_format']
+        sxs_format = f.attrs["sxs_format"]
         if sxs_format not in sxs_formats:
             raise ValueError(
-                f'The `sxs_format` found in H5 file is "{sxs_format}"; it should be one of\n'
-                f'    {sxs_formats}.'
+                f'The `sxs_format` found in H5 file is "{sxs_format}"; it should be one of\n' f"    {sxs_formats}."
             )
 
         # Ensure that the 'validation' keys from the JSON file are the same as in this file
-        n_times = f.attrs['n_times']
-        json_n_times = json_data.get('validation', {}).get('n_times', 0)
+        n_times = f.attrs["n_times"]
+        json_n_times = json_data.get("validation", {}).get("n_times", 0)
         if json_n_times != n_times:
             invalid(
-                f'\nNumber of time steps in H5 file ({n_times}) '
-                f'does not match expected value from JSON ({json_n_times}).'
+                f"\nNumber of time steps in H5 file ({n_times}) "
+                f"does not match expected value from JSON ({json_n_times})."
             )
 
         # Read the raw data
         sizeof_float = 8
         sizeof_complex = 2 * sizeof_float
-        ell_min = f.attrs['ell_min']
-        ell_max = f.attrs['ell_max']
-        shuffle_widths = f.attrs['shuffle_widths']
+        ell_min = f.attrs["ell_min"]
+        ell_max = f.attrs["ell_max"]
+        shuffle_widths = f.attrs["shuffle_widths"]
         unshuffle = scri.utilities.multishuffle(shuffle_widths, forward=False)
         n_modes = ell_max * (ell_max + 2) - ell_min ** 2 + 1
         i1 = n_times * sizeof_float
         i2 = i1 + n_times * sizeof_complex * n_modes
-        uncompressed_data = bz2.decompress(f['data'][...])
+        uncompressed_data = bz2.decompress(f["data"][...])
         t = np.frombuffer(uncompressed_data[:i1], dtype=np.uint64)
         data = np.frombuffer(uncompressed_data[i1:i2], dtype=np.uint64)
         log_frame = np.frombuffer(uncompressed_data[i2:], dtype=np.uint64)
@@ -286,10 +284,15 @@ def load(file_name, ignore_validation=False, check_md5=True):
     frame = np.exp(quaternion.as_quat_array(np.insert(log_frame, 0, 0.0, axis=1)))
 
     w = scri.WaveformModes(
-        t=t, frame=frame, data=data,
-        frameType=scri.Corotating, dataType=dataType,
-        m_is_scaled_out=True, r_is_scaled_out=True,
-        ell_min=ell_min, ell_max=ell_max
+        t=t,
+        frame=frame,
+        data=data,
+        frameType=scri.Corotating,
+        dataType=dataType,
+        m_is_scaled_out=True,
+        r_is_scaled_out=True,
+        ell_min=ell_min,
+        ell_max=ell_max,
     )
     w.convert_from_conjugate_pairs()
     w.json_data = json_data
