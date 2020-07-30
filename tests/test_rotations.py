@@ -28,8 +28,8 @@ def test_identity_rotation(w):
     assert W_out.ell_min == W_in.ell_min
     assert W_out.ell_max == W_in.ell_max
     for h_in, h_out in zip(W_in.history, W_out.history[:-1]):
-        assert (h_in == h_out.replace(type(W_out).__name__ + '_' + str(W_out.num),
-                                      type(W_in).__name__ + '_' + str(W_in.num))
+        assert (h_in == h_out.replace(f"{type(W_out).__name__}_{str(W_out.num)}",
+                                      f"{type(W_in).__name__}_{str(W_in.num)}")
                 or (h_in.startswith('# ') and h_out.startswith('# ')))
     assert W_out.frameType == W_in.frameType
     assert W_out.dataType == W_in.dataType
@@ -56,8 +56,8 @@ def test_rotation_invariants(w):
     assert W_out.ell_max == W_in.ell_max
     assert np.array_equal(W_out.LM, W_in.LM)
     for h_in, h_out in zip(W_in.history[:-3], W_out.history[:-5]):
-        assert (h_in == h_out.replace(type(W_out).__name__ + '_' + str(W_out.num),
-                                      type(W_in).__name__ + '_' + str(W_in.num))
+        assert (h_in == h_out.replace(f"{type(W_out).__name__}_{str(W_out.num)}",
+                                      f"{type(W_in).__name__}_{str(W_in.num)}")
                 or (h_in.startswith('# ') and h_out.startswith('# ')))
     assert W_out.frameType == W_in.frameType
     assert W_out.dataType == W_in.dataType
@@ -85,8 +85,8 @@ def test_constant_versus_series(w):
     assert W_series.ell_max == W_const.ell_max
     assert np.array_equal(W_series.LM, W_const.LM)
     for h_const, h_series in zip(W_const.history[:-5], W_series.history[:-11]):
-        assert (h_const == h_series.replace(type(W_series).__name__ + '_' + str(W_series.num),
-                                           type(W_const).__name__ + '_' + str(W_const.num))
+        assert (h_const == h_series.replace(f"{type(W_series).__name__}_{str(W_series.num)}",
+                                           f"{type(W_const).__name__}_{str(W_const.num)}")
                 or (h_const.startswith('# ') and h_series.startswith('# ')))
     assert W_series.frameType == W_const.frameType
     assert W_series.dataType == W_const.dataType
@@ -117,8 +117,8 @@ def test_rotation_inversion(w):
         assert W_out.ell_max == W_in.ell_max
         assert np.array_equal(W_out.LM, W_in.LM)
         for h_in, h_out in zip(W_in.history[:-3], W_out.history[:-5]):
-            assert (h_in == h_out.replace(type(W_out).__name__ + '_' + str(W_out.num),
-                                          type(W_in).__name__ + '_' + str(W_in.num))
+            assert (h_in == h_out.replace(f"{type(W_out).__name__}_{str(W_out.num)}",
+                                          f"{type(W_in).__name__}_{str(W_in.num)}")
                     or (h_in.startswith('# datetime') and h_out.startswith('# datetime')))
         assert W_out.frameType == W_in.frameType
         assert W_out.dataType == W_in.dataType
@@ -143,8 +143,8 @@ def test_rotations_of_0_0_mode(Rs):
     assert W_out.ell_max == W_in.ell_max
     assert np.array_equal(W_out.LM, W_in.LM)
     for h_in, h_out in zip(W_in.history, W_out.history[:-1]):
-        assert (h_in == h_out.replace(type(W_out).__name__ + '_' + str(W_out.num),
-                                      type(W_in).__name__ + '_' + str(W_in.num))
+        assert (h_in == h_out.replace(f"{type(W_out).__name__}_{str(W_out.num)}",
+                                      f"{type(W_in).__name__}_{str(W_in.num)}")
                 or (h_in.startswith('# ') and h_out.startswith('# ')))
     assert W_out.frameType == W_in.frameType
     assert W_out.dataType == W_in.dataType

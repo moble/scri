@@ -11,7 +11,7 @@ from sys import platform
 on_windows = ('win' in platform.lower() and not 'darwin' in platform.lower())
 if "package_version" in environ:
     version = environ["package_version"]
-    print("Setup.py using environment version='{0}'".format(version))
+    print(f"Setup.py using environment version='{version}'")
 else:
     print("The variable 'package_version' was not present in the environment")
     try:
@@ -28,7 +28,7 @@ else:
                 from os import devnull
                 version = check_output("""git log -1 --format=%cd --date=format:'%Y.%-m.%-d.%-H.%-M.%-S'""", shell=True, stderr=devnull)
             version = version.decode('ascii').rstrip()
-        print("Setup.py using git log version='{0}'".format(version))
+        print(f"Setup.py using git log version='{version}'")
     except Exception:
         # For cases where this isn't being installed from git.  This gives the wrong version number,
         # but at least it provides some information.
@@ -40,12 +40,12 @@ else:
                 version = strftime("%Y.%-m.%-d.%-H.%-M.%-S", gmtime())
             except ValueError:  # because Windows
                 version = strftime("%Y.%m.%d.%H.%M.%S", gmtime()).replace('.0', '.')
-            print("Setup.py using strftime version='{0}'".format(version))
+            print(f"Setup.py using strftime version='{version}'")
         except:
             version = '0.0.0'
-            print("Setup.py failed to determine the version; using '{0}'".format(version))
+            print(f"Setup.py failed to determine the version; using '{version}'")
 with open('scri/_version.py', 'w') as f:
-    f.write('__version__ = "{0}"'.format(version))
+    f.write(f'__version__ = "{version}"')
 
 
 long_description = """\

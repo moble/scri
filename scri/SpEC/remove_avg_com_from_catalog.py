@@ -11,24 +11,24 @@ def run_in(args):
     (filename, i_this, i_tot) = args
     if exists(filename.replace('.h5', '_CoM.h5')):
         return
-    print("Working on {0} -- {1} of {2}".format(filename, i_this, i_tot)); sys.stdout.flush()
+    print(f"Working on {filename} -- {i_this} of {i_tot}"); sys.stdout.flush()
     try:
-        racm(filename + '/Extrapolated_N2.dir', plot=True, file_write_mode='w')
+        racm(f"{filename}/Extrapolated_N2.dir", plot=True, file_write_mode='w')
         try:
-            racm(filename + '/Extrapolated_N3.dir', plot=True, file_write_mode='a')
+            racm(f"{filename}/Extrapolated_N3.dir", plot=True, file_write_mode='a')
         except:
-            print('Failed in {0}/Extrapolated_N3.dir -- {1} of {2}'.format(filename, i_this, i_tot)); sys.stdout.flush()
+            print(f'Failed in {filename}/Extrapolated_N3.dir -- {i_this} of {i_tot}'); sys.stdout.flush()
         try:
-            racm(filename + '/Extrapolated_N4.dir', plot=True, file_write_mode='a')
+            racm(f"{filename}/Extrapolated_N4.dir", plot=True, file_write_mode='a')
         except:
-            print('Failed in {0}/Extrapolated_N4.dir -- {1} of {2}'.format(filename, i_this, i_tot)); sys.stdout.flush()
+            print(f'Failed in {filename}/Extrapolated_N4.dir -- {i_this} of {i_tot}'); sys.stdout.flush()
         try:
-            racm(filename + '/OutermostExtraction.dir', plot=True, file_write_mode='a')
+            racm(f"{filename}/OutermostExtraction.dir", plot=True, file_write_mode='a')
         except:
-            print('Failed in {0}/OutermostExtraction.dir -- {1} of {2}'.format(filename, i_this, i_tot)); sys.stdout.flush()
+            print(f'Failed in {filename}/OutermostExtraction.dir -- {i_this} of {i_tot}'); sys.stdout.flush()
     except:
-        print('Failed in {0} -- {1} of {2}'.format(filename, i_this, i_tot)); sys.stdout.flush()
-    print('Finished {0} -- {1} of {2}'.format(filename, i_this, i_tot)); sys.stdout.flush()
+        print(f'Failed in {filename} -- {i_this} of {i_tot}'); sys.stdout.flush()
+    print(f'Finished {filename} -- {i_this} of {i_tot}'); sys.stdout.flush()
 
 
 if __name__ == '__main__':

@@ -38,7 +38,7 @@ def modes_constructor(constructor_statement, data_functor, **kwargs):
     ell_max = int(kwargs.pop('ell_max', 8))
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
     data = data_functor(t, sf.LM_range(ell_min, ell_max))
     w = scri.WaveformModes(t=t, frame=frame, data=data,
                            history=['# Called from constant_waveform'],
@@ -57,13 +57,13 @@ def constant_waveform(**kwargs):
     """
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
     def data_functor(t, LM):
         data = np.empty((t.shape[0], LM.shape[0]), dtype=complex)
         for i, m in enumerate(LM[:, 1]):
             data[:, i] = (m - 1j * m)
         return data
-    return modes_constructor('constant_waveform(**{0})'.format(kwargs), data_functor)
+    return modes_constructor(f'constant_waveform(**{kwargs})', data_functor)
 
 
 def single_mode(ell, m, **kwargs):
@@ -79,12 +79,12 @@ def single_mode(ell, m, **kwargs):
     """
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
     def data_functor(t, LM):
         data = np.empty((t.shape[0], LM.shape[0]), dtype=complex)
         data[:, sf.LM_index(ell, m, min(LM[:, 0]))] = 1.0 + 0.0j
         return data
-    return modes_constructor('single_mode({0}, {1}, **{2})'.format(ell, m, kwargs), data_functor)
+    return modes_constructor(f'single_mode({ell}, {m}, **{kwargs})', data_functor)
 
 
 def random_waveform(**kwargs):
@@ -116,17 +116,17 @@ def random_waveform(**kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     def data_functor(tin, LM):
         data = np.random.normal(size=(tin.shape[0], LM.shape[0], 2)).view(complex)[:, :, 0]
         return data
     if rotating:
         frame = np.array([np.quaternion(*np.random.uniform(-1, 1, 4)).normalized() for t_i in t])
-        return modes_constructor('random_waveform(**{0})'.format(kwargs), data_functor, t=t,
+        return modes_constructor(f'random_waveform(**{kwargs})', data_functor, t=t,
                                  frame=frame, frameType=scri.Corotating)
     else:
-        return modes_constructor('random_waveform(**{0})'.format(kwargs), data_functor, t=t)
+        return modes_constructor(f'random_waveform(**{kwargs})', data_functor, t=t)
 
 
 def random_waveform_proportional_to_time(**kwargs):
@@ -158,7 +158,7 @@ def random_waveform_proportional_to_time(**kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     def data_functor(tin, LM):
         return np.outer(tin, np.random.normal(size=(LM.shape[0], 2)).view(complex)[:, 0])
@@ -166,10 +166,10 @@ def random_waveform_proportional_to_time(**kwargs):
         axis = np.quaternion(0., *np.random.uniform(-1, 1, size=3)).normalized()
         omega = 2 * np.pi * 4 / (t[-1] - t[0])
         frame = np.array([np.exp(axis * (omega * t_i / 2)) for t_i in t])
-        return modes_constructor('random_waveform(**{0})'.format(kwargs), data_functor, t=t,
+        return modes_constructor(f'random_waveform(**{kwargs})', data_functor, t=t,
                                  frame=frame, frameType=scri.Corotating)
     else:
-        return modes_constructor('random_waveform(**{0})'.format(kwargs), data_functor, t=t)
+        return modes_constructor(f'random_waveform(**{kwargs})', data_functor, t=t)
 
 
 def single_mode_constant_rotation(**kwargs):
@@ -216,7 +216,7 @@ def single_mode_constant_rotation(**kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     return scri.WaveformModes(t=t, data=data, ell_min=ell_min, ell_max=ell_max,
                               frameType=scri.Inertial, dataType=data_type,
@@ -266,7 +266,7 @@ def single_mode_proportional_to_time(**kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     return scri.WaveformModes(t=t, data=data, ell_min=ell_min, ell_max=ell_max,
                               frameType=scri.Inertial, dataType=data_type,
@@ -310,7 +310,7 @@ def single_mode_proportional_to_time_supertranslated(**kwargs):
         supertranslation[1:4] = -sf.vector_as_ell_1_modes(kwargs.pop('space_translation'))
     supertranslation_ell_max = int(math.sqrt(supertranslation.size)-1)
     if supertranslation_ell_max * (supertranslation_ell_max + 2) + 1 != supertranslation.size:
-        raise ValueError("Bad number of elements in supertranslation: {0}".format(supertranslation.size))
+        raise ValueError(f"Bad number of elements in supertranslation: {supertranslation.size}")
     for i, (ellpp, mpp) in enumerate(sf.LM_range(0, supertranslation_ell_max)):
         if supertranslation[i] != 0.0:
             mp = m+mpp
@@ -328,7 +328,7 @@ def single_mode_proportional_to_time_supertranslated(**kwargs):
 
     if kwargs:
         import pprint
-        warnings.warn("\nUnused kwargs passed to this function:\n{0}".format(pprint.pformat(kwargs, width=1)))
+        warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     return scri.WaveformModes(t=t, data=data, ell_min=ell_min, ell_max=ell_max,
                               frameType=scri.Inertial, dataType=data_type,
@@ -401,7 +401,7 @@ def fake_precessing_waveform(t_0=-20.0, t_1=20_000.0, dt=0.1, ell_max=8,
     t_merger = t_1 - 100.0
     i_merger = np.argmin(abs(t-t_merger))
     if i_merger < 20:
-        raise ValueError("Insufficient space between initial time (t={1}) and merger (t={0}).".format(t_0, t_merger))
+        raise ValueError(f"Insufficient space between initial time (t={t_merger}) and merger (t={t_0}).")
     n_times = t.size
     data = np.zeros((n_times, sf.LM_total_size(ell_min, ell_max)), dtype=complex)
 
@@ -623,24 +623,24 @@ def create_fake_finite_radius_strain_h5file(
         for i in range(len(groups)):
             # Set coordinate radius dataset
             coord_radius = np.vstack((all_times, [coord_radii[i]] * n_times)).T
-            dset = h5file.create_dataset(groups[i] + "/CoordRadius.dat", data=coord_radius)
+            dset = h5file.create_dataset(f"{groups[i]}/CoordRadius.dat", data=coord_radius)
             dset.attrs.create("Legend", ["time", "CoordRadius"])
 
             # Set areal radius dataset
             areal_radius = coord_radius
             areal_radius[:, 1] += avg_areal_radius_diff
-            dset = h5file.create_dataset(groups[i] + "/ArealRadius.dat", data=areal_radius)
+            dset = h5file.create_dataset(f"{groups[i]}/ArealRadius.dat", data=areal_radius)
             dset.attrs.create("Legend", ["time", "ArealRadius"])
 
             # Set initial ADM energy dataset
             seg_start_times = h0.t[:: int(n_times / 20)]
             adm_energy_dset = np.vstack((seg_start_times, [initial_adm_energy] * len(seg_start_times))).T
-            dset = h5file.create_dataset(groups[i] + "/InitialAdmEnergy.dat", data=adm_energy_dset)
+            dset = h5file.create_dataset(f"{groups[i]}/InitialAdmEnergy.dat", data=adm_energy_dset)
             dset.attrs.create("Legend", ["time", "InitialAdmEnergy"])
 
             # Set average lapse dataset
             avg_lapse_dset = np.vstack((all_times, [avg_lapse] * n_times)).T
-            dset = h5file.create_dataset(groups[i] + "/AverageLapse.dat", data=avg_lapse_dset)
+            dset = h5file.create_dataset(f"{groups[i]}/AverageLapse.dat", data=avg_lapse_dset)
             dset.attrs.create("Legend", ["time", "AverageLapse"])
 
             # Set finite radius data
@@ -658,7 +658,7 @@ def create_fake_finite_radius_strain_h5file(
                     new_data[(all_times < simulation_time[0]) | (all_times > simulation_time[-1])] = 0.0
                     new_data += (1 + 1j) * 1e-14 * all_times
                     new_dset = np.vstack((all_times, new_data.real, new_data.imag)).T
-                    dset = h5file.create_dataset(groups[i] + f"/Y_l{l}_m{m}.dat", data=new_dset)
+                    dset = h5file.create_dataset(f"{groups[i]}/Y_l{l}_m{m}.dat", data=new_dset)
                     dset.attrs.create(
                         "Legend",
                         [

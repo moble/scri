@@ -202,7 +202,7 @@ def test_interpolation(W):
     W_out = W_in.interpolate(t_out)
     assert W_in.ensure_validity(alter=False)
     assert W_out.ensure_validity(alter=False)
-    assert W_out.history[:1] == ['# Called from ' + W.__name__]
+    assert W_out.history[:1] == [f"# Called from {W.__name__}"]
     assert W_out.frameType == scri.Corotating
     assert W_out.dataType == scri.h
     assert W_out.r_is_scaled_out  # == True
@@ -271,7 +271,7 @@ def test_involution_properties(random_waveform):
     """
     for direction in ['x_', 'y_', 'z_', '']:
         w_in = WaveformModes(random_waveform)
-        w_out = getattr(getattr(w_in, direction+'parity_conjugate'), direction+'parity_conjugate')
+        w_out = getattr(getattr(w_in, f"{direction}parity_conjugate"), f"{direction}parity_conjugate")
         assert w_in._allclose(w_out, rtol=0., atol=0., compare_history_beginnings=True)
 
 
@@ -283,8 +283,8 @@ def test_idempotents(random_waveform):
 
     """
     for direction in ['x_', 'y_', 'z_', '']:
-        w_in = getattr(random_waveform, direction+'parity_symmetric_part')
-        w_out = getattr(w_in, direction+'parity_symmetric_part')
+        w_in = getattr(random_waveform, f"{direction}parity_symmetric_part")
+        w_out = getattr(w_in, f"{direction}parity_symmetric_part")
         assert w_in._allclose(w_out, rtol=0., atol=0., compare_history_beginnings=True)
 
 
@@ -298,12 +298,12 @@ def test_null_compositions(random_waveform):
     w_in.data = np.zeros_like(w_in.data)
     w_in.frame = np.zeros_like(w_in.frame)
     for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(getattr(random_waveform, direction+'parity_symmetric_part'),
-                        direction+'parity_antisymmetric_part')
+        w_out = getattr(getattr(random_waveform, f"{direction}parity_symmetric_part"),
+                        f"{direction}parity_antisymmetric_part")
         assert w_in._allclose(w_out, rtol=0., atol=0.)
     for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(getattr(random_waveform, direction+'parity_antisymmetric_part'),
-                        direction+'parity_symmetric_part')
+        w_out = getattr(getattr(random_waveform, f"{direction}parity_antisymmetric_part"),
+                        f"{direction}parity_symmetric_part")
         assert w_in._allclose(w_out, rtol=0., atol=0.)
 
 
@@ -318,15 +318,15 @@ def test_parity_violation_measures(random_waveform):
     zeros = np.zeros_like(w_in.data[:, 0])
     ones = np.ones_like(w_in.data[:, 0])
     for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(random_waveform, direction+'parity_symmetric_part')
-        assert np.allclose(getattr(w_out, direction+'parity_violation_squared'), zeros, atol=1e-15)
-        assert np.allclose(getattr(w_out, direction+'parity_violation_normalized'), zeros, atol=1e-15)
+        w_out = getattr(random_waveform, f"{direction}parity_symmetric_part")
+        assert np.allclose(getattr(w_out, f"{direction}parity_violation_squared"), zeros, atol=1e-15)
+        assert np.allclose(getattr(w_out, f"{direction}parity_violation_normalized"), zeros, atol=1e-15)
     for direction in ['x_', 'y_', 'z_', '']:
-        w_out = getattr(random_waveform, direction+'parity_antisymmetric_part')
-        assert np.allclose(getattr(w_in, direction+'parity_violation_squared'), w_out.norm(), atol=0., rtol=1e-15)
-        assert np.allclose(getattr(w_in, direction+'parity_violation_normalized'),
+        w_out = getattr(random_waveform, f"{direction}parity_antisymmetric_part")
+        assert np.allclose(getattr(w_in, f"{direction}parity_violation_squared"), w_out.norm(), atol=0., rtol=1e-15)
+        assert np.allclose(getattr(w_in, f"{direction}parity_violation_normalized"),
                            np.sqrt(w_out.norm()/w_in.norm()), atol=0., rtol=1e-15)
-        assert np.allclose(getattr(w_out, direction+'parity_violation_normalized'), ones, atol=0., rtol=1e-15)
+        assert np.allclose(getattr(w_out, f"{direction}parity_violation_normalized"), ones, atol=0., rtol=1e-15)
 
 
 @pytest.mark.xfail

@@ -189,15 +189,13 @@ def energy_flux(h):
     from . import h as htype
     from . import hdot as hdottype
     if not isinstance(h, WaveformModes):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"this object is of type `{0}`.".format(type(h)))
+        raise ValueError(f"Momentum flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`.")
     if h.dataType == hdottype:
         hdot = h.data
     elif h.dataType == htype:
         hdot = h.data_dot
     else:
-        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
-                         +"this waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(f"Input argument is expected to have data of type `h` or `hdot`; this waveform data has type `{h.data_type_string}`")
 
     # No need to use matrix_expectation_value here
     Edot = np.einsum('ij, ij -> i', hdot.conjugate(), hdot).real
@@ -311,8 +309,7 @@ def momentum_flux(h):
     from . import hdot as hdottype
 
     if not isinstance(h, WaveformModes):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"this object is of type `{0}`.".format(type(h)))
+        raise ValueError(f"Momentum flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`.")
     if h.dataType == hdottype:
         hdot = h
     elif h.dataType == htype:
@@ -320,8 +317,7 @@ def momentum_flux(h):
         hdot.dataType = hdottype
         hdot.data = h.data_dot
     else:
-        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
-                         +"this waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(f"Input argument is expected to have data of type `h` or `hdot`; this waveform data has type `{h.data_type_string}`")
 
     pdot = np.zeros((hdot.n_times, 3), dtype=float)
 
@@ -398,22 +394,18 @@ def angular_momentum_flux(h, hdot=None):
     from . import h as htype
     from . import hdot as hdottype
     if not isinstance(h, WaveformModes):
-        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"`h` is of type `{0}`.".format(type(h)))
+        raise ValueError(f"Angular momentum flux can only be calculated from a `WaveformModes` object; `h` is of type `{type(h)}`.")
     if (hdot is not None) and (not isinstance(hdot, WaveformModes)):
-        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"`hdot` is of type `{0}`.".format(type(hdot)))
+        raise ValueError(f"Angular momentum flux can only be calculated from a `WaveformModes` object; `hdot` is of type `{type(hdot)}`.")
     if (h.dataType == htype):
         if (hdot is None):
             hdot = h.copy()
             hdot.dataType = hdottype
             hdot.data = h.data_dot
         elif (hdot.dataType != hdottype):
-            raise ValueError("Input argument `hdot` is expected to have data of type `hdot`; "
-                             +"this `hdot` waveform data has type `{0}`".format(h.data_type_string))
+            raise ValueError(f"Input argument `hdot` is expected to have data of type `hdot`; this `hdot` waveform data has type `{h.data_type_string}`")
     else:
-        raise ValueError("Input argument `h` is expected to have data of type `h`; "
-                         +"this `h` waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(f"Input argument `h` is expected to have data of type `h`; this `h` waveform data has type `{h.data_type_string}`")
 
     jdot = np.zeros((hdot.n_times, 3), dtype=float)
 
@@ -456,22 +448,18 @@ def poincare_fluxes(h, hdot=None):
     from . import h as htype
     from . import hdot as hdottype
     if not isinstance(h, WaveformModes):
-        raise ValueError("Poincare fluxes can only be calculated from a `WaveformModes` object; "
-                         +"`h` is of type `{0}`.".format(type(h)))
+        raise ValueError(f"Poincare fluxes can only be calculated from a `WaveformModes` object; `h` is of type `{type(h)}`.")
     if (hdot is not None) and (not isinstance(hdot, WaveformModes)):
-        raise ValueError("Poincare fluxes can only be calculated from a `WaveformModes` object; "
-                         +"`hdot` is of type `{0}`.".format(type(hdot)))
+        raise ValueError(f"Poincare fluxes can only be calculated from a `WaveformModes` object; `hdot` is of type `{type(hdot)}`.")
     if (h.dataType == htype):
         if (hdot is None):
             hdot = h.copy()
             hdot.dataType = hdottype
             hdot.data = h.data_dot
         elif (hdot.dataType != hdottype):
-            raise ValueError("Input argument `hdot` is expected to have data of type `hdot`; "
-                             +"this `hdot` waveform data has type `{0}`".format(h.data_type_string))
+            raise ValueError(f"Input argument `hdot` is expected to have data of type `hdot`; this `hdot` waveform data has type `{h.data_type_string}`")
     else:
-        raise ValueError("Input argument `h` is expected to have data of type `h`; "
-                         +"this `h` waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(f"Input argument `h` is expected to have data of type `h`; this `h` waveform data has type `{h.data_type_string}`")
 
     return (energy_flux(hdot),
             momentum_flux(hdot),
