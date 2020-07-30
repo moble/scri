@@ -1,4 +1,3 @@
-from __future__ import print_function
 import numpy as np
 
 mode_regex = r"""Y_l(?P<L>[0-9]+)_m(?P<M>[-+0-9]+)\.dat"""
@@ -17,13 +16,10 @@ def pick_Ch_mass(filename="Horizons.h5"):
         filename = filename + "Horizons.h5"
     try:
         f = File(filename, "r")
-    except IOError:
-        print("pick_Ch_mass could not open the file '{0}'".format(filename))
+    except OSError:
+        print(f"pick_Ch_mass could not open the file '{filename}'")
         raise
-    ChMass = (
-        f["AhA.dir/ChristodoulouMass.dat"][:, 1]
-        + f["AhB.dir/ChristodoulouMass.dat"][:, 1]
-    )
+    ChMass = f["AhA.dir/ChristodoulouMass.dat"][:, 1] + f["AhB.dir/ChristodoulouMass.dat"][:, 1]
     f.close()
     hist, bins = histogram(ChMass, bins=len(ChMass))
     return bins[hist.argmax()]
@@ -90,16 +86,10 @@ def intersection(t1, t2, min_step=None, min_time=None, max_time=None):
     else:
         maxt = min(min(max1, max2), max_time)
     if mint > max1 or mint > max2:
-        message = (
-            "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] "
-            + "with min_time={4}"
-        )
+        message = "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] " + "with min_time={4}"
         raise ValueError(message.format(min1, max1, min2, max2, min_time))
     if maxt < min1 or maxt < min2:
-        message = (
-            "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] "
-            + "with max_time={4}"
-        )
+        message = "Empty intersection in t1=[{0}, ..., {1}], t2=[{2}, ..., {3}] " + "with max_time={4}"
         raise ValueError(message.format(min1, max1, min2, max2, max_time))
     if min_step is None:
         min_step = min(np.min(np.diff(t1)), np.min(np.diff(t2)))
@@ -133,9 +123,7 @@ def intersection(t1, t2, min_step=None, min_time=None, max_time=None):
     return t[:I]  # only take the relevant part of the reserved vector
 
 
-def validate_single_waveform(
-    h5file, filename, WaveformName, ExpectedNModes, ExpectedNTimes, LModes
-):
+def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, ExpectedNTimes, LModes):
     # from sys import stderr
     from re import compile as re_compile
 
@@ -145,22 +133,16 @@ def validate_single_waveform(
     if not h5file[WaveformName + "/ArealRadius.dat"].shape == (ExpectedNTimes, 2):
         Valid = False
         print(
-            "{0}:{1}/ArealRadius.dat\n\tGot shape {2}; expected ({3}, 2)".format(
-                filename,
-                WaveformName,
-                h5file[WaveformName + "/ArealRadius.dat"].shape,
-                ExpectedNTimes,
+            "{}:{}/ArealRadius.dat\n\tGot shape {}; expected ({}, 2)".format(
+                filename, WaveformName, h5file[WaveformName + "/ArealRadius.dat"].shape, ExpectedNTimes,
             )
         )
     # Check AverageLapse
     if not h5file[WaveformName + "/AverageLapse.dat"].shape == (ExpectedNTimes, 2):
         Valid = False
         print(
-            "{0}:{1}/AverageLapse.dat\n\tGot shape {2}; expected ({3}, 2)".format(
-                filename,
-                WaveformName,
-                h5file[WaveformName + "/AverageLapse.dat"].shape,
-                ExpectedNTimes,
+            "{}:{}/AverageLapse.dat\n\tGot shape {}; expected ({}, 2)".format(
+                filename, WaveformName, h5file[WaveformName + "/AverageLapse.dat"].shape, ExpectedNTimes,
             )
         )
     # Check Y_l*_m*.dat
@@ -175,21 +157,15 @@ def validate_single_waveform(
     if not NModes == ExpectedNModes:
         Valid = False
         print(
-            "{0}:{1}/{2}\n\tGot {3} modes; expected {4}".format(
-                filename, WaveformName, mode_regex, NModes, ExpectedNModes
-            )
+            "{}:{}/{}\n\tGot {} modes; expected {}".format(filename, WaveformName, mode_regex, NModes, ExpectedNModes)
         )
     for dataset in list(h5file[WaveformName]):
         if CompiledModeRegex.search(dataset):
             if not h5file[WaveformName + "/" + dataset].shape == (ExpectedNTimes, 3):
                 Valid = False
                 (
-                    "{0}:{1}/{2}\n\tGot shape {3}; expected ({4}, 3)".format(
-                        filename,
-                        WaveformName,
-                        dataset,
-                        h5file[WaveformName + "/" + dataset].shape,
-                        ExpectedNTimes,
+                    "{}:{}/{}\n\tGot shape {}; expected ({}, 3)".format(
+                        filename, WaveformName, dataset, h5file[WaveformName + "/" + dataset].shape, ExpectedNTimes,
                     )
                 )
     return Valid
@@ -210,32 +186,17 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
     Valid = True
     FailedWaveforms = []
     for WaveformName in WaveformNames:
-        if not validate_single_waveform(
-            h5file, filename, WaveformName, ExpectedNModes, ExpectedNTimes, LModes
-        ):
+        if not validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, ExpectedNTimes, LModes):
             Valid = False
             FailedWaveforms.append(WaveformName)
     if not Valid:
         # from sys import stderr
-        print(
-            "In '{0}', the following waveforms are not valid:\n\t{1}".format(
-                filename, "\n\t".join(FailedWaveforms)
-            )
-        )
+        print("In '{}', the following waveforms are not valid:\n\t{}".format(filename, "\n\t".join(FailedWaveforms)))
     return Valid
 
 
 def read_finite_radius_waveform(
-    n,
-    filename,
-    WaveformName,
-    ChMass,
-    InitialAdmEnergy,
-    YLMRegex,
-    LModes,
-    DataType,
-    VersionHist,
-    Ws,
+    n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws,
 ):
     """
     This is just a worker function defined for read_finite_radius_data,
@@ -249,26 +210,15 @@ def read_finite_radius_waveform(
     import scri
 
     construction = (
-        """# extrapolation.read_finite_radius_waveform"""
-        + """({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, Ws)"""
+        """# extrapolation.read_finite_radius_waveform""" + """({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, Ws)"""
     )
     construction = construction.format(
-        n,
-        filename,
-        WaveformName,
-        ChMass,
-        InitialAdmEnergy,
-        YLMRegex.pattern,
-        LModes,
-        DataType,
-        VersionHist,
+        n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex.pattern, LModes, DataType, VersionHist,
     )
     try:
         f = File(filename, "r")
-    except IOError:
-        print(
-            "read_finite_radius_waveform could not open the file '{0}'".format(filename)
-        )
+    except OSError:
+        print(f"read_finite_radius_waveform could not open the file '{filename}'")
         raise
     try:
         W = f[WaveformName]
@@ -280,37 +230,21 @@ def read_finite_radius_waveform(
         AverageLapse = array(W["AverageLapse.dat"])[Indices, 1]
         CoordRadius = W["CoordRadius.dat"][0, 1]
         YLMdata = [
-            DataSet
-            for DataSet in list(W)
-            for m in [YLMRegex.search(DataSet)]
-            if (m and int(m.group("L")) in LModes)
+            DataSet for DataSet in list(W) for m in [YLMRegex.search(DataSet)] if (m and int(m.group("L")) in LModes)
         ]
         YLMdata = sorted(
             YLMdata,
-            key=lambda DataSet: [
-                int(YLMRegex.search(DataSet).group("L")),
-                int(YLMRegex.search(DataSet).group("M")),
-            ],
+            key=lambda DataSet: [int(YLMRegex.search(DataSet).group("L")), int(YLMRegex.search(DataSet).group("M")),],
         )
         LM = sorted(
-            [
-                [int(m.group("L")), int(m.group("M"))]
-                for DataSet in YLMdata
-                for m in [YLMRegex.search(DataSet)]
-                if m
-            ]
+            [[int(m.group("L")), int(m.group("M"))] for DataSet in YLMdata for m in [YLMRegex.search(DataSet)] if m]
         )
         ell_min = LM[0][0]
         ell_max = LM[-1][0]
         NModes = len(LM)
         # Lapse is given by 1/sqrt(-g^{00}), where g is the full 4-metric
-        T[1:] = (
-            integrate(AverageLapse / sqrt(((-2.0 * InitialAdmEnergy) / Radii) + 1.0), T)
-            + T[0]
-        )
-        T -= Radii + (2.0 * InitialAdmEnergy) * log(
-            (Radii / (2.0 * InitialAdmEnergy)) - 1.0
-        )
+        T[1:] = integrate(AverageLapse / sqrt(((-2.0 * InitialAdmEnergy) / Radii) + 1.0), T) + T[0]
+        T -= Radii + (2.0 * InitialAdmEnergy) * log((Radii / (2.0 * InitialAdmEnergy)) - 1.0)
         NTimes = T.size
         Ws[n] = scri.WaveformModes(
             t=T / ChMass,
@@ -347,25 +281,18 @@ def read_finite_radius_waveform(
             UnitScaleFactor = 1.0 / ChMass ** 3
             RadiusRatioExp = 5.0
         else:
-            raise ValueError('DataType "{0}" is unknown.'.format(DataType))
+            raise ValueError(f'DataType "{DataType}" is unknown.')
         RadiusRatio = (Radii / CoordRadius) ** RadiusRatioExp
         for m, DataSet in enumerate(YLMdata):
             modedata = array(W[DataSet])
-            Ws[n].data[:, m] = (
-                (modedata[Indices, 1] + 1j * modedata[Indices, 2])
-                * RadiusRatio
-                * UnitScaleFactor
-            )
+            Ws[n].data[:, m] = (modedata[Indices, 1] + 1j * modedata[Indices, 2]) * RadiusRatio * UnitScaleFactor
     finally:
         f.close()
     return Radii / ChMass
 
 
 def read_finite_radius_data(
-    ChMass=0.0,
-    filename="rh_FiniteRadii_CodeUnits.h5",
-    CoordRadii=[],
-    LModes=range(2, 100),
+    ChMass=0.0, filename="rh_FiniteRadii_CodeUnits.h5", CoordRadii=[], LModes=range(2, 100),
 ):
     """
     Read data at various radii, and offset by tortoise coordinate.
@@ -384,8 +311,8 @@ def read_finite_radius_data(
     YLMRegex = re_compile(mode_regex)
     try:
         f = File(filename, "r")
-    except IOError:
-        print("read_finite_radius_data could not open the file '{0}'".format(filename))
+    except OSError:
+        print(f"read_finite_radius_data could not open the file '{filename}'")
         raise
     try:
         # Get list of waveforms we'll be using
@@ -398,33 +325,23 @@ def read_finite_radius_data(
         if not CoordRadii:
             # If the list of Radii is empty, figure out what they are
             CoordRadii = [
-                m.group("r")
-                for Name in WaveformNames
-                for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)]
-                if m
+                m.group("r") for Name in WaveformNames for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m
             ]
         else:
             # Pare down the WaveformNames list appropriately
             if type(CoordRadii[0]) == int:
                 CoordRadii = [WaveformNames[i] for i in CoordRadii]
             WaveformNames = [
-                Name
-                for Name in WaveformNames
-                for Radius in CoordRadii
-                for m in [re_compile(Radius).search(Name)]
-                if m
+                Name for Name in WaveformNames for Radius in CoordRadii for m in [re_compile(Radius).search(Name)] if m
             ]
             CoordRadii = [
-                m.group("r")
-                for Name in CoordRadii
-                for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)]
-                if m
+                m.group("r") for Name in CoordRadii for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m
             ]
         NWaveforms = len(WaveformNames)
         # Check input data
         if not validate_group_of_waveforms(f, filename, WaveformNames, LModes):
-            raise ValueError("Bad input waveforms in {0}.".format(filename))
-        stdout.write("{0} passed the data-integrity tests.\n".format(filename))
+            raise ValueError(f"Bad input waveforms in {filename}.")
+        stdout.write(f"{filename} passed the data-integrity tests.\n")
         stdout.flush()
         Ws = [scri.WaveformModes() for i in range(NWaveforms)]
         Radii = [None] * NWaveforms
@@ -466,25 +383,14 @@ def read_finite_radius_data(
                 stdout.flush()
                 PrintedLine += WaveformNameString
             Radii[n] = read_finite_radius_waveform(
-                n,
-                filename,
-                WaveformNames[n],
-                ChMass,
-                InitialAdmEnergy,
-                YLMRegex,
-                LModes,
-                DataType,
-                VersionHist,
-                Ws,
+                n, filename, WaveformNames[n], ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws,
             )
     finally:
         f.close()
     return Ws, Radii, CoordRadii
 
 
-def set_common_time(
-    Ws, Radii, MinTimeStep=0.005, EarliestTime=-3e300, LatestTime=3e300
-):
+def set_common_time(Ws, Radii, MinTimeStep=0.005, EarliestTime=-3e300, LatestTime=3e300):
     """Interpolate Waveforms and radius data to a common set of times
     """
     from scipy import interpolate
@@ -633,9 +539,7 @@ def extrapolate(**kwargs):
     NoiseFloor = kwargs.pop("NoiseFloor", None)
     return_finite_radius_waveforms = kwargs.pop("return_finite_radius_waveforms", False)
     if len(kwargs) > 0:
-        raise ValueError(
-            "Unknown arguments to `extrapolate`: kwargs={0}".format(kwargs)
-        )
+        raise ValueError(f"Unknown arguments to `extrapolate`: kwargs={kwargs}")
 
     # Polish up the input arguments
     if not InputDirectory.endswith("/"):
@@ -647,10 +551,7 @@ def extrapolate(**kwargs):
     if not exists(DataFile):
         DataFile = InputDirectory + DataFile
     if ChMass == 0.0:
-        print(
-            "WARNING: ChMass is being automatically determined from the data, "
-            + "rather than metadata.txt."
-        )
+        print("WARNING: ChMass is being automatically determined from the data, " + "rather than metadata.txt.")
         ChMass = pick_Ch_mass(HorizonsFile)
 
     DataType = basename(DataFile).partition("_")[0]
@@ -694,24 +595,14 @@ def extrapolate(**kwargs):
         import matplotlib.pyplot as plt
 
         mpl.rcParams["axes.prop_cycle"] = mpl.cycler(
-            "color",
-            [
-                "#000000",
-                "#cc79a7",
-                "#d55e00",
-                "#0072b2",
-                "#f0e442",
-                "#56b4e9",
-                "#e69f00",
-                "#2b9f78",
-            ],
+            "color", ["#000000", "#cc79a7", "#d55e00", "#0072b2", "#f0e442", "#56b4e9", "#e69f00", "#2b9f78",],
         )
         figabs = plt.figure(0)
         figarg = plt.figure(1)
         fignorm = plt.figure(2)
 
     # Read in the Waveforms
-    print("Reading Waveforms from {0}...".format(DataFile))
+    print(f"Reading Waveforms from {DataFile}...")
     stdout.flush()
     Ws, Radii, CoordRadii = read_finite_radius_data(
         ChMass=ChMass, filename=DataFile, CoordRadii=CoordRadii, LModes=LModes
@@ -722,21 +613,15 @@ def extrapolate(**kwargs):
     # Make sure there are enough radii to do the requested extrapolations
     if (len(Ws) <= max(ExtrapolationOrders)) and (max(ExtrapolationOrders) > -1):
         raise ValueError(
-            "Not enough data sets ({0}) for max extrapolation order (N={1}).".format(
-                len(Ws), max(ExtrapolationOrders)
-            )
+            "Not enough data sets ({}) for max extrapolation order (N={}).".format(len(Ws), max(ExtrapolationOrders))
         )
     if -len(Ws) > min(ExtrapolationOrders):
         raise ValueError(
-            "Not enough data sets ({0}) for min extrapolation order (N={1}).".format(
-                len(Ws), min(ExtrapolationOrders)
-            )
+            "Not enough data sets ({}) for min extrapolation order (N={}).".format(len(Ws), min(ExtrapolationOrders))
         )
 
     # Figure out which is the outermost data
-    SortedRadiiIndices = sorted(
-        range(len(CoordRadii)), key=lambda k: float(CoordRadii[k])
-    )
+    SortedRadiiIndices = sorted(range(len(CoordRadii)), key=lambda k: float(CoordRadii[k]))
     i_outer = SortedRadiiIndices[-1]
 
     # Interpolate to common times
@@ -746,11 +631,7 @@ def extrapolate(**kwargs):
     W_outer = Ws[i_outer]
 
     # If the AlignmentTime is not set properly, set it to the default
-    if (
-        (not AlignmentTime)
-        or AlignmentTime < W_outer.t[0]
-        or AlignmentTime >= W_outer.t[-1]
-    ):
+    if (not AlignmentTime) or AlignmentTime < W_outer.t[0] or AlignmentTime >= W_outer.t[-1]:
         AlignmentTime = (W_outer.t[0] + W_outer.t[-1]) / 2.0
 
     # Print the input arguments neatly for the history
@@ -802,10 +683,7 @@ def extrapolate(**kwargs):
 
     # If required, figure out the orbital frequencies
     if UseOmega:
-        Omegas = [
-            sqrt(sum([c ** 2 for c in o]))
-            for o in W_outer.AngularVelocityVectorRelativeToInertial([2])
-        ]
+        Omegas = [sqrt(sum([c ** 2 for c in o])) for o in W_outer.AngularVelocityVectorRelativeToInertial([2])]
     else:
         Omegas = []
 
@@ -814,9 +692,7 @@ def extrapolate(**kwargs):
     stdout.write("Rotating into common (outer) frame...\n")
     stdout.flush()
     if W_outer.frameType != Inertial:
-        raise ValueError(
-            "Extrapolation assumes that the input data are in the inertial frame"
-        )
+        raise ValueError("Extrapolation assumes that the input data are in the inertial frame")
     print("Using alignment region (0.1, 0.8)")
     W_outer.to_corotating_frame(z_alignment_region=(0.1, 0.8))
     # W_outer.to_corotating_frame()
@@ -854,17 +730,13 @@ def extrapolate(**kwargs):
     for i, ExtrapolationOrder in enumerate(ExtrapolationOrders):
         # If necessary, rotate
         if OutputFrame == Inertial or OutputFrame == Corotating:
-            stdout.write(
-                "N={0}: Rotating into inertial frame... ".format(ExtrapolationOrder)
-            )
+            stdout.write(f"N={ExtrapolationOrder}: Rotating into inertial frame... ")
             stdout.flush()
             ExtrapolatedWaveforms[i].to_inertial_frame()
             print("☺")
             stdout.flush()
         if OutputFrame == Corotating:
-            stdout.write(
-                "N={0}: Rotating into corotating frame... ".format(ExtrapolationOrder)
-            )
+            stdout.write(f"N={ExtrapolationOrder}: Rotating into corotating frame... ")
             stdout.flush()
             ExtrapolatedWaveforms[i].to_corotating_frame()
             print("☺")
@@ -874,12 +746,8 @@ def extrapolate(**kwargs):
         ExtrapolatedWaveforms[i]._append_history(str(InputArguments))
 
         # Output the data
-        ExtrapolatedFile = OutputDirectory + ExtrapolatedFiles.format(
-            N=ExtrapolationOrder
-        )
-        stdout.write(
-            "N={0}: Writing {1}... ".format(ExtrapolationOrder, ExtrapolatedFile)
-        )
+        ExtrapolatedFile = OutputDirectory + ExtrapolatedFiles.format(N=ExtrapolationOrder)
+        stdout.write(f"N={ExtrapolationOrder}: Writing {ExtrapolatedFile}... ")
         stdout.flush()
         if not exists(OutputDirectory):
             makedirs(OutputDirectory)
@@ -912,44 +780,31 @@ def extrapolate(**kwargs):
 
     MaxNormTime = ExtrapolatedWaveforms[0].max_norm_time()
     FileNamePrefixString = (
-        ExtrapolatedWaveforms[0].descriptor_string
-        + "_"
-        + ExtrapolatedWaveforms[0].frame_type_string
-        + "_"
+        ExtrapolatedWaveforms[0].descriptor_string + "_" + ExtrapolatedWaveforms[0].frame_type_string + "_"
     )
     if PlotFormat:
         figabs.gca().set_xlabel(r"$(t-r_\ast)/M$")
         figarg.gca().set_xlabel(r"$(t-r_\ast)/M$")
         fignorm.gca().set_xlabel(r"$(t-r_\ast)/M$")
         figabs.gca().set_ylabel(
-            r"$\Delta\, \mathrm{abs} \left( "
-            + ExtrapolatedWaveforms[0].data_type_latex
-            + r" \right) $"
+            r"$\Delta\, \mathrm{abs} \left( " + ExtrapolatedWaveforms[0].data_type_latex + r" \right) $"
         )
         figarg.gca().set_ylabel(
-            r"$\Delta\, \mathrm{uarg} \left( "
-            + ExtrapolatedWaveforms[0].data_type_latex
-            + r" \right) $"
+            r"$\Delta\, \mathrm{uarg} \left( " + ExtrapolatedWaveforms[0].data_type_latex + r" \right) $"
         )
         fignorm.gca().set_ylabel(
-            r"$\left\| \Delta\, "
-            + ExtrapolatedWaveforms[0].data_type_latex
-            + r" \right\|_{L_2} $"
+            r"$\left\| \Delta\, " + ExtrapolatedWaveforms[0].data_type_latex + r" \right\|_{L_2} $"
         )
 
     for i, ExtrapolationOrder in reversed(list(enumerate(ExtrapolationOrders))):
         if i > 0:  # Compare to the last one
             if DifferenceFiles or PlotFormat:
-                Diff = scri.WaveformModes(
-                    ExtrapolatedWaveforms[i].compare(ExtrapolatedWaveforms[i - 1])
-                )
+                Diff = scri.WaveformModes(ExtrapolatedWaveforms[i].compare(ExtrapolatedWaveforms[i - 1]))
             if DifferenceFiles:
                 DifferenceFile = OutputDirectory + DifferenceFiles.format(
                     N=ExtrapolationOrder, Nm1=ExtrapolationOrders[i - 1]
                 )
-                stdout.write(
-                    "N={0}: Writing {1}... ".format(ExtrapolationOrder, DifferenceFile)
-                )
+                stdout.write(f"N={ExtrapolationOrder}: Writing {DifferenceFile}... ")
                 stdout.flush()
                 if DifferenceFile.endswith(".dat"):
                     Diff.Output(
@@ -964,29 +819,21 @@ def extrapolate(**kwargs):
                 else:
                     from scri.SpEC import write_to_h5
 
-                    write_to_h5(
-                        Diff, DifferenceFile, use_NRAR_format=UseStupidNRARFormat
-                    )
+                    write_to_h5(Diff, DifferenceFile, use_NRAR_format=UseStupidNRARFormat)
                 print("☺")
                 stdout.flush()
             if PlotFormat:
                 # stdout.write("Plotting... "); stdout.flush()
-                Interpolated = scri.WaveformModes(
-                    ExtrapolatedWaveforms[i].interpolate(Diff.t)
-                )
+                Interpolated = scri.WaveformModes(ExtrapolatedWaveforms[i].interpolate(Diff.t))
                 Normalization = Interpolated.norm(True)
                 rep_A = splrep(
                     ExtrapolatedWaveforms[i].t,
-                    ExtrapolatedWaveforms[i].abs[
-                        :, ExtrapolatedWaveforms[i].index(2, 2)
-                    ],
+                    ExtrapolatedWaveforms[i].abs[:, ExtrapolatedWaveforms[i].index(2, 2)],
                     s=0,
                 )
                 rep_B = splrep(
                     ExtrapolatedWaveforms[i - 1].t,
-                    ExtrapolatedWaveforms[i - 1].abs[
-                        :, ExtrapolatedWaveforms[i - 1].index(2, 2)
-                    ],
+                    ExtrapolatedWaveforms[i - 1].abs[:, ExtrapolatedWaveforms[i - 1].index(2, 2)],
                     s=0,
                 )
                 AbsA = splev(Diff.t, rep_A, der=0)
@@ -994,47 +841,33 @@ def extrapolate(**kwargs):
                 AbsDiff = abs(AbsA - AbsB) / AbsA
                 rep_arg_A = splrep(
                     ExtrapolatedWaveforms[i].t,
-                    ExtrapolatedWaveforms[i].arg_unwrapped[
-                        :, ExtrapolatedWaveforms[i].index(2, 2)
-                    ],
+                    ExtrapolatedWaveforms[i].arg_unwrapped[:, ExtrapolatedWaveforms[i].index(2, 2)],
                     s=0,
                 )
                 rep_arg_B = splrep(
                     ExtrapolatedWaveforms[i].t,
-                    ExtrapolatedWaveforms[i - 1].arg_unwrapped[
-                        :, ExtrapolatedWaveforms[i - 1].index(2, 2)
-                    ],
+                    ExtrapolatedWaveforms[i - 1].arg_unwrapped[:, ExtrapolatedWaveforms[i - 1].index(2, 2)],
                     s=0,
                 )
-                ArgDiff = splev(Diff.t, rep_arg_A, der=0) - splev(
-                    Diff.t, rep_arg_B, der=0
-                )
+                ArgDiff = splev(Diff.t, rep_arg_A, der=0) - splev(Diff.t, rep_arg_B, der=0)
 
                 if abs(ArgDiff[len(ArgDiff) // 3]) > 1.9 * pi:
                     ArgDiff -= 2 * pi * round(ArgDiff[len(ArgDiff) // 3] / (2 * pi))
                 plt.figure(0)
                 plt.semilogy(
-                    Diff.t,
-                    AbsDiff,
-                    label=r"$(N={0}) - (N={1})$".format(
-                        ExtrapolationOrder, ExtrapolationOrders[i - 1]
-                    ),
+                    Diff.t, AbsDiff, label=r"$(N={}) - (N={})$".format(ExtrapolationOrder, ExtrapolationOrders[i - 1]),
                 )
                 plt.figure(1)
                 plt.semilogy(
                     Diff.t,
                     abs(ArgDiff),
-                    label=r"$(N={0}) - (N={1})$".format(
-                        ExtrapolationOrder, ExtrapolationOrders[i - 1]
-                    ),
+                    label=r"$(N={}) - (N={})$".format(ExtrapolationOrder, ExtrapolationOrders[i - 1]),
                 )
                 plt.figure(2)
                 plt.semilogy(
                     Diff.t,
                     Diff.norm(True) / Normalization,
-                    label=r"$(N={0}) - (N={1})$".format(
-                        ExtrapolationOrder, ExtrapolationOrders[i - 1]
-                    ),
+                    label=r"$(N={}) - (N={})$".format(ExtrapolationOrder, ExtrapolationOrders[i - 1]),
                 )
                 # print("☺"); stdout.flush()
 
@@ -1057,29 +890,13 @@ def extrapolate(**kwargs):
             tight_layout(pad=0.5)
         except:
             pass
-        figabs.savefig(
-            "{0}/{1}ExtrapConvergence_Abs.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
-        )
+        figabs.savefig("{}/{}ExtrapConvergence_Abs.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat))
         if PlotFormat != "png":
-            figabs.savefig(
-                "{0}/{1}ExtrapConvergence_Abs.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
-            )
+            figabs.savefig("{}/{}ExtrapConvergence_Abs.{}".format(OutputDirectory, FileNamePrefixString, "png"))
         plt.gca().set_xlim(MaxNormTime - 500.0, MaxNormTime + 200.0)
-        figabs.savefig(
-            "{0}/{1}ExtrapConvergence_Abs_Merger.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
-        )
+        figabs.savefig("{}/{}ExtrapConvergence_Abs_Merger.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat))
         if PlotFormat != "png":
-            figabs.savefig(
-                "{0}/{1}ExtrapConvergence_Abs_Merger.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
-            )
+            figabs.savefig("{}/{}ExtrapConvergence_Abs_Merger.{}".format(OutputDirectory, FileNamePrefixString, "png"))
         plt.close(figabs)
         plt.figure(1)
         plt.legend(
@@ -1097,29 +914,13 @@ def extrapolate(**kwargs):
             tight_layout(pad=0.5)
         except:
             pass
-        figarg.savefig(
-            "{0}/{1}ExtrapConvergence_Arg.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
-        )
+        figarg.savefig("{}/{}ExtrapConvergence_Arg.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat))
         if PlotFormat != "png":
-            figarg.savefig(
-                "{0}/{1}ExtrapConvergence_Arg.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
-            )
+            figarg.savefig("{}/{}ExtrapConvergence_Arg.{}".format(OutputDirectory, FileNamePrefixString, "png"))
         plt.gca().set_xlim(MaxNormTime - 500.0, MaxNormTime + 200.0)
-        figarg.savefig(
-            "{0}/{1}ExtrapConvergence_Arg_Merger.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
-        )
+        figarg.savefig("{}/{}ExtrapConvergence_Arg_Merger.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat))
         if PlotFormat != "png":
-            figarg.savefig(
-                "{0}/{1}ExtrapConvergence_Arg_Merger.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
-            )
+            figarg.savefig("{}/{}ExtrapConvergence_Arg_Merger.{}".format(OutputDirectory, FileNamePrefixString, "png"))
         plt.close(figarg)
         plt.figure(2)
         plt.legend(
@@ -1136,28 +937,16 @@ def extrapolate(**kwargs):
             tight_layout(pad=0.5)
         except:
             pass
-        fignorm.savefig(
-            "{0}/{1}ExtrapConvergence_Norm.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
-        )
+        fignorm.savefig("{}/{}ExtrapConvergence_Norm.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat))
         if PlotFormat != "png":
-            fignorm.savefig(
-                "{0}/{1}ExtrapConvergence_Norm.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
-            )
+            fignorm.savefig("{}/{}ExtrapConvergence_Norm.{}".format(OutputDirectory, FileNamePrefixString, "png"))
         plt.gca().set_xlim(MaxNormTime - 500.0, MaxNormTime + 200.0)
         fignorm.savefig(
-            "{0}/{1}ExtrapConvergence_Norm_Merger.{2}".format(
-                OutputDirectory, FileNamePrefixString, PlotFormat
-            )
+            "{}/{}ExtrapConvergence_Norm_Merger.{}".format(OutputDirectory, FileNamePrefixString, PlotFormat)
         )
         if PlotFormat != "png":
             fignorm.savefig(
-                "{0}/{1}ExtrapConvergence_Norm_Merger.{2}".format(
-                    OutputDirectory, FileNamePrefixString, "png"
-                )
+                "{}/{}ExtrapConvergence_Norm_Merger.{}".format(OutputDirectory, FileNamePrefixString, "png")
             )
         plt.close(fignorm)
         print("☺")
@@ -1171,6 +960,7 @@ def extrapolate(**kwargs):
 #####################################
 ### Batch extrapolation utilities ###
 #####################################
+
 
 # Local utility function
 def _safe_format(s, **keys):
@@ -1205,17 +995,13 @@ def UnstartedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
 
     Unstarted = []
     for Subdirectory, DataFile in SubdirectoriesAndDataFiles:
-        StartedFile = "{0}/{1}/.started_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
+        StartedFile = "{}/{}/.started_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
         if not exists(StartedFile):
             Unstarted.append([Subdirectory, DataFile])
     return Unstarted
 
 
-def NewerDataThanExtrapolation(
-    TopLevelInputDir, TopLevelOutputDir, SubdirectoriesAndDataFiles
-):
+def NewerDataThanExtrapolation(TopLevelInputDir, TopLevelOutputDir, SubdirectoriesAndDataFiles):
     """
     Find newer data than extrapolation
 
@@ -1224,17 +1010,11 @@ def NewerDataThanExtrapolation(
 
     Newer = []
     for Subdirectory, DataFile in SubdirectoriesAndDataFiles:
-        FinishedFile = "{0}/{1}/.finished_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
+        FinishedFile = "{}/{}/.finished_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
         if exists(FinishedFile):
             TimeFinished = getmtime(FinishedFile)
-            Timemetadata = getmtime(
-                "{0}/{1}/metadata.txt".format(TopLevelInputDir, Subdirectory)
-            )
-            TimeData = getmtime(
-                "{0}/{1}/{2}".format(TopLevelInputDir, Subdirectory, DataFile)
-            )
+            Timemetadata = getmtime(f"{TopLevelInputDir}/{Subdirectory}/metadata.txt")
+            TimeData = getmtime(f"{TopLevelInputDir}/{Subdirectory}/{DataFile}")
             if TimeData > TimeFinished or Timemetadata > TimeFinished:
                 Newer.append([Subdirectory, DataFile])
     return Newer
@@ -1249,15 +1029,9 @@ def StartedButUnfinishedExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataF
 
     Unfinished = []
     for Subdirectory, DataFile in SubdirectoriesAndDataFiles:
-        StartedFile = "{0}/{1}/.started_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
-        ErrorFile = "{0}/{1}/.error_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
-        FinishedFile = "{0}/{1}/.finished_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
+        StartedFile = "{}/{}/.started_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
+        ErrorFile = "{}/{}/.error_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
+        FinishedFile = "{}/{}/.finished_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
         if exists(StartedFile) and not exists(ErrorFile) and not exists(FinishedFile):
             Unfinished.append([Subdirectory, DataFile])
     return Unfinished
@@ -1272,9 +1046,7 @@ def ErroredExtrapolations(TopLevelOutputDir, SubdirectoriesAndDataFiles):
 
     Errored = []
     for Subdirectory, DataFile in SubdirectoriesAndDataFiles:
-        ErrorFile = "{0}/{1}/.error_{2}".format(
-            TopLevelOutputDir, Subdirectory, DataFile
-        )
+        ErrorFile = "{}/{}/.error_{}".format(TopLevelOutputDir, Subdirectory, DataFile)
         if exists(ErrorFile):
             Errored.append([Subdirectory, DataFile])
     return Errored
@@ -1297,78 +1069,54 @@ def FindPossibleExtrapolationsToRun(TopLevelInputDir):
             if "metadata.txt" in step[2]:
                 if "rh_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "rh_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "rh_FiniteRadii_CodeUnits.h5",]
                     )
                 if "rPsi4_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "rPsi4_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "rPsi4_FiniteRadii_CodeUnits.h5",]
                     )
                 if "r2Psi3_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "r2Psi3_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "r2Psi3_FiniteRadii_CodeUnits.h5",]
                     )
                 if "r3Psi2_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "r3Psi2_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "r3Psi2_FiniteRadii_CodeUnits.h5",]
                     )
                 if "r4Psi1_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "r4Psi1_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "r4Psi1_FiniteRadii_CodeUnits.h5",]
                     )
                 if "r5Psi0_FiniteRadii_CodeUnits.h5" in step[2]:
                     SubdirectoriesAndDataFiles.append(
-                        [
-                            step[0].replace(TopLevelInputDir + "/", ""),
-                            "r5Psi0_FiniteRadii_CodeUnits.h5",
-                        ]
+                        [step[0].replace(TopLevelInputDir + "/", ""), "r5Psi0_FiniteRadii_CodeUnits.h5",]
                     )
     return SubdirectoriesAndDataFiles
 
 
-def RunExtrapolation(
-    TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile, Template
-):
+def RunExtrapolation(TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile, Template):
     from os import makedirs, chdir, getcwd, utime, remove
     from os.path import exists
     from subprocess import call
 
-    InputDir = "{0}/{1}".format(TopLevelInputDir, Subdirectory)
-    OutputDir = "{0}/{1}".format(TopLevelOutputDir, Subdirectory)
+    InputDir = f"{TopLevelInputDir}/{Subdirectory}"
+    OutputDir = f"{TopLevelOutputDir}/{Subdirectory}"
     if not exists(OutputDir):
         makedirs(OutputDir)
 
     # If OutputDir/.started_r...h5 doesn't exist, touch it; remove errors and
     # finished reports
-    with open("{0}/.started_{1}".format(OutputDir, DataFile), "a") as f:
+    with open(f"{OutputDir}/.started_{DataFile}", "a") as f:
         pass
-    utime("{0}/.started_{1}".format(OutputDir, DataFile), None)
-    if exists("{0}/.error_{1}".format(OutputDir, DataFile)):
-        remove("{0}/.error_{1}".format(OutputDir, DataFile))
-    if exists("{0}/.finished_{1}".format(OutputDir, DataFile)):
-        remove("{0}/.finished_{1}".format(OutputDir, DataFile))
+    utime(f"{OutputDir}/.started_{DataFile}", None)
+    if exists(f"{OutputDir}/.error_{DataFile}"):
+        remove(f"{OutputDir}/.error_{DataFile}")
+    if exists(f"{OutputDir}/.finished_{DataFile}"):
+        remove(f"{OutputDir}/.finished_{DataFile}")
 
     # Copy the template file to OutputDir
-    with open(
-        "{0}/Extrapolate_{1}.py".format(OutputDir, DataFile[:-3]), "w"
-    ) as TemplateFile:
-        TemplateFile.write(
-            _safe_format(Template, DataFile=DataFile, Subdirectory=Subdirectory)
-        )
+    with open("{}/Extrapolate_{}.py".format(OutputDir, DataFile[:-3]), "w") as TemplateFile:
+        TemplateFile.write(_safe_format(Template, DataFile=DataFile, Subdirectory=Subdirectory))
 
     # Try to run the extrapolation
     OriginalDir = getcwd()
@@ -1376,42 +1124,33 @@ def RunExtrapolation(
         try:
             chdir(OutputDir)
         except:
-            print("Couldn't change directory to '{0}'.".format(OutputDir))
+            print(f"Couldn't change directory to '{OutputDir}'.")
             raise
         print("\n\nRunning {1}/Extrapolate_{0}.py\n\n".format(DataFile[:-3], getcwd()))
         ReturnValue = call(
-            "set -o pipefail; python Extrapolate_{0}.py 2>&1 | "
-            + "tee Extrapolate_{0}.log".format(DataFile[:-3]),
+            "set -o pipefail; python Extrapolate_{0}.py 2>&1 | " + "tee Extrapolate_{}.log".format(DataFile[:-3]),
             shell=True,
         )
         if ReturnValue:
             print(
                 "\n\nRunExtrapolation got an error ({4}) on "
-                + "['{0}', '{1}', '{2}', '{3}'].\n\n".format(
-                    TopLevelInputDir,
-                    TopLevelOutputDir,
-                    Subdirectory,
-                    DataFile,
-                    ReturnValue,
+                + "['{}', '{}', '{}', '{}'].\n\n".format(
+                    TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile, ReturnValue,
                 )
             )
-            with open("{0}/.error_{1}".format(OutputDir, DataFile), "w"):
+            with open(f"{OutputDir}/.error_{DataFile}", "w"):
                 pass
             chdir(OriginalDir)
             return ReturnValue
-        with open("{0}/.finished_{1}".format(OutputDir, DataFile), "w"):
+        with open(f"{OutputDir}/.finished_{DataFile}", "w"):
             pass
-        print(
-            "\n\nFinished Extrapolate_{0}.py in {1}\n\n".format(DataFile[:-3], getcwd())
-        )
+        print("\n\nFinished Extrapolate_{}.py in {}\n\n".format(DataFile[:-3], getcwd()))
     except:
-        with open("{0}/.error_{1}".format(OutputDir, DataFile), "w"):
+        with open(f"{OutputDir}/.error_{DataFile}", "w"):
             pass
         print(
             "\n\nRunExtrapolation got an error on "
-            + "['{0}', '{1}', '{2}', '{3}'].\n\n".format(
-                TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile
-            )
+            + "['{}', '{}', '{}', '{}'].\n\n".format(TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile)
         )
     finally:
         chdir(OriginalDir)
@@ -1432,10 +1171,11 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     NFiniteRadii = len(FiniteRadiusWaveforms)
     NExtrapolations = len(ExtrapolationOrders)
     SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
-    DataType = FiniteRadiusWaveforms[NFiniteRadii-1].dataType
+    DataType = FiniteRadiusWaveforms[NFiniteRadii - 1].dataType
     ExcludeInsignificantRadii = DataType in [scri.psi1, scri.psi0] and bool(NoiseFloor)
     if ExcludeInsignificantRadii:
         from spherical_functions import LM_index
+
         ell_min = FiniteRadiusWaveforms[NFiniteRadii - 1].ell_min
         print("Performing extrapolation excluding insignifcant outer radii.")
 
@@ -1453,17 +1193,15 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
         raise ValueError("scri_IndexOutOfBounds")
     if MaxN > 0 and (MaxN + 1) >= NFiniteRadii:
         print(
-            "ERROR: Asking for extrapolation up to order {0}, but only got {1}"
-            "finite-radius Waveform objects; need at least {2} waveforms.".format(
-                MaxN, NFiniteRadii, MaxN + 1
-            )
+            "ERROR: Asking for extrapolation up to order {}, but only got {}"
+            "finite-radius Waveform objects; need at least {} waveforms.".format(MaxN, NFiniteRadii, MaxN + 1)
         )
         raise ValueError("scri_IndexOutOfBounds")
     if len(Radii) != NFiniteRadii:
         print(
             """ERROR: Mismatch in data to be extrapolated; there are different """
             + """numbers of waveforms and radius vectors.
-        len(FiniteRadiusWaveforms)={0}; len(Radii)={1}
+        len(FiniteRadiusWaveforms)={}; len(Radii)={}
         """.format(
                 NFiniteRadii, len(Radii)
             )
@@ -1472,8 +1210,8 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     if UseOmegas and len(Omegas) != NTimes:
         print(
             "ERROR: NTimes mismatch in data to be extrapolated.\n"
-            + "       FiniteRadiusWaveforms[0].NTimes()={0}\n".format(NTimes)
-            + "       Omegas.size()={0}\n".format(len(Omegas))
+            + f"       FiniteRadiusWaveforms[0].NTimes()={NTimes}\n"
+            + "       Omegas.size()={}\n".format(len(Omegas))
             + "\n"
         )
         raise ValueError("scri_VectorSizeMismatch")
@@ -1481,28 +1219,24 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
         if FiniteRadiusWaveforms[i_W].n_times != NTimes:
             print(
                 "ERROR: NTimes mismatch in data to be extrapolated.\n"
-                + "       FiniteRadiusWaveforms[0].NTimes()={0}\n".format(NTimes)
-                + "       FiniteRadiusWaveforms[{i_W}].NTimes()={0}\n".format(
-                    FiniteRadiusWaveforms[i_W].n_times
-                )
+                + f"       FiniteRadiusWaveforms[0].NTimes()={NTimes}\n"
+                + "       FiniteRadiusWaveforms[{i_W}].NTimes()={0}\n".format(FiniteRadiusWaveforms[i_W].n_times)
                 + "\n"
             )
             raise ValueError("scri_VectorSizeMismatch")
         if FiniteRadiusWaveforms[i_W].n_modes != NModes:
             print(
                 "ERROR: NModes mismatch in data to be extrapolated.\n"
-                + "       FiniteRadiusWaveforms[0].NModes()={0}\n".format(NModes)
-                + "       FiniteRadiusWaveforms[{i_W}].NModes()={0}\n".format(
-                    FiniteRadiusWaveforms[i_W].n_modes
-                )
+                + f"       FiniteRadiusWaveforms[0].NModes()={NModes}\n"
+                + "       FiniteRadiusWaveforms[{i_W}].NModes()={0}\n".format(FiniteRadiusWaveforms[i_W].n_modes)
                 + "\n"
             )
             raise ValueError("scri_VectorSizeMismatch")
         if len(Radii[i_W]) != NTimes:
             print(
                 "ERROR: NTimes mismatch in data to be extrapolated.\n"
-                + "       FiniteRadiusWaveforms[0].NTimes()={0}\n".format(NTimes)
-                + "       Radii[{0}].size()={1}\n".format(i_W, len(Radii[i_W]))
+                + f"       FiniteRadiusWaveforms[0].NTimes()={NTimes}\n"
+                + "       Radii[{}].size()={}\n".format(i_W, len(Radii[i_W]))
                 + "\n"
             )
             raise ValueError("scri_VectorSizeMismatch")
@@ -1512,9 +1246,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     # calls to Waveform object methods, which have to go through the _Waveform
     # wrapper, and are therefore slow.
     data = numpy.array([W.data for W in FiniteRadiusWaveforms])
-    data = data.view(dtype=float).reshape(
-        (data.shape[0], data.shape[1], data.shape[2], 2)
-    )
+    data = data.view(dtype=float).reshape((data.shape[0], data.shape[1], data.shape[2], 2))
     extrapolated_data = numpy.empty((NExtrapolations, NTimes, NModes), dtype=complex)
 
     # Set up the output data, recording everything but the mode data
@@ -1522,23 +1254,15 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     for i_N in range(NExtrapolations):
         N = ExtrapolationOrders[i_N]
         if N < 0:
-            ExtrapolatedWaveforms[i_N] = scri.WaveformModes(
-                FiniteRadiusWaveforms[NFiniteRadii + N]
-            )
-            ExtrapolatedWaveforms[i_N].history += [
-                "### Extrapolating with N={0}\n".format(N)
-            ]
+            ExtrapolatedWaveforms[i_N] = scri.WaveformModes(FiniteRadiusWaveforms[NFiniteRadii + N])
+            ExtrapolatedWaveforms[i_N].history += [f"### Extrapolating with N={N}\n"]
         else:
             # Do everything but set the data
             ExtrapolatedWaveforms[i_N] = scri.WaveformModes(
                 t=FiniteRadiusWaveforms[NFiniteRadii - 1].t,
                 frame=FiniteRadiusWaveforms[NFiniteRadii - 1].frame,
-                data=np.zeros(
-                    (NTimes, NModes),
-                    dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype,
-                ),
-                history=FiniteRadiusWaveforms[NFiniteRadii - 1].history
-                + ["### Extrapolating with N={0}\n".format(N)],
+                data=np.zeros((NTimes, NModes), dtype=FiniteRadiusWaveforms[NFiniteRadii - 1].data.dtype,),
+                history=FiniteRadiusWaveforms[NFiniteRadii - 1].history + [f"### Extrapolating with N={N}\n"],
                 version_hist=FiniteRadiusWaveforms[NFiniteRadii - 1].version_hist,
                 frameType=FiniteRadiusWaveforms[NFiniteRadii - 1].frameType,
                 dataType=FiniteRadiusWaveforms[NFiniteRadii - 1].dataType,
@@ -1563,10 +1287,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
             completed = int(LengthProgressBar * i_t / float(NTimes - 1))
             if completed > last_completed or i_t == 0:
                 print(
-                    "[{0}{1}]".format(
-                        "#" * completed, "-" * (LengthProgressBar - completed)
-                    ),
-                    end="\r",
+                    "[{}{}]".format("#" * completed, "-" * (LengthProgressBar - completed)), end="\r",
                 )
                 stdout.flush()
                 last_completed = completed
@@ -1587,19 +1308,19 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
 
                 # Since we are in the corotating frame, we can be sure that the (2,2) mode is dominant. For the sake of
                 # consistency we will use the same radial weights for each mode at a given retarded time.
-                WaveformAmplitude = np.linalg.norm(Re[MinimumNRadii] + 1j*Im[MinimumNRadii])
+                WaveformAmplitude = np.linalg.norm(Re[MinimumNRadii] + 1j * Im[MinimumNRadii])
 
                 # Radius at which the amplitude of the waveform is equal to error_tol.
-                LargestSignificantRadius = (WaveformAmplitude/NoiseFloor)**(1/(6-DataType))
+                LargestSignificantRadius = (WaveformAmplitude / NoiseFloor) ** (1 / (6 - DataType))
 
                 # Use as many radii as possible that are smaller than LargestSignificantRadius.
-                RadiiOnTimeSlice = np.array(Radii)[:,i_t]
+                RadiiOnTimeSlice = np.array(Radii)[:, i_t]
                 MinimumNRadii = max(sum(RadiiOnTimeSlice <= LargestSignificantRadius), MinimumNRadii)
 
                 # Remove the outer radii
                 OneOverRadii = OneOverRadii[:MinimumNRadii]
-                Re = Re[:MinimumNRadii,:]
-                Im = Im[:MinimumNRadii,:]
+                Re = Re[:MinimumNRadii, :]
+                Im = Im[:MinimumNRadii, :]
 
             # Loop over extrapolation orders
             for i_N in range(NExtrapolations):
@@ -1626,9 +1347,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
                 M = FiniteRadiusWaveforms[0].LM(i_m)[1]
                 if UseOmegas:
                     OneOverRadii = [
-                        1.0 / (Radii[i_W][i_t] * M * Omegas[i_t])
-                        if M != 0
-                        else 1.0 / (Radii[i_W][i_t])
+                        1.0 / (Radii[i_W][i_t] * M * Omegas[i_t]) if M != 0 else 1.0 / (Radii[i_W][i_t])
                         for i_W in range(NFiniteRadii)
                     ]
 

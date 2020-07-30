@@ -21,10 +21,12 @@ def swsh_indices_to_matrix_indices(matrix_iterator):
 
     @functools.lru_cache()  # Decorate the decorated function with caching
     def wrapper(ell_min, ell_max, *args, **kwargs):
-        rows, columns, values = zip(*(  # zip* is the inverse of zip
-            (LM_index(ellp, mp, ell_min), LM_index(ell, m, ell_min), value)
-            for ellp, mp, ell, m, value in matrix_iterator(ell_min, ell_max, *args, **kwargs)
-        ))
+        rows, columns, values = zip(
+            *(  # zip* is the inverse of zip
+                (LM_index(ellp, mp, ell_min), LM_index(ell, m, ell_min), value)
+                for ellp, mp, ell, m, value in matrix_iterator(ell_min, ell_max, *args, **kwargs)
+            )
+        )
         return np.array(rows, dtype=int), np.array(columns, dtype=int), np.array(values)
 
     functools.update_wrapper(wrapper, matrix_iterator)  # Copy over the name, docstring, and such
@@ -68,16 +70,13 @@ def sparse_expectation_value(abar, rows, columns, values, b):
     for i_time in range(n_times):
         for i_element in range(n_elements):
             expectation_value[i_time] += (
-                abar[i_time, rows[i_element]]
-                * b[i_time, columns[i_element]]
-                * values[i_element]
+                abar[i_time, rows[i_element]] * b[i_time, columns[i_element]] * values[i_element]
             )
     return expectation_value
 
 
-def matrix_expectation_value(a, M, b,
-                             allow_LM_differ=False, allow_times_differ=False):
-    """The matrix expectation value <a|M|b>(u), where M is a linear operator.
+def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=False):
+    r"""The matrix expectation value <a|M|b>(u), where M is a linear operator.
 
     Treat two spin-s waveforms a, b (in the modal representation) as vectors.
     Then we can form the 'expectation value'
@@ -126,28 +125,28 @@ def matrix_expectation_value(a, M, b,
     from .extrapolation import intersection
     from spherical_functions import LM_index
 
-    if (a.spin_weight != b.spin_weight):
+    if a.spin_weight != b.spin_weight:
         raise ValueError("Spin weights must match in matrix_expectation_value")
 
     LM_clip = slice(a.ell_min, a.ell_max + 1)
-    if ((a.ell_min != b.ell_min) or (a.ell_max != b.ell_max)):
-        if (allow_LM_differ):
-            LM_clip = slice( max(a.ell_min, b.ell_min),
-                             min(a.ell_max, b.ell_max) + 1 )
-            if (LM_clip.start >= LM_clip.stop):
-                raise ValueError("Intersection of (ell,m) modes is "
-                                 "empty.  Assuming this is not desired.")
+    if (a.ell_min != b.ell_min) or (a.ell_max != b.ell_max):
+        if allow_LM_differ:
+            LM_clip = slice(max(a.ell_min, b.ell_min), min(a.ell_max, b.ell_max) + 1)
+            if LM_clip.start >= LM_clip.stop:
+                raise ValueError("Intersection of (ell,m) modes is " "empty.  Assuming this is not desired.")
         else:
-            raise ValueError("ell_min and ell_max must match in matrix_expectation_value "
-                             "(use allow_LM_differ=True to override)")
+            raise ValueError(
+                "ell_min and ell_max must match in matrix_expectation_value " "(use allow_LM_differ=True to override)"
+            )
 
     t_clip = None
     if not np.array_equal(a.t, b.t):
-        if (allow_times_differ):
+        if allow_times_differ:
             t_clip = intersection(a.t, b.t)
         else:
-            raise ValueError("Time samples must match in matrix_expectation_value "
-                             "(use allow_times_differ=True to override)")
+            raise ValueError(
+                "Time samples must match in matrix_expectation_value " "(use allow_times_differ=True to override)"
+            )
 
     ##########
 
@@ -155,11 +154,11 @@ def matrix_expectation_value(a, M, b,
     A = a
     B = b
 
-    if (LM_clip is not None):
-        A = A[:,LM_clip]
-        B = B[:,LM_clip]
+    if LM_clip is not None:
+        A = A[:, LM_clip]
+        B = B[:, LM_clip]
 
-    if (t_clip is not None):
+    if t_clip is not None:
         times = t_clip
         A = A.interpolate(t_clip)
         B = B.interpolate(t_clip)
@@ -167,16 +166,15 @@ def matrix_expectation_value(a, M, b,
     ##########
     ## Time for actual math!
 
-    Abar_data  = np.conj(A.data)
-    B_data     = B.data
+    Abar_data = np.conj(A.data)
+    B_data = B.data
 
     ell_min = LM_clip.start
     ell_max = LM_clip.stop - 1
 
     rows, columns, values = M(ell_min, ell_max)
 
-    return (times,
-            sparse_expectation_value(Abar_data, rows, columns, values, B_data))
+    return (times, sparse_expectation_value(Abar_data, rows, columns, values, B_data))
 
 
 def energy_flux(h):
@@ -188,21 +186,24 @@ def energy_flux(h):
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
+
     if not isinstance(h, WaveformModes):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"this object is of type `{0}`.".format(type(h)))
+        raise ValueError(
+            f"Momentum flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`."
+        )
     if h.dataType == hdottype:
         hdot = h.data
     elif h.dataType == htype:
         hdot = h.data_dot
     else:
-        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
-                         +"this waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(
+            f"Input argument is expected to have data of type `h` or `hdot`; this waveform data has type `{h.data_type_string}`"
+        )
 
     # No need to use matrix_expectation_value here
-    Edot = np.einsum('ij, ij -> i', hdot.conjugate(), hdot).real
+    Edot = np.einsum("ij, ij -> i", hdot.conjugate(), hdot).real
 
-    Edot /= 16.*np.pi
+    Edot /= 16.0 * np.pi
 
     return Edot
 
@@ -213,12 +214,12 @@ def p_z(ell_min, ell_max, s=-2):
 
     This function is specific to the case where waveforms have s=-2.
 
-    p^z = \cos\theta = 2 \sqrt{\pi/3} Y_{1,0}
+    p^z = \\cos\theta = 2 \\sqrt{\\pi/3} Y_{1,0}
     This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
 
     The matrix elements yielded are
-    < s, ellp, mp | \cos\theta | s, ell, m > =
-      \sqrt{ \frac{2*ell+1}{2*ellp+1} } *
+    < s, ellp, mp | \\cos\theta | s, ell, m > =
+      \\sqrt{ \frac{2*ell+1}{2*ellp+1} } *
       < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
     where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
     Because of the magnetic selection rules, we only have mp == m
@@ -229,25 +230,25 @@ def p_z(ell_min, ell_max, s=-2):
     import numpy as np
     from spherical_functions import clebsch_gordan as CG
 
-    for ell in range(ell_min, ell_max+1):
+    for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
         ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max+1):
-            for m in range(-ell, ell+1):
-                if ((m < -ellp) or (m > ellp)):
+        for ellp in range(ellp_min, ellp_max + 1):
+            for m in range(-ell, ell + 1):
+                if (m < -ellp) or (m > ellp):
                     continue
-                cg1 = CG(ell, m,  1, 0, ellp, m)
+                cg1 = CG(ell, m, 1, 0, ellp, m)
                 cg2 = CG(ell, -s, 1, 0, ellp, -s)
-                prefac = np.sqrt( (2.*ell + 1.) / (2.*ellp + 1.) )
+                prefac = np.sqrt((2.0 * ell + 1.0) / (2.0 * ellp + 1.0))
                 yield ellp, m, ell, m, (prefac * cg1 * cg2)
 
 
 @swsh_indices_to_matrix_indices
 def p_plusminus(ell_min, ell_max, sign, s=-2):
-    u"""Produce the function p_plus or p_minus, based on sign.
+    """Produce the function p_plus or p_minus, based on sign.
 
-      p^+ = -\sqrt{8 \pi / 3} Y_{1,+1} = \sin\theta e^{+i\phi}
-      p^- = +\sqrt{8 \pi / 3} Y_{1,-1} = \sin\theta e^{-i\phi}
+      p^+ = -\\sqrt{8 \\pi / 3} Y_{1,+1} = \\sin\theta e^{+i\\phi}
+      p^- = +\\sqrt{8 \\pi / 3} Y_{1,-1} = \\sin\theta e^{-i\\phi}
 
     This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a confusing name.
 
@@ -260,14 +261,14 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
     if (sign != 1) and (sign != -1):
         raise ValueError("sign must be either 1 or -1 in j_plusminus")
 
-    prefac = -1. * sign * np.sqrt( 8. * np.pi / 3. )
+    prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
 
     def swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
-        """Compute a matrix element treating Y_{\ell, m} as a linear operator
+        """Compute a matrix element treating Y_{\\ell, m} as a linear operator
 
         From the rules for the Wigner D matrices, we get the result that
         <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
-          \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
+          \\sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\\pi*(2*l3+1)} } *
           < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
         where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
         See e.g. Campbell and Morgan (1971).
@@ -275,26 +276,24 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
         from spherical_functions import clebsch_gordan as CG
 
         cg1 = CG(l1, m1, l2, m2, l3, m3)
-        cg2 = CG(l1, 0., l2, -s, l3, -s)
+        cg2 = CG(l1, 0.0, l2, -s, l3, -s)
 
-        return np.sqrt( (2.*l1 + 1.) * (2.*l2 + 1.) / (4. * np.pi * (2.*l3 + 1)) ) * cg1 * cg2
+        return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
 
-    for ell in range(ell_min, ell_max+1):
+    for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
         ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max+1):
-            for m in range(-ell, ell+1):
+        for ellp in range(ellp_min, ellp_max + 1):
+            for m in range(-ell, ell + 1):
                 mp = round(m + 1 * sign)
-                if ((mp < -ellp) or (mp > ellp)):
+                if (mp < -ellp) or (mp > ellp):
                     continue
-                yield (ellp, mp, ell, m,
-                       (prefac *
-                        swsh_Y_mat_el(s, ellp, mp, 1., sign, ell, m)))
+                yield (ellp, mp, ell, m, (prefac * swsh_Y_mat_el(s, ellp, mp, 1.0, sign, ell, m)))
 
 
-p_plus  = functools.partial(p_plusminus, sign=+1)
+p_plus = functools.partial(p_plusminus, sign=+1)
 p_minus = functools.partial(p_plusminus, sign=-1)
-p_plus.__doc__  = p_plusminus.__doc__
+p_plus.__doc__ = p_plusminus.__doc__
 p_minus.__doc__ = p_plusminus.__doc__
 
 
@@ -311,8 +310,9 @@ def momentum_flux(h):
     from . import hdot as hdottype
 
     if not isinstance(h, WaveformModes):
-        raise ValueError("Momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"this object is of type `{0}`.".format(type(h)))
+        raise ValueError(
+            f"Momentum flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`."
+        )
     if h.dataType == hdottype:
         hdot = h
     elif h.dataType == htype:
@@ -320,28 +320,29 @@ def momentum_flux(h):
         hdot.dataType = hdottype
         hdot.data = h.data_dot
     else:
-        raise ValueError("Input argument is expected to have data of type `h` or `hdot`; "
-                         +"this waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(
+            f"Input argument is expected to have data of type `h` or `hdot`; this waveform data has type `{h.data_type_string}`"
+        )
 
     pdot = np.zeros((hdot.n_times, 3), dtype=float)
 
-    _, p_plus_dot  = matrix_expectation_value( hdot, functools.partial(p_plus, s=-2),  hdot )
-    _, p_minus_dot = matrix_expectation_value( hdot, functools.partial(p_minus, s=-2), hdot )
-    _, p_z_dot = matrix_expectation_value( hdot, functools.partial(p_z, s=-2), hdot )
+    _, p_plus_dot = matrix_expectation_value(hdot, functools.partial(p_plus, s=-2), hdot)
+    _, p_minus_dot = matrix_expectation_value(hdot, functools.partial(p_minus, s=-2), hdot)
+    _, p_z_dot = matrix_expectation_value(hdot, functools.partial(p_z, s=-2), hdot)
 
     # Convert into (x,y,z) basis
-    pdot[:,0] = 0.5 * ( p_plus_dot.real + p_minus_dot.real )
-    pdot[:,1] = 0.5 * ( p_plus_dot.imag - p_minus_dot.imag )
-    pdot[:,2] = p_z_dot.real
+    pdot[:, 0] = 0.5 * (p_plus_dot.real + p_minus_dot.real)
+    pdot[:, 1] = 0.5 * (p_plus_dot.imag - p_minus_dot.imag)
+    pdot[:, 2] = p_z_dot.real
 
-    pdot /= 16.*np.pi
+    pdot /= 16.0 * np.pi
 
     return pdot
 
 
 @swsh_indices_to_matrix_indices
 def j_z(ell_min, ell_max):
-    """Generator for j^z matrix elements (for use with matrix_expectation_value)
+    r"""Generator for j^z matrix elements (for use with matrix_expectation_value)
 
     Matrix elements yielded are
 
@@ -350,14 +351,14 @@ def j_z(ell_min, ell_max):
     This follows the convention for j^z from Ruiz+ (2008) [0707.4654]
 
     """
-    for ell in range(ell_min, ell_max+1):
-        for m in range(-ell, ell+1):
-            yield ell, m, ell, m, (1.j * m)
+    for ell in range(ell_min, ell_max + 1):
+        for m in range(-ell, ell + 1):
+            yield ell, m, ell, m, (1.0j * m)
 
 
 @swsh_indices_to_matrix_indices
 def j_plusminus(ell_min, ell_max, sign):
-    """Produce the function j_plus or j_minus, based on sign.
+    r"""Produce the function j_plus or j_minus, based on sign.
 
     The conventions for these matrix elements, to agree with Ruiz+ (2008) [0707.4654], should be:
 
@@ -372,17 +373,17 @@ def j_plusminus(ell_min, ell_max, sign):
     if (sign != 1) and (sign != -1):
         raise ValueError("sign must be either 1 or -1 in j_plusminus")
 
-    for ell in range(ell_min, ell_max+1):
-        for m in range(-ell, ell+1):
+    for ell in range(ell_min, ell_max + 1):
+        for m in range(-ell, ell + 1):
             mp = round(m + 1 * sign)
-            if ((mp < -ell) or (mp > ell)):
+            if (mp < -ell) or (mp > ell):
                 continue
-            yield ell, mp, ell, m, (1.j * ladder(ell, m*sign))
+            yield ell, mp, ell, m, (1.0j * ladder(ell, m * sign))
 
 
-j_plus  = functools.partial(j_plusminus, sign=+1)
+j_plus = functools.partial(j_plusminus, sign=+1)
 j_minus = functools.partial(j_plusminus, sign=-1)
-j_plus.__doc__  = j_plusminus.__doc__
+j_plus.__doc__ = j_plusminus.__doc__
 j_minus.__doc__ = j_plusminus.__doc__
 
 
@@ -397,36 +398,41 @@ def angular_momentum_flux(h, hdot=None):
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
+
     if not isinstance(h, WaveformModes):
-        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"`h` is of type `{0}`.".format(type(h)))
+        raise ValueError(
+            f"Angular momentum flux can only be calculated from a `WaveformModes` object; `h` is of type `{type(h)}`."
+        )
     if (hdot is not None) and (not isinstance(hdot, WaveformModes)):
-        raise ValueError("Angular momentum flux can only be calculated from a `WaveformModes` object; "
-                         +"`hdot` is of type `{0}`.".format(type(hdot)))
-    if (h.dataType == htype):
-        if (hdot is None):
+        raise ValueError(
+            f"Angular momentum flux can only be calculated from a `WaveformModes` object; `hdot` is of type `{type(hdot)}`."
+        )
+    if h.dataType == htype:
+        if hdot is None:
             hdot = h.copy()
             hdot.dataType = hdottype
             hdot.data = h.data_dot
-        elif (hdot.dataType != hdottype):
-            raise ValueError("Input argument `hdot` is expected to have data of type `hdot`; "
-                             +"this `hdot` waveform data has type `{0}`".format(h.data_type_string))
+        elif hdot.dataType != hdottype:
+            raise ValueError(
+                f"Input argument `hdot` is expected to have data of type `hdot`; this `hdot` waveform data has type `{h.data_type_string}`"
+            )
     else:
-        raise ValueError("Input argument `h` is expected to have data of type `h`; "
-                         +"this `h` waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(
+            f"Input argument `h` is expected to have data of type `h`; this `h` waveform data has type `{h.data_type_string}`"
+        )
 
     jdot = np.zeros((hdot.n_times, 3), dtype=float)
 
-    _, j_plus_dot  = matrix_expectation_value( hdot, j_plus,  h )
-    _, j_minus_dot = matrix_expectation_value( hdot, j_minus, h )
-    _, j_z_dot     = matrix_expectation_value( hdot, j_z,     h )
+    _, j_plus_dot = matrix_expectation_value(hdot, j_plus, h)
+    _, j_minus_dot = matrix_expectation_value(hdot, j_minus, h)
+    _, j_z_dot = matrix_expectation_value(hdot, j_z, h)
 
     # Convert into (x,y,z) basis
-    jdot[:,0] = 0.5 * ( j_plus_dot.real + j_minus_dot.real )
-    jdot[:,1] = 0.5 * ( j_plus_dot.imag - j_minus_dot.imag )
-    jdot[:,2] = j_z_dot.real
+    jdot[:, 0] = 0.5 * (j_plus_dot.real + j_minus_dot.real)
+    jdot[:, 1] = 0.5 * (j_plus_dot.imag - j_minus_dot.imag)
+    jdot[:, 2] = j_z_dot.real
 
-    jdot /= -16.*np.pi
+    jdot /= -16.0 * np.pi
 
     return jdot
 
@@ -455,24 +461,27 @@ def poincare_fluxes(h, hdot=None):
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
+
     if not isinstance(h, WaveformModes):
-        raise ValueError("Poincare fluxes can only be calculated from a `WaveformModes` object; "
-                         +"`h` is of type `{0}`.".format(type(h)))
+        raise ValueError(
+            f"Poincare fluxes can only be calculated from a `WaveformModes` object; `h` is of type `{type(h)}`."
+        )
     if (hdot is not None) and (not isinstance(hdot, WaveformModes)):
-        raise ValueError("Poincare fluxes can only be calculated from a `WaveformModes` object; "
-                         +"`hdot` is of type `{0}`.".format(type(hdot)))
-    if (h.dataType == htype):
-        if (hdot is None):
+        raise ValueError(
+            f"Poincare fluxes can only be calculated from a `WaveformModes` object; `hdot` is of type `{type(hdot)}`."
+        )
+    if h.dataType == htype:
+        if hdot is None:
             hdot = h.copy()
             hdot.dataType = hdottype
             hdot.data = h.data_dot
-        elif (hdot.dataType != hdottype):
-            raise ValueError("Input argument `hdot` is expected to have data of type `hdot`; "
-                             +"this `hdot` waveform data has type `{0}`".format(h.data_type_string))
+        elif hdot.dataType != hdottype:
+            raise ValueError(
+                f"Input argument `hdot` is expected to have data of type `hdot`; this `hdot` waveform data has type `{h.data_type_string}`"
+            )
     else:
-        raise ValueError("Input argument `h` is expected to have data of type `h`; "
-                         +"this `h` waveform data has type `{0}`".format(h.data_type_string))
+        raise ValueError(
+            f"Input argument `h` is expected to have data of type `h`; this `h` waveform data has type `{h.data_type_string}`"
+        )
 
-    return (energy_flux(hdot),
-            momentum_flux(hdot),
-            angular_momentum_flux(h, hdot))
+    return (energy_flux(hdot), momentum_flux(hdot), angular_momentum_flux(h, hdot))

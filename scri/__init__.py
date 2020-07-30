@@ -1,6 +1,5 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
-
 """Module for operating on gravitational waveforms in various forms
 
 Classes
@@ -22,12 +21,10 @@ WaveformInDetectorFT: (Complex) Fourier transform of a `WaveformInDetector`
 
 """
 
-
-from __future__ import print_function, division, absolute_import
-
 import sys
 
 from ._version import __version__
+
 
 def version_info():
     """Show version information about this module and various dependencies"""
@@ -36,12 +33,17 @@ def version_info():
     import scipy
     import numba
     import numpy
-    versions = '\n'.join(['scri.__version__ = {0}'.format(__version__),
-                          'spherical_functions.__version__ = {0}'.format(spherical_functions.__version__),
-                          'quaternion.__version__ = {0}'.format(quaternion.__version__),
-                          'scipy.__version__ = {0}'.format(scipy.__version__),
-                          'numba.__version__ = {0}'.format(numba.__version__),
-                          'numpy.__version__ = {0}'.format(numpy.__version__)])
+
+    versions = "\n".join(
+        [
+            f"scri.__version__ = {__version__}",
+            f"spherical_functions.__version__ = {spherical_functions.__version__}",
+            f"quaternion.__version__ = {quaternion.__version__}",
+            f"scipy.__version__ = {scipy.__version__}",
+            f"numba.__version__ = {numba.__version__}",
+            f"numpy.__version__ = {numpy.__version__}",
+        ]
+    )
     return versions
 
 
@@ -63,7 +65,6 @@ m_sun_in_seconds = 4.92549094916e-06  # s
 # future-proof value of the parsec in meters is
 parsec_in_meters = 3.0856775814913672789139379577965e16  # m
 
-
 FrameType = [UnknownFrameType, Inertial, Coprecessing, Coorbital, Corotating] = range(5)
 FrameNames = ["UnknownFrameType", "Inertial", "Coprecessing", "Coorbital", "Corotating"]
 
@@ -73,8 +74,19 @@ SpinWeights = [sys.maxsize, 2, 1, 0, -1, -2, 2, -2, -2, -2, sys.maxsize]
 ConformalWeights = [sys.maxsize, 2, 1, 0, -1, -2, 1, 0, -1, -1, -3]
 RScaling = [sys.maxsize, 5, 4, 3, 2, 1, 2, 1, 1, 1, 0]
 MScaling = [sys.maxsize, 2, 2, 2, 2, 2, 0, 0, 1, 1, 2]
-DataNamesLaTeX = [r"\mathrm{unknown data type}", r"\psi_0", r"\psi_1", r"\psi_2", r"\psi_3", r"\psi_4", r"\sigma", r"h",
-                  r"\dot{h}", r"\mathrm{n}", r"\psi_n"]
+DataNamesLaTeX = [
+    r"\mathrm{unknown data type}",
+    r"\psi_0",
+    r"\psi_1",
+    r"\psi_2",
+    r"\psi_3",
+    r"\psi_4",
+    r"\sigma",
+    r"h",
+    r"\dot{h}",
+    r"\mathrm{n}",
+    r"\psi_n",
+]
 # It might also be worth noting that:
 # - the radius `r` has spin weight 0 and boost weight -1
 # - a time-derivative `d/du` has spin weight 0 and boost weight -1
@@ -85,8 +97,16 @@ DataNamesLaTeX = [r"\mathrm{unknown data type}", r"\psi_0", r"\psi_1", r"\psi_2"
 
 # Set up the WaveformModes object, by adding some methods
 from .waveform_modes import WaveformModes
-from .mode_calculations import (LdtVector, LVector, LLComparisonMatrix, LLMatrix, LLDominantEigenvector,
-                                angular_velocity, corotating_frame, inner_product)
+from .mode_calculations import (
+    LdtVector,
+    LVector,
+    LLComparisonMatrix,
+    LLMatrix,
+    LLDominantEigenvector,
+    angular_velocity,
+    corotating_frame,
+    inner_product,
+)
 from .flux import energy_flux, momentum_flux, angular_momentum_flux, poincare_fluxes
 
 WaveformModes.LdtVector = LdtVector
@@ -96,10 +116,14 @@ WaveformModes.LLMatrix = LLMatrix
 WaveformModes.LLDominantEigenvector = LLDominantEigenvector
 WaveformModes.angular_velocity = angular_velocity
 from .rotations import (
-    rotate_decomposition_basis, rotate_physical_system,
-    to_coprecessing_frame, to_corotating_frame, to_inertial_frame,
-    align_decomposition_frame_to_modes
+    rotate_decomposition_basis,
+    rotate_physical_system,
+    to_coprecessing_frame,
+    to_corotating_frame,
+    to_inertial_frame,
+    align_decomposition_frame_to_modes,
 )
+
 WaveformModes.rotate_decomposition_basis = rotate_decomposition_basis
 WaveformModes.rotate_physical_system = rotate_physical_system
 WaveformModes.to_coprecessing_frame = to_coprecessing_frame
@@ -112,13 +136,46 @@ WaveformModes.angular_momentum_flux = angular_momentum_flux
 WaveformModes.poincare_fluxes = poincare_fluxes
 
 from .waveform_grid import WaveformGrid
+
 # from .waveform_in_detector import WaveformInDetector
 from .extrapolation import extrapolate
 
-from . import sample_waveforms, SpEC, LVC
+from .modes_time_series import ModesTimeSeries
+from .asymptotic_bondi_data import AsymptoticBondiData
 
-__all__ = ['WaveformModes', 'WaveformGrid', 'WaveformInDetector',
-           'FrameType', 'UnknownFrameType', 'Inertial', 'Coprecessing', 'Coorbital', 'Corotating', 'FrameNames',
-           'DataType', 'UnknownDataType', 'psi0', 'psi1', 'psi2', 'psi3', 'psi4', 'sigma', 'h', 'hdot', 'news', 'psin',
-           'DataNames', 'DataNamesLaTeX', 'SpinWeights', 'ConformalWeights', 'RScaling', 'MScaling',
-           'speed_of_light', 'm_sun_in_meters', 'm_sun_in_seconds', 'parsec_in_meters']
+from . import sample_waveforms, SpEC, LVC, utilities
+
+__all__ = [
+    "WaveformModes",
+    "WaveformGrid",
+    "WaveformInDetector",
+    "FrameType",
+    "UnknownFrameType",
+    "Inertial",
+    "Coprecessing",
+    "Coorbital",
+    "Corotating",
+    "FrameNames",
+    "DataType",
+    "UnknownDataType",
+    "psi0",
+    "psi1",
+    "psi2",
+    "psi3",
+    "psi4",
+    "sigma",
+    "h",
+    "hdot",
+    "news",
+    "psin",
+    "DataNames",
+    "DataNamesLaTeX",
+    "SpinWeights",
+    "ConformalWeights",
+    "RScaling",
+    "MScaling",
+    "speed_of_light",
+    "m_sun_in_meters",
+    "m_sun_in_seconds",
+    "parsec_in_meters",
+]

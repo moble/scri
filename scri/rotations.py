@@ -1,8 +1,6 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-from __future__ import print_function, division, absolute_import
-
 import math
 import numpy as np
 import quaternion
@@ -33,13 +31,15 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
     R = np.array([quaternion.quaternion.sqrt(-quaternion.quaternion(0, *q).normalized() * quaternion.z) for q in dpa])
     R = quaternion.minimal_rotation(R, W.t, iterations=3)
     W.rotate_decomposition_basis(R)
-    W._append_history('{0}.to_coprecessing_frame({1}, {2})'.format(W, RoughDirection, RoughDirectionIndex))
+    W._append_history(f"{W}.to_coprecessing_frame({RoughDirection}, {RoughDirectionIndex})")
     W.frameType = Coprecessing
     return W
 
 
 @waveform_alterations
-def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False):
+def to_corotating_frame(
+    W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=None, return_omega=False, truncate_log_frame=False
+):
     """Transform waveform (in place) to a corotating frame
 
     Parameters
@@ -60,45 +60,43 @@ def to_corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_regio
         If True, return a 2-tuple consisting of the waveform in the corotating frame (the usual
         returned object) and the angular-velocity data.  That is frequently also needed, so this is
         just a more efficient way of getting the data.
+    truncate_log_frame: bool [defaults to False]
+        If True, set bits of log(frame) with lower significance than `tolerance` to zero, and use
+        exp(truncated(log(frame))) to rotate the waveform.  Also returns `log_frame` along with the
+        waveform (and optionally `omega`)
 
     """
-    if return_omega:
-        frame, omega = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region, return_omega=True)
-    else:
-        frame = corotating_frame(W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region)
-    # if z_alignment_region is None:
-    #     correction_rotor = quaternion.one
-    # else:
-    #     initial_time = W.t[0]
-    #     inspiral_time = W.max_norm_time() - initial_time
-    #     t1 = initial_time + z_alignment_region[0]*inspiral_time
-    #     t2 = initial_time + z_alignment_region[1]*inspiral_time
-    #     i1 = np.argmin(np.abs(W.t-t1))
-    #     i2 = np.argmin(np.abs(W.t-t2))
-    #     R = frame[i1:i2]
-    #     i1m = max(0, i1-10)
-    #     i1p = i1m + 21
-    #     RoughDirection = W[i1m:i1p].angular_velocity()[10]
-    #     Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
-    #     Vhat_corot = np.array([(Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec
-    #                            for Ri, Vhati in zip(R, Vhat)])
-    #     Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()
-    #     # print(i1, i2, i1m, i1p, RoughDirection, Vhat[0], Vhat_corot[0], Vhat_corot_mean)
-    #     correction_rotor = np.sqrt(-quaternion.z * Vhat_corot_mean).inverse()
-    # W.rotate_decomposition_basis(frame * correction_rotor)
+    frame, omega = corotating_frame(
+        W, R0=R0, tolerance=tolerance, z_alignment_region=z_alignment_region, return_omega=True
+    )
+    if truncate_log_frame:
+        log_frame = quaternion.as_float_array(np.log(frame))
+        power_of_2 = 2 ** int(-np.floor(np.log2(2 * tolerance)))
+        log_frame = np.round(log_frame * power_of_2) / power_of_2
+        frame = np.exp(quaternion.as_quat_array(log_frame))
     W.rotate_decomposition_basis(frame)
-    W._append_history('{0}.to_corotating_frame({1}, {2}, {3})'.format(W, R0, tolerance, z_alignment_region))
+    W._append_history(
+        "{}.to_corotating_frame({}, {}, {}, {}, {})".format(
+            W, R0, tolerance, z_alignment_region, return_omega, truncate_log_frame
+        )
+    )
     W.frameType = Corotating
     if return_omega:
-        return (W, omega)
+        if truncate_log_frame:
+            return (W, omega, log_frame)
+        else:
+            return (W, omega)
     else:
-        return W
+        if truncate_log_frame:
+            return (W, log_frame)
+        else:
+            return W
 
 
 @waveform_alterations
 def to_inertial_frame(W):
     W.rotate_decomposition_basis(~W.frame)
-    W._append_history('{0}.to_inertial_frame()'.format(W))
+    W._append_history(f"{W}.to_inertial_frame()")
     W.frameType = Inertial
     return W
 
@@ -142,37 +140,41 @@ def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternio
         ell_max = w.ell_max
 
     if w.frameType not in [Coprecessing, Coorbital, Corotating]:
-        message = ("get_alignment_of_decomposition_frame_to_modes only takes Waveforms in the "
-                   + "coprecessing, coorbital, or corotating frames.  This Waveform is in the "
-                   + "'{0}' frame.")
+        message = (
+            "get_alignment_of_decomposition_frame_to_modes only takes Waveforms in the "
+            + "coprecessing, coorbital, or corotating frames.  This Waveform is in the "
+            + "'{0}' frame."
+        )
         raise ValueError(message.format(w.frame_type_string))
 
     if w.frame.size != w.n_times:
-        message = ("get_alignment_of_decomposition_frame_to_modes requires full information about the Waveform's frame."
-                   + "This Waveform has {0} time steps, but only {1} rotors in its frame.")
+        message = (
+            "get_alignment_of_decomposition_frame_to_modes requires full information about the Waveform's frame."
+            + "This Waveform has {0} time steps, but only {1} rotors in its frame."
+        )
         raise ValueError(message.format(w.n_times, np.asarray(w.frame).size))
 
-    if t_fid<w.t[0] or t_fid>w.t[-1]:
+    if t_fid < w.t[0] or t_fid > w.t[-1]:
         message = "The requested alignment time t_fid={0} is outside the range of times in this waveform ({1}, {2})."
         raise ValueError(message.format(t_fid, w.t[0], w.t[-1]))
 
     # Get direction of angular-velocity vector near t_fid
     i_t_fid = (w.t <= t_fid).nonzero()[0][-1]  # Find the largest index i with t[i-1] <= t_fid
-    if i_t_fid < w.t.size-1:
+    if i_t_fid < w.t.size - 1:
         i_t_fid += 1
-    i1 = (0 if i_t_fid-5 < 0 else i_t_fid-5)
-    i2 = (w.t.size if i1+11>w.t.size else i1+11)
+    i1 = 0 if i_t_fid - 5 < 0 else i_t_fid - 5
+    i2 = w.t.size if i1 + 11 > w.t.size else i1 + 11
     Region = w[i1:i2, 2].copy().to_inertial_frame()
-    omegaHat = quaternion.quaternion(0, *(angular_velocity(Region)[i_t_fid-i1])).normalized()
+    omegaHat = quaternion.quaternion(0, *(angular_velocity(Region)[i_t_fid - i1])).normalized()
 
     # omegaHat contains the components of that vector relative to the
     # inertial frame.  To get its components in this Waveform's
     # (possibly rotating) frame, we need to rotate it by the inverse
     # of this Waveform's `frame` data:
-    if w.frame.size>1:
+    if w.frame.size > 1:
         R = w.frame[i_t_fid]
         omegaHat = R.inverse() * omegaHat * R
-    elif w.frame.size==1:
+    elif w.frame.size == 1:
         R = w.frame[0]
         omegaHat = R.inverse() * omegaHat * R
 
@@ -181,11 +183,11 @@ def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternio
     R_f0 = Instant.frame[0]
 
     # V_f is the dominant eigenvector of <LL>, suggested by O'Shaughnessy et al.
-    V_f = quaternion.quaternion(0, *(LLDominantEigenvector(Instant[:, :ell_max+1])[0])).normalized()
-    V_f_aligned = (-V_f if np.dot(omegaHat.vec, V_f.vec) < 0 else V_f)
+    V_f = quaternion.quaternion(0, *(LLDominantEigenvector(Instant[:, : ell_max + 1])[0])).normalized()
+    V_f_aligned = -V_f if np.dot(omegaHat.vec, V_f.vec) < 0 else V_f
 
     # R_V_f is the rotor taking the Z axis onto V_f
-    R_V_f = (-V_f_aligned*quaternion.z).sqrt()
+    R_V_f = (-V_f_aligned * quaternion.z).sqrt()
     # INFOTOCERR << omegaHat << "\n"
     #            << V_f << "\n"
     #            << V_f_aligned << "\n"
@@ -195,23 +197,21 @@ def get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternio
     Instant.rotate_decomposition_basis(R_V_f)
 
     # Get the phase of the (2,+/-2) modes after rotation
-    i_22 = Instant.index(2,2)
-    i_2m2 = Instant.index(2,-2)
+    i_22 = Instant.index(2, 2)
+    i_2m2 = Instant.index(2, -2)
     phase_22 = math.atan2(Instant.data[0, i_22].imag, Instant.data[0, i_22].real)
     phase_2m2 = math.atan2(Instant.data[0, i_2m2].imag, Instant.data[0, i_2m2].real)
 
     # R_eps is the rotation we will be applying on the right-hand side
-    R_eps = R_V_f * (quaternion.quaternion(0,0,0,(-(phase_22-phase_2m2)/8.))).exp()
+    R_eps = R_V_f * (quaternion.quaternion(0, 0, 0, (-(phase_22 - phase_2m2) / 8.0))).exp()
 
     # Without changing anything else (the direction of V_f or the
     # phase), make sure that the rotating frame's XHat axis is more
     # parallel to the input nHat_t_fid than anti-parallel.
-    if np.dot(nHat_t_fid.vec, (R_f0*R_eps*quaternion.x*R_eps.inverse()*R_f0.inverse()).vec) < 0:
-        R_eps = R_eps * ((math.pi/2.)*quaternion.z).exp()
+    if np.dot(nHat_t_fid.vec, (R_f0 * R_eps * quaternion.x * R_eps.inverse() * R_f0.inverse()).vec) < 0:
+        R_eps = R_eps * ((math.pi / 2.0) * quaternion.z).exp()
 
     return R_eps
-
-
 
 
 @waveform_alterations
@@ -246,7 +246,7 @@ def align_decomposition_frame_to_modes(w, t_fid, nHat_t_fid=quaternion.x, ell_ma
     R_eps = get_alignment_of_decomposition_frame_to_modes(w, t_fid, nHat_t_fid, ell_max)
 
     # Record what happened
-    command = '{0}.align_decomposition_frame_to_modes({1}, {2}, {3})  # R_eps={4}'
+    command = "{0}.align_decomposition_frame_to_modes({1}, {2}, {3})  # R_eps={4}"
     w._append_history(command.format(w, t_fid, nHat_t_fid, ell_max, R_eps))
 
     # Now, apply the rotation
@@ -267,7 +267,7 @@ def rotate_physical_system(W, R_phys):
 
     """
     W = rotate_decomposition_basis(W, ~R_phys)
-    W._append_history('{0}.rotate_physical_system({1})'.format(W, R_phys))
+    W._append_history(f"{W}.rotate_physical_system({R_phys})")
     return W  # Probably no return, but just in case...
 
 
@@ -288,20 +288,21 @@ def rotate_decomposition_basis(W, R_basis):
     # Wigner D matrix at each time step
     D = np.empty((sf.WignerD._total_size_D_matrices(W.ell_min, W.ell_max),), dtype=complex)
 
-    if (isinstance(R_basis, (list, np.ndarray)) and len(R_basis) == 1):
+    if isinstance(R_basis, (list, np.ndarray)) and len(R_basis) == 1:
         R_basis = R_basis[0]
 
-    if (isinstance(R_basis, (list, np.ndarray))):
-        if (isinstance(R_basis, np.ndarray) and R_basis.ndim != 1):
+    if isinstance(R_basis, (list, np.ndarray)):
+        if isinstance(R_basis, np.ndarray) and R_basis.ndim != 1:
             raise ValueError("Input dimension mismatch.  R_basis.shape={1}".format(R_basis.shape))
-        if (W.n_times != len(R_basis)):
+        if W.n_times != len(R_basis):
             raise ValueError(
-                "Input dimension mismatch.  (W.n_times={0}) != (len(R_basis)={1})".format(W.n_times, len(R_basis)))
+                "Input dimension mismatch.  (W.n_times={}) != (len(R_basis)={})".format(W.n_times, len(R_basis))
+            )
         _rotate_decomposition_basis_by_series(W.data, quaternion.as_spinor_array(R_basis), W.ell_min, W.ell_max, D)
 
         # Update the frame data, using right-multiplication
-        if (W.frame.size):
-            if (W.frame.shape[0] == 1):
+        if W.frame.size:
+            if W.frame.shape[0] == 1:
                 # Numpy can't currently multiply one element times an array
                 W.frame = np.array([W.frame * R for R in R_basis])
             else:
@@ -312,13 +313,13 @@ def rotate_decomposition_basis(W, R_basis):
     # We can't just use an `else` here because we need to process the
     # case where the input was an iterable of length 1, which we've
     # now changed to just a single quaternion.
-    if (isinstance(R_basis, np.quaternion)):
+    if isinstance(R_basis, np.quaternion):
         sf._Wigner_D_matrices(R_basis.a, R_basis.b, W.ell_min, W.ell_max, D)
         tmp = np.empty((2 * W.ell_max + 1,), dtype=complex)
         _rotate_decomposition_basis_by_constant(W.data, W.ell_min, W.ell_max, D, tmp)
 
         # Update the frame data, using right-multiplication
-        if (W.frame.size):
+        if W.frame.size:
             W.frame = W.frame * R_basis
         else:
             W.frame = np.array([R_basis])
@@ -326,13 +327,13 @@ def rotate_decomposition_basis(W, R_basis):
     opts = np.get_printoptions()
     np.set_printoptions(threshold=6)
     W.__history_depth__ -= 1
-    W._append_history('{0}.rotate_decomposition_basis({1})'.format(W, R_basis))
+    W._append_history(f"{W}.rotate_decomposition_basis({R_basis})")
     np.set_printoptions(**opts)
 
     return W
 
 
-@njit('void(c16[:,:], i8, i8, c16[:], c16[:])')
+@njit("void(c16[:,:], i8, i8, c16[:], c16[:])")
 def _rotate_decomposition_basis_by_constant(data, ell_min, ell_max, D, tmp):
     """Rotate data by the same rotor at each point in time
 
@@ -356,7 +357,7 @@ def _rotate_decomposition_basis_by_constant(data, ell_min, ell_max, D, tmp):
                 data[i_t, i_data + i_m] = tmp[i_m]
 
 
-@njit('void(c16[:,:], c16[:,:], i8, i8, c16[:])')
+@njit("void(c16[:,:], c16[:,:], i8, i8, c16[:])")
 def _rotate_decomposition_basis_by_series(data, R_basis, ell_min, ell_max, D):
     """Rotate data by a different rotor at each point in time
 
