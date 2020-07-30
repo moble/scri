@@ -19,8 +19,6 @@ import spinsfast
 
 
 def process_transformation_kwargs(ell_max, **kwargs):
-    original_kwargs = kwargs.copy()
-
     # Build the supertranslation and spacetime_translation arrays
     supertranslation = np.zeros((4,), dtype=complex)  # For now; may be resized below
     ell_max_supertranslation = 1  # For now; may be increased below
@@ -88,18 +86,18 @@ def process_transformation_kwargs(ell_max, **kwargs):
     n_phi = kwargs.pop('n_phi', 2*ell_max+1)
     if n_theta < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
         warning = ("n_theta={0} is small; because of the supertranslation, ".format(n_theta)
-                   + "it will lose accuracy for anything less than 2*ell+1={1}".format(ell_max))
+                   + "it will lose accuracy for anything less than 2*ell+1={0}".format(ell_max))
         warnings.warn(warning)
     if n_theta < 2*w_ell_max+1:
         raise ValueError('n_theta={0} is too small; '.format(n_theta)
-                         + 'must be at least 2*ell+1={1}'.format(2*w_ell_max+1))
+                         + 'must be at least 2*ell+1={0}'.format(2*w_ell_max+1))
     if n_phi < 2*ell_max+1 and abs(supertranslation[1:]).max() > 0.0:
         warning = ("n_phi={0} is small; because of the supertranslation, ".format(n_phi)
-                   + "it will lose accuracy for anything less than 2*ell+1={1}".format(ell_max))
+                   + "it will lose accuracy for anything less than 2*ell+1={0}".format(ell_max))
         warnings.warn(warning)
     if n_phi < 2*w_ell_max+1:
         raise ValueError('n_phi={0} is too small; '.format(n_phi)
-                         + 'must be at least 2*ell+1={1}'.format(2*w_ell_max+1))
+                         + 'must be at least 2*ell+1={0}'.format(2*w_ell_max+1))
 
     # Get the rotor for the frame rotation
     frame_rotation = np.quaternion(*np.array(kwargs.pop('frame_rotation', [1, 0, 0, 0]), dtype=float))
@@ -164,8 +162,8 @@ def process_transformation_kwargs(ell_max, **kwargs):
                            * quaternion.from_spherical_coords(thetaprm_j, phiprm_k))
 
     return (
-        supertranslation, ell_max, n_theta, n_phi,
-        beta, gamma, varphi,
+        supertranslation, ell_max_supertranslation, ell_max, n_theta, n_phi,
+        boost_velocity, beta, gamma, varphi,
         R_j_k, Bprm_j_k, thetaprm_j_phiprm_k,
     )
 
@@ -401,9 +399,11 @@ class WaveformGrid(WaveformBase):
         # transformed into supertranslation modes, because these pieces enter the time transformation with opposite
         # sign compared to the time translation, as can be seen by looking at the retarded time: `t-r`.
 
+        original_kwargs = kwargs.copy()
+
         (
-            supertranslation, ell_max, n_theta, n_phi,
-            beta, gamma, varphi, R_j_k, Bprm_j_k, thetaprm_j_phiprm_k,
+            supertranslation, ell_max_supertranslation, ell_max, n_theta, n_phi,
+            boost_velocity, beta, gamma, varphi, R_j_k, Bprm_j_k, thetaprm_j_phiprm_k,
         ) = process_transformation_kwargs(w_modes.ell_max, **kwargs)
 
         # TODO: Incorporate the w_modes.frame information into rotors, which will require time dependence throughout
@@ -483,7 +483,8 @@ class WaveformGrid(WaveformBase):
         # Determine the new time slices.  The set u' is chosen so that on each slice of constant u'_i, the average value
         # of u is precisely u_i.  But then, we have to narrow that set down, so that every physical point on all the
         # u'_i' slices correspond to data in the range of input data.
-        uprm_i = (1/gamma) * (w_modes.t - spacetime_translation[0])
+        time_translation = sf.constant_from_ell_0_mode(supertranslation[0])
+        uprm_i = (1/gamma) * (w_modes.t - time_translation)
         uprm_min = (kconformal_j_k * (w_modes.t[0] - alphasupertranslation_j_k)).max()
         uprm_max = (kconformal_j_k * (w_modes.t[-1] - alphasupertranslation_j_k)).min()
         uprm_iprm = uprm_i[(uprm_i >= uprm_min) & (uprm_i <= uprm_max)]
