@@ -63,6 +63,7 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_NS=None):
             # m_A = m_A[t <= np.max(t_B)]
             # x_A = x_A[t <= np.max(t_B)]
             # t = t[t <= np.max(t_B)]m = m_A + m_B
+        m = m_A + m_B
         CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
     return t, CoM
 
