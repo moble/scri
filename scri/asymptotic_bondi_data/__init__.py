@@ -1,7 +1,7 @@
 from math import sqrt, pi
 import numpy as np
 from spherical_functions import LM_total_size
-from .. import ModesTimeSeries
+from ..modes_time_series import ModesTimeSeries
 
 
 class AsymptoticBondiData:
