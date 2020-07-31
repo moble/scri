@@ -4,7 +4,7 @@
 sxs_formats = [
     "rotating_paired_xor_multishuffle_bzip2",
 ]
-default_shuffle_widths = [8, 8, 4, 4, 4, 2,] + [1,] * 34
+default_shuffle_widths = (8, 8, 4, 4, 4, 2,) + (1,) * 34
 
 
 def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, shuffle_widths=default_shuffle_widths):
@@ -38,7 +38,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
         if not h5_path.parent.exists():
             h5_path.parent.mkdir(parents=True)
 
-    shuffle = scri.utilities.multishuffle(shuffle_widths)
+    shuffle = scri.utilities.multishuffle(tuple(shuffle_widths))
 
     if L2norm_fractional_tolerance == 0.0:
         log_frame = quaternion.as_float_array(np.log(w.frame))[:, 1:]
@@ -256,7 +256,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
         sizeof_complex = 2 * sizeof_float
         ell_min = f.attrs["ell_min"]
         ell_max = f.attrs["ell_max"]
-        shuffle_widths = f.attrs["shuffle_widths"]
+        shuffle_widths = tuple(f.attrs["shuffle_widths"])
         unshuffle = scri.utilities.multishuffle(shuffle_widths, forward=False)
         n_modes = ell_max * (ell_max + 2) - ell_min ** 2 + 1
         i1 = n_times * sizeof_float
