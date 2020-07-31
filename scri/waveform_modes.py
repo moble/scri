@@ -341,7 +341,7 @@ class WaveformModes(WaveformBase):
         if tol != 0.0:
             tol_per_mode = tol / np.sqrt(self.n_modes)
             absolute_tolerance = np.linalg.norm(self.data, axis=1) * tol_per_mode
-            power_of_2 = 2 ** (np.floor(-np.log2(absolute_tolerance))).astype("int")[:, np.newaxis]
+            power_of_2 = (2.0 ** np.floor(-np.log2(absolute_tolerance)))[:, np.newaxis]
             self.data *= power_of_2
             np.round(self.data, out=self.data)
             self.data /= power_of_2
