@@ -3,7 +3,7 @@
 
 import functools
 import numpy as np
-from quaternion.numba_wrapper import njit
+from . import jit
 
 
 def swsh_indices_to_matrix_indices(matrix_iterator):
@@ -34,7 +34,7 @@ def swsh_indices_to_matrix_indices(matrix_iterator):
     return wrapper
 
 
-@njit
+@jit
 def sparse_expectation_value(abar, rows, columns, values, b):
     """Low-level numba-friendly helper function for the main
     calculation of `matrix_expectation_value`.

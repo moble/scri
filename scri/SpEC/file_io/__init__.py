@@ -7,9 +7,8 @@ import re
 import ast
 import numpy as np
 import quaternion
-from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
-from ... import WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0
+from ... import jit, WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0
 from sxs.metadata import Metadata
 from . import corotating_paired_xor, rotating_paired_xor_multishuffle_bzip2
 
@@ -35,14 +34,14 @@ def index_is_monotonic(y):
     direction = y[-1] - y[0]
     if direction > 0.0:
         max_value = y[0]
-        for i in xrange(1, length):
+        for i in range(1, length):
             if y[i] <= max_value:
                 monotonic[i] = False
             else:
                 max_value = y[i]
     else:
         min_value = y[0]
-        for i in xrange(1, length):
+        for i in range(1, length):
             if y[i] >= min_value:
                 monotonic[i] = False
             else:
@@ -350,14 +349,16 @@ def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_forma
         g.attrs["RIsScaledOut"] = int(w.r_is_scaled_out)
         g.attrs["MIsScaledOut"] = int(w.m_is_scaled_out)
         if len(w.version_hist) > 0:
-            g.create_dataset(
-                "VersionHist.ver", (len(w.version_hist), 2), data=w.version_hist, dtype=h5py.special_dtype(vlen=bytes)
-            )
+            try:
+                version_hist = [[e.encode("ascii", "ignore") for e in hm] for hm in w.version_hist]
+            except AttributeError:
+                version_hist = w.version_hist
+            g.create_dataset("VersionHist.ver", data=version_hist)
         for attr in attributes:
             try:
                 g.attrs[attr] = attributes[attr]
             except:
-                warning = "scri.SpEC.write_to_h5 unable to output attribute {}={}".format(attr, attributes[attr])
+                warning = f"scri.SpEC.write_to_h5 unable to output attribute {attr}={attributes[attr]}"
                 warnings.warn(warning)
         if use_NRAR_format:
             for i_m in range(w.n_modes):

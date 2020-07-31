@@ -8,10 +8,10 @@ import quaternion
 
 from spherical_functions import ladder_operator_coefficient as ladder
 from spherical_functions import clebsch_gordan as CG
-from quaternion.numba_wrapper import jit, njit
+from . import jit
 
 
-@njit("void(c16[:,:], c16[:,:], i8[:,:], f8[:,:])")
+@jit("void(c16[:,:], c16[:,:], i8[:,:], f8[:,:])")
 def _LdtVector(data, datadot, lm, Ldt):
     """Helper function for the LdtVector function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -57,7 +57,7 @@ def LdtVector(W):
     return Ldt
 
 
-@njit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:])")
+@jit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:])")
 def _LVector(data1, data2, lm, Lvec):
     """Helper function for the LVector function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -103,7 +103,7 @@ def LVector(W1, W2):
     return L
 
 
-@njit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:,:])")
+@jit("void(c16[:,:], c16[:,:], i8[:,:], c16[:,:,:])")
 def _LLComparisonMatrix(data1, data2, lm, LL):
     """Helper function for the LLComparisonMatrix function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -206,7 +206,7 @@ def LLComparisonMatrix(W1, W2):
     return LL
 
 
-@njit("void(c16[:,:], i8[:,:], f8[:,:,:])")
+@jit("void(c16[:,:], i8[:,:], f8[:,:,:])")
 def _LLMatrix(data, lm, LL):
     """Helper function for the LLMatrix function"""
     # Big, bad, ugly, obvious way to do the calculation
@@ -313,7 +313,7 @@ def LLMatrix(W):
     return LL
 
 
-@njit("void(f8[:,:], f8[:], i8)")
+@jit("void(f8[:,:], f8[:], i8)")
 def _LLDominantEigenvector(dpa, dpa_i, i_index):
     """Jitted helper function for LLDominantEigenvector"""
     # Make the initial direction closer to RoughInitialEllDirection than not

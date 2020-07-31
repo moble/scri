@@ -13,41 +13,24 @@ import numpy as np
 import quaternion
 import scipy.constants as spc
 from scipy.interpolate import CubicSpline
-from quaternion.numba_wrapper import njit, xrange, GOT_NUMBA
 from . import *
 
-if GOT_NUMBA:
+@jit("void(c16[:,:], f8[:])")
+def complex_array_norm(c, s):
+    for i in range(len(s)):
+        s[i] = 0.0
+        for j in range(c.shape[1]):
+            s[i] += c[i, j].real ** 2 + c[i, j].imag ** 2
+    return
 
-    @njit("void(c16[:,:], f8[:])")
-    def complex_array_norm(c, s):
-        for i in xrange(len(s)):
-            s[i] = 0.0
-            for j in xrange(c.shape[1]):
-                s[i] += c[i, j].real ** 2 + c[i, j].imag ** 2
-        return
-
-    @njit("void(c16[:,:], f8[:])")
-    def complex_array_abs(c, s):
-        for i in xrange(len(s)):
-            s[i] = 0.0
-            for j in xrange(c.shape[1]):
-                s[i] += c[i, j].real ** 2 + c[i, j].imag ** 2
-            s[i] = np.sqrt(s[i])
-        return
-
-
-else:
-    # If njit above is just the dumb placeholder defined in .numba, that
-    # function would be ~1000 times slower (because it would use standard
-    # python).  We can do much better with numpy, though this is still ~6
-    # times slower than numba for typical arrays.
-    def complex_array_norm(c, s):
-        s[:] = np.sum(c.real ** 2 + c.imag ** 2, axis=-1)
-        return
-
-    def complex_array_abs(c, s):
-        s[:] = np.sqrt(np.sum(c.real ** 2 + c.imag ** 2, axis=1))
-        return
+@jit("void(c16[:,:], f8[:])")
+def complex_array_abs(c, s):
+    for i in range(len(s)):
+        s[i] = 0.0
+        for j in range(c.shape[1]):
+            s[i] += c[i, j].real ** 2 + c[i, j].imag ** 2
+        s[i] = np.sqrt(s[i])
+    return
 
 
 def waveform_alterations(func):

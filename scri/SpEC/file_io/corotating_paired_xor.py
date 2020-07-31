@@ -5,7 +5,6 @@ import warnings
 import os
 import numpy as np
 import quaternion
-from quaternion.numba_wrapper import jit, xrange
 import spherical_functions as sf
 from ... import WaveformModes, DataType, DataNames
 

@@ -5,10 +5,9 @@ import math
 import numpy as np
 import quaternion
 import spherical_functions as sf
-from quaternion.numba_wrapper import njit, xrange
 from .waveform_base import waveform_alterations
 from .mode_calculations import corotating_frame, angular_velocity, LLDominantEigenvector
-from . import Coprecessing, Coorbital, Corotating, Inertial
+from . import jit, Coprecessing, Coorbital, Corotating, Inertial
 
 
 @waveform_alterations
@@ -331,7 +330,7 @@ def rotate_decomposition_basis(W, R_basis):
     return W
 
 
-@njit("void(c16[:,:], i8, i8, c16[:], c16[:])")
+@jit("void(c16[:,:], i8, i8, c16[:], c16[:])")
 def _rotate_decomposition_basis_by_constant(data, ell_min, ell_max, D, tmp):
     """Rotate data by the same rotor at each point in time
 
@@ -341,21 +340,21 @@ def _rotate_decomposition_basis_by_constant(data, ell_min, ell_max, D, tmp):
     results for each item of data during the sum.
 
     """
-    for i_t in xrange(data.shape[0]):
-        for ell in xrange(ell_min, ell_max + 1):
+    for i_t in range(data.shape[0]):
+        for ell in range(ell_min, ell_max + 1):
             i_data = ell ** 2 - ell_min ** 2
             i_D = sf._linear_matrix_offset(ell, ell_min)
 
-            for i_m in xrange(2 * ell + 1):
+            for i_m in range(2 * ell + 1):
                 tmp[i_m] = 0j
-            for i_mp in xrange(2 * ell + 1):
-                for i_m in xrange(2 * ell + 1):
+            for i_mp in range(2 * ell + 1):
+                for i_m in range(2 * ell + 1):
                     tmp[i_m] += data[i_t, i_data + i_mp] * D[i_D + (2 * ell + 1) * i_mp + i_m]
-            for i_m in xrange(2 * ell + 1):
+            for i_m in range(2 * ell + 1):
                 data[i_t, i_data + i_m] = tmp[i_m]
 
 
-@njit("void(c16[:,:], c16[:,:], i8, i8, c16[:])")
+@jit("void(c16[:,:], c16[:,:], i8, i8, c16[:])")
 def _rotate_decomposition_basis_by_series(data, R_basis, ell_min, ell_max, D):
     """Rotate data by a different rotor at each point in time
 
@@ -365,16 +364,16 @@ def _rotate_decomposition_basis_by_series(data, R_basis, ell_min, ell_max, D):
     matrix is overwritten with the new sums.
 
     """
-    for i_t in xrange(data.shape[0]):
+    for i_t in range(data.shape[0]):
         sf._Wigner_D_matrices(R_basis[i_t, 0], R_basis[i_t, 1], ell_min, ell_max, D)
-        for ell in xrange(ell_min, ell_max + 1):
+        for ell in range(ell_min, ell_max + 1):
             i_data = ell ** 2 - ell_min ** 2
             i_D = sf._linear_matrix_offset(ell, ell_min)
 
-            for i_m in xrange(2 * ell + 1):
+            for i_m in range(2 * ell + 1):
                 new_data_mp = 0j
-                for i_mp in xrange(2 * ell + 1):
+                for i_mp in range(2 * ell + 1):
                     new_data_mp += data[i_t, i_data + i_mp] * D[i_D + i_m + (2 * ell + 1) * i_mp]
                 D[i_D + i_m] = new_data_mp
-            for i_m in xrange(2 * ell + 1):
+            for i_m in range(2 * ell + 1):
                 data[i_t, i_data + i_m] = D[i_D + i_m]

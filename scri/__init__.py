@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Michael Boyle
+# Copyright (c) 2020, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 """Module for operating on gravitational waveforms in various forms
 
@@ -22,8 +22,12 @@ WaveformInDetectorFT: (Complex) Fourier transform of a `WaveformInDetector`
 """
 
 import sys
-
+import functools
+import numba
 from ._version import __version__
+
+jit = functools.partial(numba.njit, cache=True)
+jitclass = numba.experimental.jitclass
 
 
 def version_info():

@@ -1,8 +1,9 @@
 # Copyright (c) 2019, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
+import functools
 import numpy as np
-from quaternion.numba_wrapper import jit, njit
+from . import jit
 
 maxexp = np.finfo(float).maxexp * np.log(2) * 0.99
 
@@ -190,7 +191,7 @@ def transition_to_constant(f, t, t1, t2):
     return f_transitioned
 
 
-@njit
+@jit
 def xor_timeseries(c):
     """XOR a time-series of data in place
 
@@ -215,7 +216,7 @@ def xor_timeseries(c):
     return c
 
 
-@njit
+@jit
 def xor_timeseries_reverse(c):
     """XOR a time-series of data in place
 
@@ -229,7 +230,7 @@ def xor_timeseries_reverse(c):
     return c
 
 
-@njit
+@jit
 def fletcher32(data):
     """Compute the Fletcher-32 checksum of an array
 
@@ -266,6 +267,7 @@ def fletcher32(data):
     return c1 << np.uint32(16) | c0
 
 
+@functools.lru_cache()
 def multishuffle(shuffle_widths, forward=True):
     """Construct functions to "multi-shuffle" data
 
@@ -370,7 +372,8 @@ def multishuffle(shuffle_widths, forward=True):
                     b_array_bit += shuffle_width
             return b
 
-        return nb.njit(shuffle)
+        return nb.jit(shuffle)
+
     else:
         # This function is almost the same as above, except for:
         # 1) swap a <-> b in input and output
@@ -401,4 +404,4 @@ def multishuffle(shuffle_widths, forward=True):
                     b_array_bit += shuffle_width
             return a
 
-        return nb.njit(unshuffle)
+        return nb.jit(unshuffle)
