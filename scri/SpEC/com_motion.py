@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2015, Michael Boyle
+# Copyright (c) 2020, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/spherical_functions/blob/master/LICENSE>
 """Script and/or library to calculate optimal translation and boost from Horizons.h5
 
@@ -16,7 +16,7 @@ Other options may be passed to the `estimate_avg_com_motion` function; see its d
 """
 
 
-def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_NS=None):
+def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
     """Calculate the center-of-mass motion from Horizons.h5 and/or Matter.h5
 
     Note that no input checking is done here.  If the data sets are missing, incomplete, or corrupted, you should
@@ -30,7 +30,10 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_NS=None):
         Absolute or relative path to 'Matter.h5' for neutron star trajectories.
         If None, we assume that only black holes are involved, so that both A
         and B trajectories will be in Horizons.h5.
-    m_NS: None or float [default is None]
+    m_A: None or float [default is None]
+        If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5
+        (for NSs).
+    m_B: None or float [default is None]
         If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5
         (for NSs).
 
@@ -45,24 +48,38 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_NS=None):
     import numpy as np
     import h5py
 
-    with h5py.File(path_to_horizons_h5, "r") as horizons:
-        t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
-        m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
-        x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
-        if path_to_matter_h5 is None:
+    if path_to_matter_h5 is None:
+        with h5py.File(path_to_horizons_h5, "r") as horizons:
+            t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
+            m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
+            x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
             m_B = horizons["AhB.dir/ChristodoulouMass.dat"][:, 1]
             x_B = horizons["AhB.dir/CoordCenterInertial.dat"][:, 1:]
-        else:
-            with h5py.File(path_to_matter_h5, "r") as matter:
-                if m_NS is None:
-                    m_B = matter["RestMass.dat"][:, 1]
-                else:
-                    m_B = np.atleast_1d(m_NS)
-                x_B = matter["InertialCenterOfMass.dat"][:, 1:]
+            m = m_A + m_B
+            CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
+    else:
+        # NOTE: Currently only supports BHNS, not NSNS
+        with h5py.File(path_to_horizons_h5, "r") as horizons:
+            t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
+            if m_A is None:
+                m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
+            else:
+                m_A = np.atleast_1d(m_A)
+            x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
+        with h5py.File(path_to_matter_h5, "r") as matter:
+            if m_B is None:
+                m_B = matter["RestMass.dat"][:, 1]
+            else:
+                m_B = np.atleast_1d(m_B)
+            x_B = matter["InertialCenterOfMass.dat"][:, 1:]
         m = m_A + m_B
         CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
-    return t, CoM
 
+        # The waveform will be in units of the total mass, so we need to convert for compatibility
+        t /= m
+        CoM /= m[:, np.newaxis]
+
+    return t, CoM
 
 def estimate_avg_com_motion(
     path_to_horizons_h5="Horizons.h5",
@@ -71,15 +88,19 @@ def estimate_avg_com_motion(
     plot=False,
     fit_acceleration=False,
     path_to_matter_h5=None,
-    m_NS=None,
+    m_A=None,
+    m_B=None,
 ):
     """Calculate optimal translation and boost from Horizons.h5
 
-    This returns the optimal initial position and velocity such that the CoM is best approximated as having these
-    initial values.  If the coordinate system is transformed by these values, the new CoM motion will be as close to
-    the origin as possible (in the sense of squared distance from the origin integrated over time).
+    This returns the optimal initial position and velocity such that the CoM is
+    best approximated as having these initial values.  If the coordinate system
+    is transformed by these values, the new CoM motion will be as close to the
+    origin as possible (in the sense of squared distance from the origin
+    integrated over time).
 
-    The translation to be applied to the data should be calculated given the values returned by this function as
+    The translation to be applied to the data should be calculated given the
+    values returned by this function as
 
         np.array([x_i+v_i*t_j+0.5*a_i*t_j**2 for t_j in t])
 
@@ -89,22 +110,30 @@ def estimate_avg_com_motion(
     path_to_horizons_h5: string, optional [default is 'Horizons.h5']
         Absolute or relative path to 'Horizons.h5'
     skip_beginning_fraction : float, optional
-        Exclude this portion from the beginning of the data.  Note that this is a fraction, rather than a percentage.
-        The default value is 0.01, meaning the first 1% of the data will be ignored.
+        Exclude this portion from the beginning of the data.  Note that this is
+        a fraction, rather than a percentage.  The default value is 0.01,
+        meaning the first 1% of the data will be ignored.
     skip_ending_fraction : float, optional
-        Exclude this portion from the end of the data.  Note that this is a fraction, rather than a percentage.
-        The default value is 0.10, meaning the last 10% of the data will be ignored.
+        Exclude this portion from the end of the data.  Note that this is a
+        fraction, rather than a percentage.  The default value is 0.10, meaning
+        the last 10% of the data will be ignored.
     plot : bool, optional
-        If True, save plot showing CoM tracks before and after offset and translation, to file
-        `CoM_before_and_after_translation.pdf` in the same directory as Horizons.h5.  Default: False.
+        If True, save plot showing CoM tracks before and after offset and
+        translation, to file `CoM_before_and_after_translation.pdf` in the same
+        directory as Horizons.h5.  Default: False.
     fit_acceleration: bool, optional
-        If True, allow for an acceleration in the fit, and return as third parameter.  Default: False.
+        If True, allow for an acceleration in the fit, and return as third
+        parameter.  Default: False.
     path_to_matter_h5: None or string [default is None]
         Absolute or relative path to 'Matter.h5' for neutron star trajectories.
         If None, we assume that only black holes are involved, so that both A
         and B trajectories will be in Horizons.h5.
-    m_NS: None or float [default is None]
-        If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5 (for NSs).
+    m_A: None or float [default is None]
+        If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5
+        (for NSs).
+    m_B: None or float [default is None]
+        If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5
+        (for NSs).
 
     Returns
     -------
@@ -113,18 +142,21 @@ def estimate_avg_com_motion(
     v_i : length-3 array of floats
         Best-fit initial velocity of the center of mass
     a_i : length-3 array of floats
-        Best-fit initial acceleration of the center of mass [only if `fit_acceleration=True` is in input arguments]
+        Best-fit initial acceleration of the center of mass [only if
+        `fit_acceleration=True` is in input arguments]
     t_i : float
-        Initial time used.  This is determined by the `skip_beginning_fraction` input parameter.
+        Initial time used.  This is determined by the `skip_beginning_fraction`
+        input parameter.
     t_f : float
-        Final time used.  This is determined by the `skip_ending_fraction` input parameter.
+        Final time used.  This is determined by the `skip_ending_fraction`
+        input parameter.
 
     """
     import os.path
     import numpy as np
     from scipy.integrate import simps
 
-    t, com = com_motion(path_to_horizons_h5, path_to_matter_h5, m_NS)
+    t, com = com_motion(path_to_horizons_h5, path_to_matter_h5, m_A, m_B)
 
     # We will be skipping the beginning and end of the data;
     # this gives us the initial and final indices
@@ -236,7 +268,8 @@ def remove_avg_com_motion(
     plot=False,
     file_write_mode="w",
     path_to_matter_h5=None,
-    m_NS=None,
+    m_A=None,
+    m_B=None,
 ):
     """Rewrite waveform data in center-of-mass frame
 
@@ -256,11 +289,17 @@ def remove_avg_com_motion(
         inferred from the waveform path.
     path_to_matter_h5: None or string [default is None]
         Absolute or relative path to 'Matter.h5' for neutron star trajectories.
-        If None, we assume that only black holes are involved, so that both A
+        If None, this will be inferred from the waveformpath.  If the file does
+        not exist, we assume that only black holes are involved, so that both A
         and B trajectories will be in Horizons.h5.
-    m_NS: None or float [default is None]
-        If None, the mass will be read from Horizons.h5 (for BHs) or Matter.h5
-        (for NSs).
+    m_A: None or float [default is None]
+        If None and there is no Matter.h5 file, the mass will be read from
+        Horizons.h5; otherwise, the mass will be read from the metadata
+        `reference_mass1`.
+    m_B: None or float [default is None]
+        If None and there is no Matter.h5 file, the mass will be read from
+        Horizons.h5; otherwise, the mass will be read from the metadata
+        `reference_mass2`.
 
     Returns
     -------
@@ -269,6 +308,7 @@ def remove_avg_com_motion(
 
     """
     import os.path
+    import pathlib
     import re
     import numpy as np
     from .file_io import read_from_h5, write_to_h5
@@ -276,11 +316,20 @@ def remove_avg_com_motion(
     directory = os.path.dirname(os.path.abspath(path_to_waveform_h5.split(".h5", 1)[0] + ".h5"))
     subdir = os.path.basename(path_to_waveform_h5.split(".h5", 1)[1])
 
+    # Read the waveform data in
+    w_m = read_from_h5(path_to_waveform_h5)
+
     if path_to_horizons_h5 is None:
         path_to_horizons_h5 = os.path.join(directory, "Horizons.h5")
 
-    # Read the waveform data in
-    w_m = read_from_h5(path_to_waveform_h5)
+    if path_to_matter_h5 is None:
+        tmp = pathlib.Path(directory) / "Matter.h5"
+        if tmp.exists():
+            path_to_matter_h5 = str(tmp)
+            if m_A is None:
+                m_A = w_m.metadata.reference_mass1
+            if m_B is None:
+                m_B = w_m.metadata.reference_mass2
 
     # Compose output h5 path
     path_to_new_waveform_h5 = re.sub(
@@ -297,7 +346,8 @@ def remove_avg_com_motion(
         skip_ending_fraction=skip_ending_fraction,
         plot=plot,
         path_to_matter_h5=path_to_matter_h5,
-        m_NS=m_NS,
+        m_A=m_A,
+        m_B=m_B,
     )
 
     # Set up the plot and plot the original data
