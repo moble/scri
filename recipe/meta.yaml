@@ -38,6 +38,7 @@ test:
     - pytest
   requires:
     - pytest
+    - pytest-azurepipelines
   source_files:
     - tests/
 
