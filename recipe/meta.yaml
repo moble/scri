@@ -25,6 +25,7 @@ requirements:
     - scipy
     - h5py
     - numba
+    - matplotlib
     - quaternion
     - spinsfast
     - spherical_functions
