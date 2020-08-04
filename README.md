@@ -1,5 +1,6 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moble/scri/blob/master/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/scri/badge/?version=latest)](https://scri.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://dev.azure.com/moboyle/scri/_apis/build/status/moble.scri)](https://dev.azure.com/moboyle/scri/_build/latest?definitionId=1)
 
 Scri
 ====
@@ -121,6 +122,14 @@ header or library for `fftw`.  See the documentation of my copy of `spinsfast`
 [here](https://github.com/moble/spinsfast#manual-installation) for suggestions
 on solving that problem.  Of course, with `conda`, `fftw` is installed in the
 right place from my channel automatically.
+
+## Continuous Integration
+
+Tests are run automatically on [Azure Pipelines](https://dev.azure.com/moboyle/scri/_build/latest?definitionId=1).
+If changes need to be made to the requirements or anything else in `recipe/meta.yaml`, run
+
+    conda smithy rerender -c auto
+    git push
 
 ## Documentation
 
