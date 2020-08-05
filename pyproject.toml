@@ -10,3 +10,6 @@ requires = [
     "numba>=0.49.1"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+junit_family=xunit2
