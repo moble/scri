@@ -12,4 +12,4 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-junit_family=xunit2
+junit_family="xunit2"
