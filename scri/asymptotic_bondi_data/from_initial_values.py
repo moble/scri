@@ -4,10 +4,10 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
 
     The initial-value formulation for Bondi gauge is determined by these relations:
 
-        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
-        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
-        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
-        ψ₃ = ∂ðσ̄/∂u
+        ψ̇₀ = ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = ðψ₃ + 1 σ ψ₄
+        ψ₃ = -∂ðσ̄/∂u
         ψ₄ = -∂²σ̄/∂u²
 
     We also have a constraint on the initial value of ψ₂:
@@ -87,7 +87,7 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
         # constant in time.  If this is true, assumes sigmadot0 and sigmaddot0
         # are constants in time, and just integrates them.
         u = abd.time
-        ð = lambda x: x.eth
+        ð = lambda x: x.eth_GHP
         conjugate = lambda x: x.bar
         σ_0 = ModesTimeSeries(asany_atleast2d_complex(sigma0), u, spin_weight=2, multiplication_truncator=max)
         σ_1 = ModesTimeSeries(asany_atleast2d_complex(sigmadot0), u, spin_weight=2, multiplication_truncator=max)
@@ -96,33 +96,33 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
         # ψ₄ = -∂²σ̄/∂u²
         ψ4_0 = -2 * conjugate(σ_2)
         abd.psi4 = ψ4_0
-        # ψ₃ = ð ∂σ̄/∂u
-        ψ3_0 = ð(conjugate(σ_1))
-        ψ3_1 = 2 * ð(conjugate(σ_2))
+        # ψ₃ = -ð ∂σ̄/∂u
+        ψ3_0 = -ð(conjugate(σ_1))
+        ψ3_1 = -2 * ð(conjugate(σ_2))
         abd.psi3 = u * ψ3_1 + ψ3_0
         # ψ₂ = ∫ (-ðψ₃ + σψ₄) du
         ψ2_0 = (
             ModesTimeSeries(psi2, u, spin_weight=0, multiplication_truncator=max).real
-            - (σ_0.bar.eth.eth + σ_0 * σ_1.bar).imag
+            - (σ_0.bar.eth_GHP.eth_GHP + σ_0 * σ_1.bar).imag
         )
-        ψ2_1 = σ_0 * ψ4_0 - ð(ψ3_0)
-        ψ2_2 = (σ_1 * ψ4_0 - ð(ψ3_1)) / 2
+        ψ2_1 = σ_0 * ψ4_0 + ð(ψ3_0)
+        ψ2_2 = (σ_1 * ψ4_0 + ð(ψ3_1)) / 2
         ψ2_3 = (1 / 3) * σ_2 * ψ4_0
         abd.psi2 = u * (u * (u * ψ2_3 + ψ2_2) + ψ2_1) + ψ2_0
-        # ψ₁ = ∫ (-ðψ₂ + 2σψ₃) du
+        # ψ₁ = ∫ (ðψ₂ + 2σψ₃) du
         ψ1_0 = ModesTimeSeries(psi1, u, spin_weight=1, multiplication_truncator=max)
-        ψ1_1 = 2 * σ_0 * ψ3_0 - ð(ψ2_0)
-        ψ1_2 = σ_0 * ψ3_1 + σ_1 * ψ3_0 - ð(ψ2_1) / 2
-        ψ1_3 = (2 * σ_1 * ψ3_1 + 2 * σ_2 * ψ3_0 - ð(ψ2_2)) / 3
-        ψ1_4 = (2 * σ_2 * ψ3_1 - ð(ψ2_3)) / 4
+        ψ1_1 = 2 * σ_0 * ψ3_0 + ð(ψ2_0)
+        ψ1_2 = σ_0 * ψ3_1 + σ_1 * ψ3_0 + ð(ψ2_1) / 2
+        ψ1_3 = (2 * σ_1 * ψ3_1 + 2 * σ_2 * ψ3_0 + ð(ψ2_2)) / 3
+        ψ1_4 = (2 * σ_2 * ψ3_1 + ð(ψ2_3)) / 4
         abd.psi1 = u * (u * (u * (u * ψ1_4 + ψ1_3) + ψ1_2) + ψ1_1) + ψ1_0
-        # ψ₀ = ∫ (-ðψ₁ + 3σψ₂) du
+        # ψ₀ = ∫ (ðψ₁ + 3σψ₂) du
         ψ0_0 = ModesTimeSeries(psi0, u, spin_weight=2, multiplication_truncator=max)
-        ψ0_1 = 3 * σ_0 * ψ2_0 - ð(ψ1_0)
-        ψ0_2 = (3 * σ_0 * ψ2_1 + 3 * σ_1 * ψ2_0 - ð(ψ1_1)) / 2
-        ψ0_3 = σ_0 * ψ2_2 + σ_1 * ψ2_1 + σ_2 * ψ2_0 - ð(ψ1_2) / 3
-        ψ0_4 = (3 * σ_0 * ψ2_3 + 3 * σ_1 * ψ2_2 + 3 * σ_2 * ψ2_1 - ð(ψ1_3)) / 4
-        ψ0_5 = (3 * σ_1 * ψ2_3 + 3 * σ_2 * ψ2_2 - ð(ψ1_4)) / 5
+        ψ0_1 = 3 * σ_0 * ψ2_0 + ð(ψ1_0)
+        ψ0_2 = (3 * σ_0 * ψ2_1 + 3 * σ_1 * ψ2_0 + ð(ψ1_1)) / 2
+        ψ0_3 = σ_0 * ψ2_2 + σ_1 * ψ2_1 + σ_2 * ψ2_0 + ð(ψ1_2) / 3
+        ψ0_4 = (3 * σ_0 * ψ2_3 + 3 * σ_1 * ψ2_2 + 3 * σ_2 * ψ2_1 + ð(ψ1_3)) / 4
+        ψ0_5 = (3 * σ_1 * ψ2_3 + 3 * σ_2 * ψ2_2 + ð(ψ1_4)) / 5
         ψ0_6 = σ_2 * ψ2_3 / 2
         abd.psi0 = u * (u * (u * (u * (u * (u * ψ0_6 + ψ0_5) + ψ0_4) + ψ0_3) + ψ0_2) + ψ0_1) + ψ0_0
     elif np.ndim(sigma0) == 2:
@@ -134,20 +134,20 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
             sigma_bar_dot_initial = abd.sigma.bar.dot[..., 0, :]
             return (
                 ModesTimeSeries(psi2, abd.time, spin_weight=0).real
-                - (sigma_initial.bar.eth.eth + sigma_initial * sigma_bar_dot_initial).imag
+                - (sigma_initial.bar.eth_GHP.eth_GHP + sigma_initial * sigma_bar_dot_initial).imag
             )
 
         abd.sigma = sigma0
         # ψ₄ = -∂²σ̄/∂u²
         abd.psi4 = -abd.sigma.ddot.bar
-        # ψ₃ = ð ∂σ̄/∂u
-        abd.psi3 = abd.sigma.dot.bar.eth
-        # ψ₂ = ∫ (-ðψ₃ + σψ₄) du
-        abd.psi2 = (-abd.psi3.eth + abd.sigma * abd.psi4).int + adjust_psi2_imaginary_part(psi2, abd)
-        # ψ₁ = ∫ -ðψ₂ + σψ₃ du
-        abd.psi1 = (-abd.psi2.eth + 2 * abd.sigma * abd.psi3).int + psi1
-        # ψ₀ = ∫ -ðψ₁ + σψ₂ dt
-        abd.psi0 = (-abd.psi1.eth + 3 * abd.sigma * abd.psi2).int + psi0
+        # ψ₃ = -ð ∂σ̄/∂u
+        abd.psi3 = -abd.sigma.dot.bar.eth_GHP
+        # ψ₂ = ∫ (ðψ₃ + σψ₄) du
+        abd.psi2 = (abd.psi3.eth_GHP + abd.sigma * abd.psi4).int + adjust_psi2_imaginary_part(psi2, abd)
+        # ψ₁ = ∫ ðψ₂ + σψ₃ du
+        abd.psi1 = (abd.psi2.eth_GHP + 2 * abd.sigma * abd.psi3).int + psi1
+        # ψ₀ = ∫ ðψ₁ + σψ₂ dt
+        abd.psi0 = (abd.psi1.eth_GHP + 3 * abd.sigma * abd.psi2).int + psi0
     else:
         raise ValueError(f"Input `sigma0` must have 1 or 2 dimensions; it has {np.ndim(sigma0)}")
 
