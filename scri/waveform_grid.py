@@ -272,19 +272,22 @@ class WaveformGrid(WaveformBase):
     def n_phi(self):
         return self.__n_phi
 
-    def to_modes(self, ell_max=None):
+    def to_modes(self, ell_min=None, ell_max=None):
         """Transform to modes of a spin-weighted spherical harmonic expansion
 
         Parameters
         ----------
         self : WaveformGrid object
             This is the object to be transformed to SWSH modes
+        ell_min : int, optional
+            The smallest ell value to include in the output data.  Default value is abs(spin_weight).
         ell_max : int, optional
             The highest ell value to include in the output data.  Default value is deduced from n_theta and n_phi.
 
         """
         s = SpinWeights[self.dataType]
-        ell_min = abs(s)
+        if ell_min is None:
+            ell_min = abs(s)
         if ell_max is None:
             ell_max = int((max(self.n_theta, self.n_phi) - 1) // 2)
         if not isinstance(ell_max, numbers.Integral) or ell_max < 0:
