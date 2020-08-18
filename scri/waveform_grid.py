@@ -272,7 +272,7 @@ class WaveformGrid(WaveformBase):
     def n_phi(self):
         return self.__n_phi
 
-    def to_modes(self, ell_max=None):
+    def to_modes(self, ell_max=None, ell_min=None):
         """Transform to modes of a spin-weighted spherical harmonic expansion
 
         Parameters
@@ -280,15 +280,22 @@ class WaveformGrid(WaveformBase):
         self : WaveformGrid object
             This is the object to be transformed to SWSH modes
         ell_max : int, optional
-            The highest ell value to include in the output data.  Default value is deduced from n_theta and n_phi.
+            The largest ell value to include in the output data.  Default value
+            is deduced from n_theta and n_phi.
+        ell_min : int, optional
+            The smallest ell value to include in the output data.  Default value
+            is abs(spin_weight).
 
         """
         s = SpinWeights[self.dataType]
-        ell_min = abs(s)
         if ell_max is None:
             ell_max = int((max(self.n_theta, self.n_phi) - 1) // 2)
+        if ell_min is None:
+            ell_min = abs(s)
         if not isinstance(ell_max, numbers.Integral) or ell_max < 0:
-            raise ValueError(f"Input `ell_max` should be a nonnegative integer; got `{ell_max}` instead")
+            raise ValueError(f"Input `ell_max` should be a nonnegative integer; got `{ell_max}`.")
+        if not isinstance(ell_min, numbers.Integral) or ell_min < 0 or ell_min > ell_max:
+            raise ValueError(f"Input `ell_min` should be an integer between 0 and {ell_max}; got `{ell_min}`.")
 
         final_dim = int(np.prod(self.data.shape[2:]))
         old_data = self.data.reshape((self.n_times, self.n_theta, self.n_phi, final_dim))
