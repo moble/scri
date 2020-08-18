@@ -11,10 +11,10 @@ def bondi_constraints(self, lhs=True, rhs=True):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
-        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
-        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
-        ψ₃ = ∂ðσ̄/∂u
+        ψ̇₀ = ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = ðψ₃ + 1 σ ψ₄
+        ψ₃ = -∂ðσ̄/∂u
         ψ₄ = -∂²σ̄/∂u²
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
@@ -38,10 +38,10 @@ def bondi_violations(self):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
-        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
-        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
-        ψ₃ = ∂ðσ̄/∂u
+        ψ̇₀ = ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = ðψ₃ + 1 σ ψ₄
+        ψ₃ = -∂ðσ̄/∂u
         ψ₄ = -∂²σ̄/∂u²
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
@@ -60,10 +60,10 @@ def bondi_violation_norms(self):
 
     Bondi gauge establishes some relations that the data must satisfy:
 
-        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
-        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
-        ψ̇₂ = -ðψ₃ + 1 σ ψ₄
-        ψ₃ = ∂ðσ̄/∂u
+        ψ̇₀ = ðψ₁ + 3 σ ψ₂
+        ψ̇₁ = ðψ₂ + 2 σ ψ₃
+        ψ̇₂ = ðψ₃ + 1 σ ψ₄
+        ψ₃ = -∂ðσ̄/∂u
         ψ₄ = -∂²σ̄/∂u²
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
@@ -83,7 +83,7 @@ def bianchi_0(self, lhs=True, rhs=True):
     In Bondi coordinates, the Bianchi identities simplify, resulting in this
     expression (among others) for the time derivative of ψ₀:
 
-        ψ̇₀ = -ðψ₁ + 3 σ ψ₂
+        ψ̇₀ = ðψ₁ + 3 σ ψ₂
 
     Parameters
     ==========
@@ -99,7 +99,7 @@ def bianchi_0(self, lhs=True, rhs=True):
     if lhs:
         lhs_value = self.psi0.dot
     if rhs:
-        rhs_value = -self.psi1.eth + 3 * self.sigma * self.psi2
+        rhs_value = self.psi1.eth_GHP + 3 * self.sigma * self.psi2
     if lhs and rhs:
         return (lhs_value, rhs_value)
     elif lhs:
@@ -114,7 +114,7 @@ def bianchi_1(self, lhs=True, rhs=True):
     In Bondi coordinates, the Bianchi identities simplify, resulting in this
     expression (among others) for the time derivative of ψ₁:
 
-        ψ̇₁ = -ðψ₂ + 2 σ ψ₃
+        ψ̇₁ = ðψ₂ + 2 σ ψ₃
 
     Parameters
     ==========
@@ -130,7 +130,7 @@ def bianchi_1(self, lhs=True, rhs=True):
     if lhs:
         lhs_value = self.psi1.dot
     if rhs:
-        rhs_value = -self.psi2.eth + 2 * self.sigma * self.psi3
+        rhs_value = self.psi2.eth_GHP + 2 * self.sigma * self.psi3
     if lhs and rhs:
         return (lhs_value, rhs_value)
     elif lhs:
@@ -145,7 +145,7 @@ def bianchi_2(self, lhs=True, rhs=True):
     In Bondi coordinates, the Bianchi identities simplify, resulting in this
     expression (among others) for the time derivative of ψ₂:
 
-        ψ̇₂ = -ðψ₃ + σ ψ₄
+        ψ̇₂ = ðψ₃ + σ ψ₄
 
     Parameters
     ==========
@@ -161,7 +161,7 @@ def bianchi_2(self, lhs=True, rhs=True):
     if lhs:
         lhs_value = self.psi2.dot
     if rhs:
-        rhs_value = -self.psi3.eth + self.sigma * self.psi4
+        rhs_value = self.psi3.eth_GHP + self.sigma * self.psi4
     if lhs and rhs:
         return (lhs_value, rhs_value)
     elif lhs:
@@ -176,7 +176,7 @@ def constraint_3(self, lhs=True, rhs=True):
     In Bondi coordinates, the value of ψ₃ is given by a time derivative and an
     angular derivative of the (conjugate) shear:
 
-        ψ₃ = ∂ðσ̄/∂u
+        ψ₃ = -∂ðσ̄/∂u
 
     Parameters
     ==========
@@ -192,7 +192,7 @@ def constraint_3(self, lhs=True, rhs=True):
     if lhs:
         lhs_value = self.psi3
     if rhs:
-        rhs_value = self.sigma.bar.dot.eth
+        rhs_value = -self.sigma.bar.dot.eth_GHP
     if lhs and rhs:
         return (lhs_value, rhs_value)
     elif lhs:
@@ -256,7 +256,7 @@ def constraint_mass_aspect(self, lhs=True, rhs=True):
     if lhs:
         lhs_value = np.imag(self.psi2)
     if rhs:
-        rhs_value = -np.imag(self.sigma.bar.eth.eth + self.sigma * self.sigma.bar.dot)
+        rhs_value = -np.imag(self.sigma.bar.eth_GHP.eth_GHP + self.sigma * self.sigma.bar.dot)
     if lhs and rhs:
         return (lhs_value, rhs_value)
     elif lhs:

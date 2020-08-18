@@ -119,3 +119,13 @@ class ModesTimeSeries(spherical_functions.Modes):
     def iint(self):
         """Integrate modes twice with respect to time"""
         return self.antiderivative(2)
+
+    @property
+    def eth_GHP(self):
+        """Raise spin-weight with GHP convention"""
+        return self.eth / np.sqrt(2)
+
+    @property
+    def ethbar_GHP(self):
+        """Lower spin-weight with GHP convention"""
+        return self.ethbar / np.sqrt(2)

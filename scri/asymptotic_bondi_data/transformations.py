@@ -310,8 +310,9 @@ def transform(self, **kwargs):
     # variation in u, the second axis variation in θ', and the third axis variation in ϕ'.
     u = self.u
     α = sf.Grid(supertranslation.evaluate(distorted_grid_rotors), spin_weight=0).real[np.newaxis, :, :]
-    ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors), spin_weight=α.s + 1)[np.newaxis, :, :]
-    ððα = sf.Grid(supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s + 2)[np.newaxis, :, :]
+    # The factors of 1/sqrt(2) and 1/2 come from using the GHP eth instead of the NP eth.
+    ðα = sf.Grid(supertranslation.eth.evaluate(distorted_grid_rotors)/np.sqrt(2), spin_weight=α.s + 1)[np.newaxis, :, :]
+    ððα = sf.Grid(0.5*supertranslation.eth.eth.evaluate(distorted_grid_rotors), spin_weight=α.s + 2)[np.newaxis, :, :]
     k, ðk_over_k, one_over_k, one_over_k_cubed = conformal_factors(boost_velocity, distorted_grid_rotors)
 
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
