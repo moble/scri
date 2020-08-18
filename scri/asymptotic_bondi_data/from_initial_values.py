@@ -103,7 +103,7 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
         # ψ₂ = ∫ (-ðψ₃ + σψ₄) du
         ψ2_0 = (
             ModesTimeSeries(psi2, u, spin_weight=0, multiplication_truncator=max).real
-            - (σ_0.bar.eth.eth + σ_0 * σ_1.bar).imag
+            - 1j * (σ_0.bar.eth.eth + σ_0 * σ_1.bar).imag
         )
         ψ2_1 = σ_0 * ψ4_0 - ð(ψ3_0)
         ψ2_2 = (σ_1 * ψ4_0 - ð(ψ3_1)) / 2
@@ -134,7 +134,7 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
             sigma_bar_dot_initial = abd.sigma.bar.dot[..., 0, :]
             return (
                 ModesTimeSeries(psi2, abd.time, spin_weight=0).real
-                - (sigma_initial.bar.eth.eth + sigma_initial * sigma_bar_dot_initial).imag
+                - 1j * (sigma_initial.bar.eth.eth + sigma_initial * sigma_bar_dot_initial).imag
             )
 
         abd.sigma = sigma0
