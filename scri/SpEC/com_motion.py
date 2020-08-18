@@ -81,6 +81,7 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
 
     return t, CoM
 
+
 def estimate_avg_com_motion(
     path_to_horizons_h5="Horizons.h5",
     skip_beginning_fraction=0.01,
@@ -270,6 +271,7 @@ def remove_avg_com_motion(
     path_to_matter_h5=None,
     m_A=None,
     m_B=None,
+    file_format="NRAR",
 ):
     """Rewrite waveform data in center-of-mass frame
 
@@ -300,6 +302,10 @@ def remove_avg_com_motion(
         If None and there is no Matter.h5 file, the mass will be read from
         Horizons.h5; otherwise, the mass will be read from the metadata
         `reference_mass2`.
+    file_format: 'NRAR' or 'RPXM' [default is 'NRAR']
+        The file format of the waveform data H5 file. The 'NRAR' format is the
+        default file format found in the SXS Catalog. The 'RPXM' format is data
+        compressed with the rotating_paired_xor_multishuffle_bzip2 scheme.
 
     Returns
     -------
@@ -311,13 +317,19 @@ def remove_avg_com_motion(
     import pathlib
     import re
     import numpy as np
-    from .file_io import read_from_h5, write_to_h5
+    from .file_io import read_from_h5, write_to_h5, rotating_paired_xor_multishuffle_bzip2
+    from .. import h, hdot, psi4, psi3, psi2, psi1, psi0
 
     directory = os.path.dirname(os.path.abspath(path_to_waveform_h5.split(".h5", 1)[0] + ".h5"))
     subdir = os.path.basename(path_to_waveform_h5.split(".h5", 1)[1])
 
     # Read the waveform data in
-    w_m = read_from_h5(path_to_waveform_h5)
+    if file_format.lower() == "nrar":
+        w_m = read_from_h5(path_to_waveform_h5)
+    elif file_format.lower() == "rpxm":
+        w_m = rotating_paired_xor_multishuffle_bzip2.load(path_to_waveform_h5)[0].to_inertial_frame()
+    else:
+        raise ValueError(f"File format {file_format} not recognized. Must be either 'NRAR' or 'RPXM'.")
 
     if path_to_horizons_h5 is None:
         path_to_horizons_h5 = os.path.join(directory, "Horizons.h5")
@@ -330,14 +342,6 @@ def remove_avg_com_motion(
                 m_A = w_m.metadata.reference_mass1
             if m_B is None:
                 m_B = w_m.metadata.reference_mass2
-
-    # Compose output h5 path
-    path_to_new_waveform_h5 = re.sub(
-        w_m.descriptor_string + "_",
-        "",  # Remove 'rhOverM_', 'rMPsi4_', or whatever
-        path_to_waveform_h5.replace(".h5", "_CoM.h5", 1),  # Add '_CoM' once
-        flags=re.I,
-    )  # Ignore case of 'psi4'/'Psi4', etc.
 
     # Get the CoM motion from Horizons.h5
     x_0, v_0, t_0, t_f = estimate_avg_com_motion(
@@ -384,16 +388,51 @@ def remove_avg_com_motion(
         plt.gca().set_xscale("merger_zoom", t_merger=t_merger, t_ringdown=t_ringdown, t_final=t_final)
         lines2 = plt.semilogy(w_m.t, abs(w_m.data[:, indices2]), alpha=0.35, lw=1.5)
 
+    # Import auxilliary waveforms if we are transforming Psi3, Psi2, Psi1, or Psi0. To apply a CoM
+    # correction to these data types, information is required from all higher ranked Weyl scalars,
+    # e.g. Psi2 requires information from Psi3 and Psi4.
+    aux_waveforms = {}
+    if w_m.dataType not in [h, hdot, psi4]:
+        file_prefix = ["rMPsi4", "r2Psi3", "r3Psi2OverM", "r4Psi1OverM2"]
+        regex_template = r"""(r2News|rhOverM|rMPsi4|r2Psi3|r3Psi2OverM|r4Psi1OverM2|r5Psi0OverM3)"""
+        for i in range(5 - w_m.dataType):
+            match = re.search(regex_template, path_to_waveform_h5)
+            # Assume the auxiliary waveforms are in the same directory as the waveform to be transformed
+            aux_path = path_to_waveform_h5.replace(match.group(1), file_prefix[i])
+            try:
+                if file_format.lower() == "nrar":
+                    aux_waveforms[f"psi{4-i}_modes"] = read_from_h5(aux_path)
+                elif file_format.lower() == "rpxm":
+                    aux_waveforms[f"psi{4-i}_modes"] = rotating_paired_xor_multishuffle_bzip2.load(aux_path)[0]
+                    aux_waveforms[f"psi{4-i}_modes"].to_inertial_frame()
+            except (FileNotFoundError, OSError):
+                raise FileNotFoundError(
+                    f"A transformation of {w_m.data_type_string} requires waveform data from Psi{4-i}, "
+                    "but the file {aux_path} could not be found."
+                )
+
     # Transform the mode data
-    w_m = w_m.transform(space_translation=x_0, boost_velocity=v_0)
+    w_m = w_m.transform(space_translation=x_0, boost_velocity=v_0, **aux_waveforms)
 
     # Write the data to the new file
-    write_to_h5(
-        w_m,
-        path_to_new_waveform_h5,
-        file_write_mode=file_write_mode,
-        attributes={"space_translation": x_0, "boost_velocity": v_0},
-    )
+    if file_format.lower() == "nrar":
+        path_to_new_waveform_h5 = re.sub(
+            w_m.descriptor_string + "_",
+            "",  # Remove 'rhOverM_', 'rMPsi4_', or whatever
+            path_to_waveform_h5.replace(".h5", "_CoM.h5", 1),  # Add '_CoM' once
+            flags=re.I,
+        )  # Ignore case of 'psi4'/'Psi4', etc.
+        write_to_h5(
+            w_m,
+            path_to_new_waveform_h5,
+            file_write_mode=file_write_mode,
+            attributes={"space_translation": x_0, "boost_velocity": v_0},
+        )
+    elif file_format.lower() == "rpxm":
+        path_to_new_waveform_h5 = path_to_waveform_h5.replace(".h5", "_CoM.h5", 1)
+        w_m.boost_velocity = v_0
+        w_m.space_translation = x_0
+        rotating_paired_xor_multishuffle_bzip2.save(w_m, path_to_new_waveform_h5)
 
     # Finish by plotting the new data and save to PDF
     if plot:
