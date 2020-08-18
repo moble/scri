@@ -82,7 +82,7 @@ if __name__ == "__main__":
             "numba>=0.49.1",
             "numpy-quaternion>=2019.7.15.12.50.36",
             "spinsfast",
-            "spherical-functions>=2020.2.18.11.46.9",
+            "spherical-functions>=2020.8.18.15.37.20",
             "sxs",
         ],
         python_requires=">=3.6",
