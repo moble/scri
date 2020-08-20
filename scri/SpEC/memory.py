@@ -22,7 +22,7 @@ def D_Op(h_mts, UseLaplacian=False):
     """ Differential operator as defined in
     equation () of arXiv: (update when paper is finished)
     """
-    
+
     h = h_mts.copy()
     s = h_mts.view(np.ndarray)
 
@@ -114,15 +114,13 @@ def mem_energy_flux_contribution(h, news=None, start_time=None):
         news.data = h.data_dot
     news_mts = create_ModesTimeSeries_from_WaveformModes(news)
 
-    
-
     E_flux_mts = news_mts.copy()
     E_flux_mts = 0.25 * (news_mts * news_mts.bar).int
     E_flux_mts = 0.5 * D_Op(E_flux_mts).ethbar.ethbar
 
     if not start_time == None:
         start_time_idx = np.argmin(abs(h.t - start_time))
-        E_flux_mts = E_flux_mts - E_flux_mts[start_time_idx,:]
+        E_flux_mts = E_flux_mts - E_flux_mts[start_time_idx, :]
 
     E_flux = h.copy()
     E_flux.data = np.array(E_flux_mts[:, lm(2, -2, E_flux_mts.ell_min) :])
@@ -164,9 +162,7 @@ def mem_angular_momentum_aspect_contribution(h, Psi1, news=None):
     Bondi_Ndot_mts = (
         0.5
         * 1.0j
-        * D_Op(
-            (2.0 * Psi1_mts - 0.25 * (h_mts.bar * h_mts.eth)).ethbar.dot.imag, UseLaplacian=True
-        ).ethbar.ethbar
+        * D_Op((2.0 * Psi1_mts - 0.25 * (h_mts.bar * h_mts.eth)).ethbar.dot.imag, UseLaplacian=True).ethbar.ethbar
     )
     # "* -1.0j" since we want the imaginary part, not the imaginary component
 
@@ -292,10 +288,10 @@ def BMS_strain(h, Psi2, Psi1, news=None, start_time=None, match_time=None):
     h_BMS.data = M.data + E.data + Ndot.data + Jdot.data
 
     if not match_time == None:
-        match_time_idx = np.argmin(abs(h.t-match_time))
-        h_BMS.data = h_BMS.data + (h.data - h_BMS.data)[match_time_idx,:]
+        match_time_idx = np.argmin(abs(h.t - match_time))
+        h_BMS.data = h_BMS.data + (h.data - h_BMS.data)[match_time_idx, :]
 
     Constraint = h.copy()
     Constraint.data = h.data - h_BMS.data
-    
+
     return (h_BMS, Constraint, M, E, Ndot, Jdot)
