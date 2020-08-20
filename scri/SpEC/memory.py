@@ -120,8 +120,9 @@ def mem_energy_flux_contribution(h, news=None, start_time=None):
     E_flux_mts = 0.25 * (news_mts * news_mts.bar).int
     E_flux_mts = 0.5 * D_Op(E_flux_mts).ethbar.ethbar
 
-    start_time_idx = np.argmin(abs(h.t - start_time))
-    E_flux_mts = E_flux_mts - E_flux_mts[start_time_idx,:]
+    if not start_time == None:
+        start_time_idx = np.argmin(abs(h.t - start_time))
+        E_flux_mts = E_flux_mts - E_flux_mts[start_time_idx,:]
 
     E_flux = h.copy()
     E_flux.data = np.array(E_flux_mts[:, lm(2, -2, E_flux_mts.ell_min) :])
@@ -284,10 +285,10 @@ def BMS_strain(h, Psi2, Psi1, news=None, start_time=None, match_time=None):
     """
 
     h_BMS = h.copy()
-    M = mem_mass_aspect_contribution(h, Psi2, news)
+    M = mem_mass_aspect_contribution(h, Psi2, news=news)
     E = mem_energy_flux_contribution(h, news=news, start_time=start_time)
-    Ndot = mem_angular_momentum_aspect_contribution(h, Psi1, news)
-    Jdot = mem_angular_momentum_flux_contribution(h, news)
+    Ndot = mem_angular_momentum_aspect_contribution(h, Psi1, news=news)
+    Jdot = mem_angular_momentum_flux_contribution(h, news=news)
     h_BMS.data = M.data + E.data + Ndot.data + Jdot.data
 
     if not match_time == None:
