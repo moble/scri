@@ -55,7 +55,7 @@ def test0():
 def test1():
     """Add ℓ=0 term to ψ₂ intial value
     
-    Ensures that first terms of ψ̇₁u = -ðψ₂ + 2σψ₃ and ψ̇₀ = -ðψ₁ + 3σψ₂ don't get excited
+    Ensures that first terms of ψ̇₁u = ðψ₂ + 2σψ₃ and ψ̇₀ = ðψ₁ + 3σψ₂ don't get excited
     
     """
 
@@ -85,7 +85,7 @@ def test1():
 def test2():
     """Add ℓ=1 term to ψ₂ intial value
     
-    Checks first term of ψ̇₁ = -ðψ₂ + 2σψ₃
+    Checks first term of ψ̇₁ = ðψ₂ + 2σψ₃
     
     """
 
@@ -115,7 +115,7 @@ def test2():
 def test3():
     """Add ℓ=2 term to ψ₂ intial value
     
-    Checks first term of ψ̇₀ = -ðψ₁ + 3σψ₂
+    Checks first term of ψ̇₀ = ðψ₁ + 3σψ₂
     
     """
 
@@ -147,7 +147,7 @@ def test3():
 def test4():
     """Add nonzero constant term to σ
     
-    Checks first term of ψ̇₁ = -ðψ₂ + 2σψ₃ and second term of ψ̇₀ = -ðψ₁ + 3σψ₂
+    Checks first term of ψ̇₁ = ðψ₂ + 2σψ₃ and second term of ψ̇₀ = ðψ₁ + 3σψ₂
     
     After satisfaction of the reality condition on the mass aspect, ψ₂ has nonzero modes in
     {(0, 0), (2, -2), (2, 2)}, so ψ₁ should have nonzero modes in {(2, -2), (2, 2)}.  Here,
@@ -182,7 +182,7 @@ def test4():
 def test5():
     """Add nonzero ℓ=2 term to σ̇
 
-    Checks second term of ψ̇₁ = -ðψ₂ + 2σψ₃
+    Checks second term of ψ̇₁ = ðψ₂ + 2σψ₃
 
     """
 
@@ -212,7 +212,7 @@ def test5():
 def test6():
     """Add nonzero ℓ=2 term to σ̈
 
-    Checks second term of ψ̇₂ = -ðψ₃ + σψ₄
+    Checks second term of ψ̇₂ = ðψ₃ + σψ₄
 
     """
 
