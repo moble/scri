@@ -100,7 +100,7 @@ def from_initial_values(cls, time, ell_max=8, sigma0=0.0, sigmadot0=0.0, sigmadd
         ψ3_0 = -ð(conjugate(σ_1))
         ψ3_1 = -2 * ð(conjugate(σ_2))
         abd.psi3 = u * ψ3_1 + ψ3_0
-        # ψ₂ = ∫ (-ðψ₃ + σψ₄) du
+        # ψ₂ = ∫ (ðψ₃ + σψ₄) du
         ψ2_0 = (
             ModesTimeSeries(psi2, u, spin_weight=0, multiplication_truncator=max).real
             - 1j * (σ_0.bar.eth_GHP.eth_GHP + σ_0 * σ_1.bar).imag
