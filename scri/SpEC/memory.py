@@ -289,9 +289,9 @@ def BMS_strain(h, Psi2, Psi1, news=None, start_time=None, match_time=None):
 
     if not match_time == None:
         match_time_idx = np.argmin(abs(h.t - match_time))
-        h_BMS.data = h_BMS.data + (h.data - h_BMS.data)[match_time_idx, :]
+        h_BMS.data = h_BMS.data + (h.data[match_time_idx, lm(2, -2, h.ell_min) :] - h_BMS.data[match_time_idx, :])
 
-    Constraint = h.copy()
-    Constraint.data = h.data - h_BMS.data
+    Constraint = h_BMS.copy()
+    Constraint.data = h.data[:, lm(2, -2, h.ell_min) :] - h_BMS.data
 
     return (h_BMS, Constraint, M, E, Ndot, Jdot)
