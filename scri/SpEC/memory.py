@@ -246,8 +246,60 @@ def add_memory(h, start_time=None):
 
     return h_with_mem
 
+def BMS_strain(h, Psi2, news=None, start_time=None, match_time=None):
+    """Calculate what the strain should be according to the BMS balance laws, i.e.,
+    equations () of arXiv: (update when paper is finished)
 
-def BMS_strain(h, Psi2, Psi1, news=None, start_time=None, match_time=None):
+    Parameters
+    ----------
+    h : WaveformModes
+        WaveformModes object corresponding to the strain
+    Psi2 : WaveformModes
+        WaveformModes object corresponding to Psi2
+    news : WaveformModes [default is h.data_dot]
+        WaveformModes object corresponding to the news;
+        if the default is None, then compute this as the
+        time-derivative of the strain
+    start_time : double [default is h.t[0]]
+        double corresponding to the time at which the
+        energy flux integral should begin
+    match_time : double [default is None]
+        double corresponding to the time at which the
+        strain and BMS strain should match
+
+    Returns
+    -------
+    (h_BMS, Constraint) : ntuple of WaveformModes
+        ntuple of WaveformModes objects corresponding to the strain from the BMS balance laws,
+        the BMS constraint, i.e., equation () of arXiv: (update when paper is finished),
+        and the contributions from the Bondi mass aspect, the energy flux,
+        the Bondi angular momentum aspect, and the angular momentum flux
+
+    """
+
+    if news == None:
+        news = h.copy()
+        news.data = h.data_dot
+    h_mts = create_ModesTimeSeries_from_WaveformModes(h)
+    news_mts = create_ModesTimeSeries_from_WaveformModes(news)
+    Psi2_mts = create_ModesTimeSeries_from_WaveformModes(Psi2)
+
+    Psi2_term = 0.5 * D_Op(-(Psi2_mts + 0.25 * news_mts * h_mts.bar)).ethbar.ethbar
+    
+    h_BMS = h.copy()
+    E = mem_energy_flux_contribution(h, news=news, start_time=start_time)
+    h_BMS.data = E.data + np.array(Psi2_term[:, lm(2, -2, 0) :])
+
+    if not match_time == None:
+        match_time_idx = np.argmin(abs(h.t - match_time))
+        h_BMS.data = h_BMS.data + (h.data[match_time_idx, lm(2, -2, h.ell_min) :] - h_BMS.data[match_time_idx, :])
+
+    Constraint = h_BMS.copy()
+    Constraint.data = h.data[:, lm(2, -2, h.ell_min) :] - h_BMS.data
+
+    return (h_BMS, Constraint)
+
+def BMS_strain_other(h, Psi2, Psi1, news=None, start_time=None, match_time=None):
     """Calculate what the strain should be according to the BMS balance laws, i.e.,
     equations () of arXiv: (update when paper is finished)
 
