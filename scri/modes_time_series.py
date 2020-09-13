@@ -38,7 +38,8 @@ class ModesTimeSeries(spherical_functions.Modes):
             input_array = input_array[np.newaxis, :]
         elif input_array.shape[-2] != time.shape[0] and input_array.shape[-2] != 1:
             raise ValueError(
-                f"Second-to-last axis of input array must have size 1 or same size as time array.\n            Their shapes are {input_array.shape} and {time.shape}, respectively."
+                "Second-to-last axis of input array must have size 1 or same size as time array.\n            "
+                f"Their shapes are {input_array.shape} and {time.shape}, respectively."
             )
         obj = spherical_functions.Modes(input_array, **kwargs).view(cls)
         obj._metadata["time"] = time
