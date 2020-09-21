@@ -182,13 +182,13 @@ def conformal_factors(boost_velocity, distorted_grid_rotors):
     γ = 1 / math.sqrt(1 - β ** 2)
 
     # Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.  As modes
-    # in the undistorted frame, we have ð(v·r) = √2 (v·r), but this is now an s=1 field, so it has
-    # to be evaluated as such.
+    # in the undistorted frame, we have ð(v·r) ~ (v·r), but the right hand side is now an s=1 field,
+    # so it has to be evaluated as such.
     v_dot_r = sf.Grid(np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity), spin_weight=0)[
         np.newaxis, :, :
     ]
     ðv_dot_r = sf.Grid(
-        sf.Modes(math.sqrt(2) * np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0), spin_weight=1).evaluate(
+        sf.Modes(np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0), spin_weight=1).evaluate(
             distorted_grid_rotors
         ),
         spin_weight=1,
