@@ -469,7 +469,8 @@ def create_abd_from_h5(file_format, convention='SpEC', **kwargs):
             )
 
     # Create an instance of AsymptoticBondiData
-    abd = AsymptoticBondiData(time=WM_ref.t, ell_max=WM_ref.ell_max, multiplication_truncator=max,)
+    is_dimensionless = False if convention == 'CCE' else True
+    abd = AsymptoticBondiData(time=WM_ref.t, ell_max=WM_ref.ell_max, multiplication_truncator=max, is_dimensionless=is_dimensionless)
 
     # Define factors to convert between input waveform convention and Moreschi-Boyle convention
     conversion_factor = {

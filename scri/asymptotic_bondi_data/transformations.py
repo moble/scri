@@ -382,6 +382,11 @@ def transform(self, **kwargs):
     fprime_temp *= one_over_k
     fprime_of_timenaught_directionprime[5] = fprime_temp
 
+    if self.is_dimensionless:
+        # Multiply by γ for each factor of the mass that is being used to set the Bondi data dimensionless.
+        # The gamma weights for each quantity are:              ψ0   ψ1   ψ2  ψ3  ψ4   σ
+        fprime_of_timenaught_directionprime *= (γ ** np.array([-3., -2., -1., 0., 1., -1.]))[:,np.newaxis,np.newaxis,np.newaxis]
+
     # Determine the new time slices.  The set timeprime is chosen so that on each slice of constant
     # u'_i, the average value of u=(u'/k)+α is precisely <u>=u'γ+<α>=u_i.  But then, we have to
     # narrow that set down, so that every grid point on all the u'_i' slices correspond to data in

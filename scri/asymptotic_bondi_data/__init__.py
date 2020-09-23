@@ -31,7 +31,7 @@ class AsymptoticBondiData:
 
     """
 
-    def __init__(self, time, ell_max, multiplication_truncator=sum):
+    def __init__(self, time, ell_max, multiplication_truncator=sum, is_dimensionless=False):
         """Create new storage for asymptotic Bondi data
 
         Parameters
@@ -48,6 +48,9 @@ class AsymptoticBondiData:
             also the most wasteful, and very likely to be overkill.  The user should probably always
             use `max`.  (Unfortunately, this must remain an opt-in choice, to ensure that the user
             is aware of the situation.)
+        is_dimensionless: bool [defaults to False]
+            If True, the Bondi data will be treated under BMS transformations as dimensionless quantities
+            with all factors of the mass being scaled out.
 
         """
         import functools
@@ -61,6 +64,7 @@ class AsymptoticBondiData:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
         ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
         shape = [6, time.size, LM_total_size(0, ell_max)]
+        self._is_dimensionless = is_dimensionless
         self._time = time.copy()
         self._raw_data = np.zeros(shape, dtype=complex)
         self._psi0 = ModesTS(self._raw_data[0], self._time, spin_weight=2)
@@ -98,6 +102,10 @@ class AsymptoticBondiData:
     @property
     def ell_max(self):
         return self._psi2.ell_max
+
+    @property
+    def is_dimensionless(self):
+        return self._is_dimensionless
 
     @property
     def sigma(self):
