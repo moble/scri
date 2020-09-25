@@ -64,7 +64,7 @@ def test_abd_conformal_factors():
         one_over_k2 = np.tensordot(κinv, SWSHs, axes=([-1], [-1]))
         one_over_k_cubed2 = one_over_k2 ** 3
         k2 = 1 / one_over_k2
-        ðκ = sf.eth_NP(κ, 0)
+        ðκ = sf.eth_GHP(κ, 0)
         SWSHs = sf.SWSH_grid(distorted_grid_rotors, 1, ell_max)
         ðk = np.tensordot(ðκ, SWSHs, axes=([-1], [-1]))
         ðk_over_k2 = ðk / k2
