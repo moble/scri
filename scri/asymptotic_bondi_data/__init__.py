@@ -1,6 +1,7 @@
 import numpy as np
 from spherical_functions import LM_total_size
 from .. import ModesTimeSeries
+from .. import Inertial
 
 
 class AsymptoticBondiData:
@@ -30,7 +31,7 @@ class AsymptoticBondiData:
 
     """
 
-    def __init__(self, time, ell_max, multiplication_truncator=sum):
+    def __init__(self, time, ell_max, multiplication_truncator=sum, frameType=Inertial):
         """Create new storage for asymptotic Bondi data
 
         Parameters
@@ -60,6 +61,8 @@ class AsymptoticBondiData:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
         ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
         shape = [6, time.size, LM_total_size(0, ell_max)]
+        self.frame = np.array([])
+        self.frameType = frameType
         self._time = time.copy()
         self._raw_data = np.zeros(shape, dtype=complex)
         self._psi0 = ModesTS(self._raw_data[0], self._time, spin_weight=2)
@@ -97,6 +100,10 @@ class AsymptoticBondiData:
     @property
     def ell_max(self):
         return self._psi2.ell_max
+
+    @property
+    def LM(self):
+        return self.psi2.LM
 
     @property
     def sigma(self):
@@ -151,6 +158,34 @@ class AsymptoticBondiData:
     def psi0(self, psi0prm):
         self._psi0[:] = psi0prm
         return self.psi0
+
+    def copy(self):
+        import copy
+
+        new_abd = type(self)(self.t, self.ell_max)
+        state = copy.deepcopy(self.__dict__)
+        new_abd.__dict__.update(state)
+        return new_abd
+
+    def interpolate(self, new_times):
+        new_abd = type(self)(new_times, self.ell_max)
+        new_abd.frameType = self.frameType
+        # interpolate waveform data
+        new_abd.sigma = self.sigma.interpolate(new_times)
+        new_abd.psi4 = self.psi4.interpolate(new_times)
+        new_abd.psi3 = self.psi3.interpolate(new_times)
+        new_abd.psi2 = self.psi2.interpolate(new_times)
+        new_abd.psi1 = self.psi1.interpolate(new_times)
+        new_abd.psi0 = self.psi0.interpolate(new_times)
+        # interpolate frame data if necessary
+        if self.frame.shape[0] == self.n_times:
+            from scipy.interpolate import CubicSpline
+            import quaternion
+
+            frame = quaternion.as_float_array(self.frame)
+            new_frame = CubicSpline(self.t, frame, axis=0)(new_times)
+            new_abd.frame = quaternion.as_quat_array(new_frame)
+        return new_abd
 
     from .from_initial_values import from_initial_values
 

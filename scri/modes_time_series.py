@@ -60,6 +60,10 @@ class ModesTimeSeries(spherical_functions.Modes):
         self._metadata["time"][:] = new_time
         return self.time
 
+    @property
+    def n_times(self):
+        return self.time.size
+
     u = time
 
     t = time
@@ -119,6 +123,10 @@ class ModesTimeSeries(spherical_functions.Modes):
     def iint(self):
         """Integrate modes twice with respect to time"""
         return self.antiderivative(2)
+
+    @property
+    def LM(self):
+        return np.array([[ell, m] for ell in range(self.ell_min, self.ell_max + 1) for m in range(-ell, ell + 1)])
 
     @property
     def eth_GHP(self):
