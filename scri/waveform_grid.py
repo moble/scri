@@ -557,7 +557,7 @@ class WaveformGrid(WaveformBase):
                 )
                 warnings.warn(warning)
 
-        fprm_i_j_k *= (gamma ** w_modes.gamma_weight * kconformal_j_k ** w_modes.conformal_weight)[np.newaxis, :, :]
+        fprm_i_j_k *= (kconformal_j_k ** w_modes.conformal_weight)[np.newaxis, :, :]
 
         # Determine the new time slices.  The set u' is chosen so that on each slice of constant u'_i, the average value
         # of u is precisely u_i.  But then, we have to narrow that set down, so that every physical point on all the
