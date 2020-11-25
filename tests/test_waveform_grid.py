@@ -48,11 +48,15 @@ def test_space_translation():
             print("\tWorking on spin s =", s, ", ell =", ell)
             for m in range(-ell, ell + 1):
                 for space_translation in [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]:
+                    auxiliary_waveforms = {}
+                    for i in range(s + 2):
+                        auxiliary_waveforms[f"psi{4-i}_modes"] = samples.single_mode_proportional_to_time(s=i - 2)
+                        auxiliary_waveforms[f"psi{4-i}_modes"].data *= 0
                     w_m1 = samples.single_mode_proportional_to_time(s=s, ell=ell, m=m).transform(
-                        space_translation=space_translation
+                        space_translation=space_translation, **auxiliary_waveforms,
                     )
                     w_m2 = samples.single_mode_proportional_to_time_supertranslated(
-                        s=s, ell=ell, m=m, space_translation=space_translation
+                        s=s, ell=ell, m=m, space_translation=np.array(space_translation)
                     )
                     i1A = np.argmin(abs(w_m1.t - (w_m1.t[0] + 2 * np.linalg.norm(space_translation))))
                     i1B = np.argmin(abs(w_m1.t - (w_m1.t[-1] - 2 * np.linalg.norm(space_translation))))
@@ -109,8 +113,12 @@ def test_hyper_translation():
                     max_displacement = abs(
                         spinsfast.salm2map(supertranslation, 0, ell_max, 4 * ell_max + 1, 4 * ell_max + 1)
                     ).max()
+                    auxiliary_waveforms = {}
+                    for i in range(s + 2):
+                        auxiliary_waveforms[f"psi{4-i}_modes"] = samples.single_mode_proportional_to_time(s=i - 2)
+                        auxiliary_waveforms[f"psi{4-i}_modes"].data *= 0
                     w_m1 = samples.single_mode_proportional_to_time(s=s, ell=ell, m=m).transform(
-                        supertranslation=supertranslation
+                        supertranslation=supertranslation, **auxiliary_waveforms,
                     )
                     w_m2 = samples.single_mode_proportional_to_time_supertranslated(
                         s=s, ell=ell, m=m, supertranslation=supertranslation
