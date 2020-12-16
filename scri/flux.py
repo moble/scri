@@ -4,7 +4,7 @@
 import functools
 import numpy as np
 from . import jit
-
+from spherical_functions import clebsch_gordan as CG
 
 def swsh_indices_to_matrix_indices(matrix_iterator):
     """Convert SWSH-indexed function into caching sparse matrix-indexed function.
@@ -121,7 +121,6 @@ def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=
         timeseries of <a|M|b>(u).
 
     """
-    import numpy as np
     from .extrapolation import intersection
     from spherical_functions import LM_index
 
@@ -182,14 +181,13 @@ def energy_flux(h):
 
     This implements Eq. (2.8) from Ruiz+ (2008) [0707.4654].
     """
-    import numpy as np
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
 
     if not isinstance(h, WaveformModes):
         raise ValueError(
-            f"Momentum flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`."
+            f"Energy flux can only be calculated from a `WaveformModes` object; this object is of type `{type(h)}`."
         )
     if h.dataType == hdottype:
         hdot = h.data
@@ -227,8 +225,6 @@ def p_z(ell_min, ell_max, s=-2):
     We could have used `_swsh_Y_mat_el` but I am just preemptively
     combining the prefactors.
     """
-    import numpy as np
-    from spherical_functions import clebsch_gordan as CG
 
     for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
@@ -256,7 +252,6 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
     definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
 
     """
-    import numpy as np
 
     if (sign != 1) and (sign != -1):
         raise ValueError("sign must be either 1 or -1 in j_plusminus")
@@ -264,23 +259,21 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
     prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
 
     def swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
-        """Compute a matrix element treating Y_{\ell, m} as a linear operator
+        """Compute a matrix element treating Y_{\\ell, m} as a linear operator
 
         From the rules for the Wigner D matrices, we get the result that
         <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
-          \sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\pi*(2*l3+1)} } *
+          \\sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\\pi*(2*l3+1)} } *
           < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
         where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
         See e.g. Campbell and Morgan (1971).
-        """
+        """    	
+        
+        cg1 = CG(l1, m1, l2, m2, l3, m3)
+        cg2 = CG(l1, 0.0, l2, -s, l3, -s)
 
-    from spherical_functions import clebsch_gordan as CG
-
-    cg1 = CG(l1, m1, l2, m2, l3, m3)
-    cg2 = CG(l1, 0.0, l2, -s, l3, -s)
-
-    return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-
+        return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
+	
     for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
         ellp_max = min(ell_max, ell + 1)
@@ -305,7 +298,6 @@ def momentum_flux(h):
     with `p_z`, `p_plus`, and `p_minus`.
 
     """
-    import numpy as np
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
@@ -395,7 +387,6 @@ def angular_momentum_flux(h, hdot=None):
     with (internal) helper functions `j_z`, `j_plus`, and `j_minus`.
 
     """
-    import numpy as np
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
@@ -438,21 +429,20 @@ def angular_momentum_flux(h, hdot=None):
     return jdot
 
 
-""" Boost flux is analytically calculated using the Wald & Zoupas formalism.
-Flanagan and Nichols [1510.03386] is referred for the calculation.
-Then, the GHP formalism is implemented to make it computationally feasible.
-The conventions of Ruiz+ (2008) [0707.4654] are followed.
+# Boost flux is analytically calculated using the Wald & Zoupas formalism.
+# Flanagan and Nichols [1510.03386] is referred for the calculation.
+# Then, the GHP formalism is implemented to make it computationally feasible.
+# The conventions of Ruiz+ (2008) [0707.4654] are followed.
 
-The expressions for Boost flux in the GHP formalism is
-boost_flux(h) = \\frac{-1}{32 \\pi} ( \\frac{1}{8}[<\ethbar N|\chi|\ethbar h> - <\eth N|\chi|\eth h>
-+ <\ethbar h|\chi|\ethbar N>  -<\eth h|\chi|\eth N> + 6 <N|\chi|h> + 6 <h|\chi|N> ]
--\\frac{1}{4} [<\eth N|\eth \chi|h> + <h |\ethbar \chi |\eth N>] - \\frac{u}{2}<N|\chi|N> )
+# The expressions for Boost flux in the GHP formalism is
+# boost_flux(h) = \\frac{-1}{32 \\pi} ( \\frac{1}{8}[<\ethbar N|\chi|\ethbar h> - <\eth N|\chi|\eth h>
+# + <\ethbar h|\chi|\ethbar N>  -<\eth h|\chi|\eth N> + 6 <N|\chi|h> + 6 <h|\chi|N> ]
+# -\\frac{1}{4} [<\eth N|\eth \chi|h> + <h |\ethbar \chi |\eth N>] - \\frac{u}{2}<N|\chi|N> )
 
-h and N has the spin weight of s = -2
-\chi represents l=1, s=0 spherical harmonics. It is the function that characterizes the boost.
-\chi has spin weight s = 0.
-\eth and \ethbar are spin raising and lowering operators.
-"""
+# h and N has the spin weight of s = -2
+# \chi represents l=1, s=0 spherical harmonics. It is the function that characterizes the boost.
+# \chi has spin weight s = 0.
+# \eth and \ethbar are spin raising and lowering operators.
 
 # The matrix elements for most of the terms are identical to p_z and p_plusminus matrix elements,
 # except that input for s is different. Ex. <\ethbar N|\chi|\ethbar h> will have s = -3.
@@ -461,16 +451,15 @@ h and N has the spin weight of s = -2
 
 # Starting with the z direction, the matrix element has been computed analytically,
 # and defined here.
+
 @swsh_indices_to_matrix_indices
 def eth_chi_z(ell_min, ell_max, s=-2):
-    """Generator for the matrix element <\eth N|\eth \chi|h> in the z direction.
-       For the z direction \chi is m = 0 spherical harmonic function.
+    """Generator for the matrix element <\\eth N|\\eth \\chi|h> in the z direction.
+       For the z direction \\chi is m = 0 spherical harmonic function.
 
-       <\eth N|\eth \chi|h> = \\sqrt{[2*(3/(4*\\pi))*(\\frac{2 ell+1}{2 ellp+1})]} *
+       <\\eth N|\\eth \\chi|h> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
                                        <ell,-s,1,-1|ellp,-1-s> *<ell,m,1,0|ellp,m>
     """
-    import numpy as np
-    from spherical_functions import clebsch_gordan as CG
 
     for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
@@ -487,15 +476,13 @@ def eth_chi_z(ell_min, ell_max, s=-2):
 
 @swsh_indices_to_matrix_indices
 def ethbar_chi_z(ell_min, ell_max, s=-2):
-    """Generator for the matrix element <h|\ethbar \chi|\eth N> in the z direction.
-       For the z direction \chi is m = 0 spherical harmonic function.
+    """Generator for the matrix element <h|\\ethbar \\chi|\\eth N> in the z direction.
+       For the z direction \\chi is m = 0 spherical harmonic function.
 
-       <h|\ethbar \chi|\eth N> = \\sqrt{[2*(3/(4*\\pi))*(\\frac{2 ell+1}{2 ellp+1})]} *
+       <h|\\ethbar \\chi|\\eth N> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
                                        <ell,-s-1,1,1|ellp,-s> *<ell,m,1,0|ellp,m>
     """
-    import numpy as np
-    from spherical_functions import clebsch_gordan as CG
-
+ 
     for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
         ellp_max = min(ell_max, ell + 1)
@@ -516,17 +503,16 @@ def ethbar_chi_z(ell_min, ell_max, s=-2):
 
 @swsh_indices_to_matrix_indices
 def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
-    """Compute the <\eth N|\eth \chi|h> matrix element based on the sign.
+    """Compute the <\\eth N|\\eth \\chi|h> matrix element based on the sign.
     Plus and Minus sign corresponds to the value taken by m = ±1.
-    Because \chi is l = 1 spherical harmonic function.
+    Because \\chi is l = 1 spherical harmonic function.
 
     The analytical expression is:
-   <\eth N|\eth \chi|h> = \\sqrt{\\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,-1,l2,-s|l3,-1-s>*<l1,m1,l2,m2|l3,m3>
+   <\\eth N|\\eth \\chi|h> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,-1,l2,-s|l3,-1-s>*<l1,m1,l2,m2|l3,m3>
 
     We use `mat_el_eth_chi` to compute the matrix elements.
     Notice that since the operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
     """
-    import numpy as np
 
     if (sign != 1) and (sign != -1):
         raise ValueError("sign must be either 1 or -1 in eth_N_eth_chi_h_plusminus")
@@ -534,8 +520,6 @@ def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
     prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
 
     def mat_el_eth_chi(s, l3, m3, l1, m1, l2, m2):
-
-        from spherical_functions import clebsch_gordan as CG
 
         cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
         cg2 = CG(l1, -1.0, l2, -s, l3, -1 - s)
@@ -550,7 +534,7 @@ def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
                 mp = round(m + 1 * sign)
                 if (mp < -ellp) or (mp > ellp):
                     continue
-                yield (ellp, mp, ell, m, (prefac * mat_el_eth_chi_(s, ellp, mp, 1.0, sign, ell, m)))
+                yield (ellp, mp, ell, m, (prefac * mat_el_eth_chi(s, ellp, mp, 1.0, sign, ell, m)))
 
 
 eth_chi_plus = functools.partial(eth_chi_plusminus, sign=+1)
@@ -561,17 +545,16 @@ eth_chi_minus.__doc__ = eth_chi_plusminus.__doc__
 
 @swsh_indices_to_matrix_indices
 def ethbar_chi_plusminus(ell_min, ell_max, sign, s=-2):
-    """Compute the <h|\eth \chi|\eth N> matrix element depending on the sign.
+    """Compute the <h|\\eth \\chi|\\eth N> matrix element depending on the sign.
     Plus and Minus sign corresponds to the value taken by m = ±1.
-    Because \chi is l = 1 spherical harmonic function.
+    Because \\chi is l = 1 spherical harmonic function.
 
     The analytical expression is:
-    <h|\eth \chi|\eth N> = \\sqrt{\\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,1,l2,-1-s|l3,-s>*<l1,m1,l2,m2|l3,m3>
+    <h|\\eth \\chi|\\eth N> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,1,l2,-1-s|l3,-s>*<l1,m1,l2,m2|l3,m3>
 
     We use `mat_el_ethbar_chi` to compute the matrix elements.
     The operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
     """
-    import numpy as np
 
     if (sign != 1) and (sign != -1):
         raise ValueError("sign must be either 1 or -1 in h_ethbar_chi_eth_N_plusminus")
@@ -579,8 +562,6 @@ def ethbar_chi_plusminus(ell_min, ell_max, sign, s=-2):
     prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
 
     def mat_el_ethbar_chi(s, l3, m3, l1, m1, l2, m2):
-
-        from spherical_functions import clebsch_gordan as CG
 
         cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
         cg2 = CG(l1, 1.0, l2, -1 - s, l3, -s)
@@ -609,7 +590,7 @@ def boost_flux(h, hdot=None):
     matrix_expectation_value is used to calcuate the component of the flux.
     The spin value taken by the matrix element is specified for each term.
     """
-    import numpy as np
+
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
@@ -704,13 +685,9 @@ def boost_flux(h, hdot=None):
     # These terms needs to be added to get the components in a particular direction.
     # The basis will be changed from (plus, minus, z) to (x, y, z).
     
-    boost_flux_plus = (1 / 8)* (ethbar_hdot_chiplus_ethbar_h - eth_hdot_chiplus_eth_h + 6 * hdot_chiplus_h 
-            + ethbar_h_chiplus_ethbar_hdot - eth_h_chiplus_eth_hdot + 6 * h_chiplus_hdot)
-        - (1 / 2) * np.multiply(h.t, hdot_chiplus_hdot) - (1 / 4) * (eth_hdot_eth_chiplus_h - h_eth_chiplus_eth_hdot)
+    boost_flux_plus = (1 / 8)* (ethbar_hdot_chiplus_ethbar_h - eth_hdot_chiplus_eth_h + 6 * hdot_chiplus_h + ethbar_h_chiplus_ethbar_hdot - eth_h_chiplus_eth_hdot + 6 * h_chiplus_hdot) - (1 / 2) * np.multiply(h.t, hdot_chiplus_hdot) - (1 / 4) * (eth_hdot_eth_chiplus_h - h_eth_chiplus_eth_hdot)
     
-    boost_flux_minus = (1 / 8) * (ethbar_hdot_chiminus_ethbar_h - eth_hdot_chiminus_eth_h + 6 * hdot_chiminus_h
-            + ethbar_h_chiminus_ethbar_hdot - eth_h_chiminus_eth_hdot + 6 * h_chiminus_hdot)
-        - (1 / 2) * np.multiply(h.t, hdot_chiminus_hdot) - (1 / 4) * (eth_hdot_eth_chiminus_h - h_eth_chiminus_eth_hdot)
+    boost_flux_minus = (1 / 8) * (ethbar_hdot_chiminus_ethbar_h - eth_hdot_chiminus_eth_h + 6 * hdot_chiminus_h + ethbar_h_chiminus_ethbar_hdot - eth_h_chiminus_eth_hdot + 6 * h_chiminus_hdot) - (1 / 2) * np.multiply(h.t, hdot_chiminus_hdot) - (1 / 4) * (eth_hdot_eth_chiminus_h - h_eth_chiminus_eth_hdot)
     
     
     # This is the component in the x direction. x = 0.5 * ( plus + minus).real

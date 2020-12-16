@@ -136,3 +136,20 @@ def test_angular_momentum_flux():
     jdot1 = silly_angular_momentum_flux(h)
     jdot2 = scri.angular_momentum_flux(h)
     assert np.allclose(jdot1, jdot2, rtol=1e-13, atol=1e-13)
+    
+
+def test_boost_flux():
+    import numpy as np
+    import scri
+    from quaternion import rotate_vectors    
+    
+    h = scri.sample_waveforms.single_mode(ell = 8, m = 5)
+    R = np.quaternion(1,1,1,1).normalized()
+    A = scri.boost_flux(h)
+    
+    for i in range(len(A)):
+        A[i,:] = rotate_vectors(R,A[i,:],axis = -1)
+        
+    B = scri.boost_flux(h.rotate_decomposition_basis(~R))
+    assert np.allclose(A, B, rtol=1e-13, atol=1e-13)
+    
