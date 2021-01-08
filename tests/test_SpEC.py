@@ -77,7 +77,10 @@ def test_file_io(tempdir):
         assert list1 == list2
 
         # Check that original history is contained (with extra comment characters) in second history
-        assert ("# " + "\n# ".join(f1["History.txt"][()].split("\n"))) in f2["History.txt"][()]
+        if isinstance(f2["History.txt"][()], str):
+            assert ("# " + "\n# ".join(f1["History.txt"][()].split("\n"))) in f2["History.txt"][()]
+        else:
+            assert ("# " + "\n# ".join(f1["History.txt"][()].decode("utf-8").split("\n"))) in f2["History.txt"][()].decode("utf-8")
 
         # Now check each mode from the original
         for mode in list(f1):
