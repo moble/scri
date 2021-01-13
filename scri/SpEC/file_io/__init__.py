@@ -8,9 +8,25 @@ import ast
 import numpy as np
 import quaternion
 import spherical_functions as sf
-from ... import jit, WaveformModes, FrameNames, DataType, DataNames, UnknownDataType, h, hdot, psi4, psi3, psi2, psi1, psi0
+from ... import (
+    jit,
+    WaveformModes,
+    FrameNames,
+    DataType,
+    DataNames,
+    UnknownDataType,
+    h,
+    hdot,
+    psi4,
+    psi3,
+    psi2,
+    psi1,
+    psi0,
+    Inertial,
+)
 from sxs.metadata import Metadata
 from . import corotating_paired_xor, rotating_paired_xor_multishuffle_bzip2
+from ...asymptotic_bondi_data import AsymptoticBondiData
 
 
 def translate_data_types_GWFrames_to_waveforms(d):
@@ -387,3 +403,122 @@ def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_forma
                 Data_m.attrs["m"] = m
     finally:  # Use `finally` to make sure this happens:
         f.close()
+
+
+def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
+    """Returns an AsymptoticBondiData object with waveform data loaded from specified H5 files.
+
+    The AsymptoticBondiData class internally uses the Moreschi-Boyle conventions, see the following reference:
+      O. Moreschi, On angular momentum at future null infinity, DOI:10.1088/0264-9381/3/4/006
+    If necessary, the waveform data will be converted to the Moreschi-Boyle conventions when loaded.
+
+    Parameters
+    ----------
+    file_format : 'SXS', 'CCE', or 'RPXM'
+        The H5 files may be in the one of the following file formats:
+          * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
+          * 'CCE'  - Asymptotic waveforms output by SpECTRE CCE. These are not dimensionless.
+          * 'RPXM' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
+    convention : 'SpEC' or 'Moreschi-Boyle'
+        The data conventions of the waveform data that will be loaded. This defaults to 'SpEC' since this will be
+        most often used with 'SpEC' convention waveforms.
+
+
+    Keyword Parameters
+    ------------------
+    Psi4 : str, optional
+    Psi3 : str, optional
+    Psi2 : str, optional
+    Psi1 : str, optional
+    Psi0 : str, optional
+    h    : str, optional
+        Path to H5 file containing the data. At least ONE the above waveform quantities is required.
+
+
+    Returns
+    -------
+    AsymptoticBondiData
+
+    """
+
+    # Use case insensitive parameters
+    file_format = file_format.lower()
+    convention = convention.lower()
+
+    # Load waveform data from H5 files into WaveformModes objects
+    WMs = {}
+    filenames = {}
+    for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "h"]:
+        if data_label in kwargs:
+            filenames[data_label] = kwargs.pop(data_label)
+            if file_format == "sxs":
+                WMs[data_label] = read_from_h5(filenames[data_label])
+            elif file_format == "cce":
+                WMs[data_label] = read_from_h5(
+                    filenames[data_label],
+                    dataType=DataNames.index(data_label),
+                    frameType=Inertial,
+                    r_is_scaled_out=True,
+                    m_is_scaled_out=False,
+                )
+            elif file_format == "rpxm":
+                WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
+                WMs[data_label].to_inertial_frame()
+            else:
+                raise ValueError(f"File format '{file_format}' not recognized. Must be either 'SXS', 'CCE', or 'RPXM'.")
+
+    if kwargs:
+        import pprint
+        warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
+
+    # Sanity check
+    if not WMs:
+        raise ValueError("No filenames have been provided. The data of at least one waveform quantity is required.")
+    WM_ref = WMs[list(WMs.keys())[0]]
+    for i in WMs:
+        if not (WM_ref.t == WMs[i].t).all():
+            raise ValueError(
+                f"All waveforms must share the same set of times. The data "
+                "for {list(WMs.keys())[i].data_type_string} has a different set of times."
+            )
+
+    # Create an instance of AsymptoticBondiData
+    abd = AsymptoticBondiData(time=WM_ref.t, ell_max=WM_ref.ell_max, multiplication_truncator=max,)
+
+    # Define factors to convert between input waveform convention and Moreschi-Boyle convention
+    conversion_factor = {
+        # "input convention" : [Ψ₀, Ψ₁, Ψ₂, Ψ₃, Ψ₄, h]
+        "moreschi-boyle": [1, 1, 1, 1, 1, 1],
+        "spec": [2, -np.sqrt(2), 1, -1 / np.sqrt(2), 0.5, 0.5],
+    }
+
+    # Load the WaveformModes data into the ABD object and convert to the Moreschi-Boyle convention.
+    if "Psi4" in WMs:
+        abd.psi4[:, sf.LM_index(WMs["Psi4"].ell_min, -WMs["Psi4"].ell_min, 0) :] = (
+            conversion_factor[convention][4] * WMs["Psi4"].data
+        )
+    if "Psi3" in WMs:
+        abd.psi3[:, sf.LM_index(WMs["Psi3"].ell_min, -WMs["Psi3"].ell_min, 0) :] = (
+            conversion_factor[convention][3] * WMs["Psi3"].data
+        )
+    if "Psi2" in WMs:
+        abd.psi2[:, sf.LM_index(WMs["Psi2"].ell_min, -WMs["Psi2"].ell_min, 0) :] = (
+            conversion_factor[convention][2] * WMs["Psi2"].data
+        )
+    if "Psi1" in WMs:
+        abd.psi1[:, sf.LM_index(WMs["Psi1"].ell_min, -WMs["Psi1"].ell_min, 0) :] = (
+            conversion_factor[convention][1] * WMs["Psi1"].data
+        )
+    if "Psi0" in WMs:
+        abd.psi0[:, sf.LM_index(WMs["Psi0"].ell_min, -WMs["Psi0"].ell_min, 0) :] = (
+            conversion_factor[convention][0] * WMs["Psi0"].data
+        )
+    # ABD uses the Newman-Penrose scalar sigma instead of the strain h, so we have to take
+    # the complex conjugate.
+    if "h" in WMs:
+        abd.sigma[:, sf.LM_index(WMs["h"].ell_min, -WMs["h"].ell_min, 0) :] = (
+            conversion_factor[convention][5] * WMs["h"].data
+        )
+        abd.sigma = abd.sigma.bar
+
+    return abd
