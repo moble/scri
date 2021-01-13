@@ -29,7 +29,7 @@ def test_abd_schwarzschild():
     psi2, psi1, psi0 = kerr_schild(mass, 0.0, ell_max)
     abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2)
     expected_four_momentum = np.array([mass, 0, 0, 0])
-    computed_four_momentum = abd.bondi_four_momentum
+    computed_four_momentum = abd.bondi_four_momentum()
     # print()
     # print(f"Expected four-momentum: {expected_four_momentum}")
     # print(f"Computed four-momentum: {computed_four_momentum}")
@@ -111,7 +111,7 @@ def test_abd_schwarzschild_transform():
         β = np.linalg.norm(v)
         γ = 1 / np.sqrt(1 - β ** 2)
         abdprime = abd.transform(boost_velocity=v)
-        transformed_four_momentum = abdprime.bondi_four_momentum
+        transformed_four_momentum = abdprime.bondi_four_momentum()
         expected_four_momentum = mass * γ * np.array([1,] + v.tolist())
         # print()
         # print(f"v={v}, β={β}, γ={γ}, βγ={β*γ}")
