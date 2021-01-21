@@ -6,6 +6,7 @@ import numpy as np
 import quaternion
 import scri
 import spherical_functions as sf
+import warnings
 
 
 def modes_constructor(constructor_statement, data_functor, **kwargs):
@@ -611,53 +612,53 @@ def create_fake_finite_radius_strain_h5file(
     **kwargs,
 ):
     """
-    Create an HDF5 file with fake finite-radius GW strain data in the NRAR format, as 
+    Create an HDF5 file with fake finite-radius GW strain data in the NRAR format, as
     used by the Spectral Einstein Code (SpEC). The asymptotic waveform is created by
-    the function scri.sample_waveforms.fake_precessing_waveform and then radius-dependent 
-    terms are added to it. These subleading artificial "near-zone" effects are simple 
+    the function scri.sample_waveforms.fake_precessing_waveform and then radius-dependent
+    terms are added to it. These subleading artificial "near-zone" effects are simple
     sinusoids. The finite-radius waveform, scaled by a factor of the radius, is then,
 
         r*h(r) = h_0 + h_1*r**-1 + h_2*r**-2 + ... + h_n*r**-n
 
-    where h_0 is the waveform from scri.sample_waveforms.fake_precessing_waveform() and n is 
+    where h_0 is the waveform from scri.sample_waveforms.fake_precessing_waveform() and n is
     chosen by the user.
 
-    Finally, the finite-radius waveforms as output by SpEC uses simulation coordinates for 
-    radius and time, which do not perfectly parametrize outgoing null rays. This function 
+    Finally, the finite-radius waveforms as output by SpEC uses simulation coordinates for
+    radius and time, which do not perfectly parametrize outgoing null rays. This function
     approximates these simulation coordinates so that the data in the resulting HDF5 file
-    most nearly mimics that of a SpEC HDF5 output file. 
+    most nearly mimics that of a SpEC HDF5 output file.
 
     Parameters
     ==========
     output_file_path: str
-        The name and path of the output file. The filename must be "rh_FiniteRadius_CodeUnits.h5" 
-        if you wish to be able to run scri.extrapolation.extrapolate on it. 
+        The name and path of the output file. The filename must be "rh_FiniteRadius_CodeUnits.h5"
+        if you wish to be able to run scri.extrapolation.extrapolate on it.
     n_subleading: int [defaults to 3]
         The number of subleading, radius-dependent terms to add to the asymptotic waveform.
     amp: float [defaults to 1.0]
         The amplitude of the subleading, radius-dependent terms.
     t_0: float [defaults to 0.0]
     t_1: float [defaults to 3000.0]
-        The initial and final times in the output waveform. Note that the merger is placed 
-        100.0 time units before `t_1`, and several transitions are made before this, so `t_0` 
+        The initial and final times in the output waveform. Note that the merger is placed
+        100.0 time units before `t_1`, and several transitions are made before this, so `t_0`
         must be that far ahead of `t_1`.
     dt: float [defaults to 0.1]
         Spacing of output time series.
     r_min: float [defaults to 100.0]
     r_max: float [defaults to 600.0]
     n_radii: float [defaults to 24]
-        The minimum and maximum radius, and the number of radii between these values, at which 
-        to produce a finite-radius waveform. These will be equally spaced in inverse radius. 
+        The minimum and maximum radius, and the number of radii between these values, at which
+        to produce a finite-radius waveform. These will be equally spaced in inverse radius.
     ell_max: int [defaults to 8]
         Largest ell value in the output modes.
     initial_adm_energy: float [defaults to 0.99]
         The intial ADM energy as would be computed by the SpEC intitial data solver.
     avg_lapse: float [defaults to 0.99]
-        The value of the lapse averaged over a sphere at 
+        The value of the lapse averaged over a sphere at
     avg_areal_radius_diff: float [defaults to 1.0]
         How much on average the areal radius is larger than the coord radius, may be negative.
     mass_ratio: float [defaults to 1.0]
-        Ratio of BH masses to use as input to rough approximations for orbital evolution 
+        Ratio of BH masses to use as input to rough approximations for orbital evolution
         and mode amplitudes.
     precession_opening_angle: float [defaults to 0.0]
         Opening angle of the precession cone. The default results in no precession. If
