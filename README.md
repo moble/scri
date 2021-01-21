@@ -1,6 +1,6 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moble/scri/blob/master/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/scri/badge/?version=latest)](https://scri.readthedocs.io/en/latest/?badge=latest)
-[![Build Status](https://dev.azure.com/moboyle/scri/_apis/build/status/moble.scri)](https://dev.azure.com/moboyle/scri/_build/latest?definitionId=1)
+![pytest](https://github.com/moble/scri/workflows/pytest/badge.svg)
 
 Scri
 ====
