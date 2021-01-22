@@ -575,7 +575,7 @@ def extrapolate(**kwargs):
             "The file '{0}' does not contain a recognizable description of "
             + "the data type ('h', 'psi4', 'psi3', 'psi2', 'psi1', 'psi0')."
         )
-        raise ValueError(message.format(filename))
+        raise ValueError(message.format(DataFile))
 
     # Set the correct default ell_min based on the spin-weight
     if LModes[0] < 0:
@@ -887,6 +887,7 @@ def extrapolate(**kwargs):
         plt.gca().set_ylim(1e-8, 10)
         plt.gca().axvline(x=MaxNormTime, ls="--")
         try:
+            from matplotlib.pyplot import tight_layout
             tight_layout(pad=0.5)
         except:
             pass
