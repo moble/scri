@@ -1192,9 +1192,9 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
             )
         )
         raise ValueError("scri_IndexOutOfBounds")
-    if MaxN > 0 and (MaxN + 1) >= NFiniteRadii:
+    if MaxN > 0 and MaxN >= NFiniteRadii:
         print(
-            "ERROR: Asking for extrapolation up to order {}, but only got {}"
+            "ERROR: Asking for extrapolation up to order {}, but only got {} "
             "finite-radius Waveform objects; need at least {} waveforms.".format(MaxN, NFiniteRadii, MaxN + 1)
         )
         raise ValueError("scri_IndexOutOfBounds")
