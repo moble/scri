@@ -20,7 +20,12 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
+        # install the upstream master branch of scri and all its dependencies
         conda install -c conda-forge scri
+    - name: Install current branch of scri
+      run: |
+        # replace the upstream master branch of scri with the branch that is being tested
+        pip install .
     - name: Lint with flake8
       run: |
         conda install flake8
