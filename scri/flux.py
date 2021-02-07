@@ -431,7 +431,7 @@ def angular_momentum_flux(h, hdot=None):
 
 # Boost flux is analytically calculated using the Wald & Zoupas formalism.
 # Flanagan and Nichols [1510.03386] is referred for the calculation.
-# Then, the GHP formalism is implemented to make it computationally feasible.
+# Then, the NP formalism is implemented to make it computationally feasible.
 # The conventions of Ruiz+ (2008) [0707.4654] are followed.
 
 # The expressions for Boost flux in the GHP formalism is
@@ -452,149 +452,155 @@ def angular_momentum_flux(h, hdot=None):
 # Starting with the z direction, the matrix element has been computed analytically,
 # and defined here.
 
-@swsh_indices_to_matrix_indices
-def eth_chi_z(ell_min, ell_max, s=-2):
-    """Generator for the matrix element <\\eth N|\\eth \\chi|h> in the z direction.
-       For the z direction \\chi is m = 0 spherical harmonic function.
-
-       <\\eth N|\\eth \\chi|h> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
-                                       <ell,-s,1,-1|ellp,-1-s> *<ell,m,1,0|ellp,m>
-    """
-
-    for ell in range(ell_min, ell_max + 1):
-        ellp_min = max(ell_min, ell - 1)
-        ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max + 1):
-            for m in range(-ell, ell + 1):
-                if (m < -ellp) or (m > ellp):
-                    continue
-                cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)
-                cg2 = CG(ell, -s, 1, -1, ellp, -1 - s)
-                prefac = np.sqrt((2.0 * ell + 1.0) / (2.0 * ellp + 1.0))
-                yield ellp, m, ell, m, (prefac * cg1 * cg2)
-
-
-@swsh_indices_to_matrix_indices
-def ethbar_chi_z(ell_min, ell_max, s=-2):
-    """Generator for the matrix element <h|\\ethbar \\chi|\\eth N> in the z direction.
-       For the z direction \\chi is m = 0 spherical harmonic function.
-
-       <h|\\ethbar \\chi|\\eth N> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
-                                       <ell,-s-1,1,1|ellp,-s> *<ell,m,1,0|ellp,m>
-    """
- 
-    for ell in range(ell_min, ell_max + 1):
-        ellp_min = max(ell_min, ell - 1)
-        ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max + 1):
-            for m in range(-ell, ell + 1):
-                if (m < -ellp) or (m > ellp):
-                    continue
-                cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)
-                cg2 = CG(ell, -s - 1, 1, 1, ellp, -s)
-                prefac = np.sqrt((2.0 * ell + 1.0) / (2.0 * ellp + 1.0))
-                yield ellp, m, ell, m, (prefac * cg1 * cg2)
-
-
-# Flux in the x and y direction can be obtained in the plusminus basis.
-# plus and minus corresponds to the value taken by m as +1 and -1 respectively.
-# Change of basis will give the x and y component.
-
-
-@swsh_indices_to_matrix_indices
-def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
-    """Compute the <\\eth N|\\eth \\chi|h> matrix element based on the sign.
-    Plus and Minus sign corresponds to the value taken by m = ±1.
-    Because \\chi is l = 1 spherical harmonic function.
-
-    The analytical expression is:
-   <\\eth N|\\eth \\chi|h> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,-1,l2,-s|l3,-1-s>*<l1,m1,l2,m2|l3,m3>
-
-    We use `mat_el_eth_chi` to compute the matrix elements.
-    Notice that since the operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
-    """
-
-    if (sign != 1) and (sign != -1):
-        raise ValueError("sign must be either 1 or -1 in eth_N_eth_chi_h_plusminus")
-
-    prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
-
-    def mat_el_eth_chi(s, l3, m3, l1, m1, l2, m2):
-
-        cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
-        cg2 = CG(l1, -1.0, l2, -s, l3, -1 - s)
-
-        return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-
-    for ell in range(ell_min, ell_max + 1):
-        ellp_min = max(ell_min, ell - 1)
-        ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max + 1):
-            for m in range(-ell, ell + 1):
-                mp = round(m + 1 * sign)
-                if (mp < -ellp) or (mp > ellp):
-                    continue
-                yield (ellp, mp, ell, m, (prefac * mat_el_eth_chi(s, ellp, mp, 1.0, sign, ell, m)))
-
-
-eth_chi_plus = functools.partial(eth_chi_plusminus, sign=+1)
-eth_chi_minus = functools.partial(eth_chi_plusminus, sign=-1)
-eth_chi_plus.__doc__ = eth_chi_plusminus.__doc__
-eth_chi_minus.__doc__ = eth_chi_plusminus.__doc__
-
-
-@swsh_indices_to_matrix_indices
-def ethbar_chi_plusminus(ell_min, ell_max, sign, s=-2):
-    """Compute the <h|\\eth \\chi|\\eth N> matrix element depending on the sign.
-    Plus and Minus sign corresponds to the value taken by m = ±1.
-    Because \\chi is l = 1 spherical harmonic function.
-
-    The analytical expression is:
-    <h|\\eth \\chi|\\eth N> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,1,l2,-1-s|l3,-s>*<l1,m1,l2,m2|l3,m3>
-
-    We use `mat_el_ethbar_chi` to compute the matrix elements.
-    The operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
-    """
-
-    if (sign != 1) and (sign != -1):
-        raise ValueError("sign must be either 1 or -1 in h_ethbar_chi_eth_N_plusminus")
-
-    prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
-
-    def mat_el_ethbar_chi(s, l3, m3, l1, m1, l2, m2):
-
-        cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
-        cg2 = CG(l1, 1.0, l2, -1 - s, l3, -s)
-
-        return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-
-    for ell in range(ell_min, ell_max + 1):
-        ellp_min = max(ell_min, ell - 1)
-        ellp_max = min(ell_max, ell + 1)
-        for ellp in range(ellp_min, ellp_max + 1):
-            for m in range(-ell, ell + 1):
-                mp = round(m + 1 * sign)
-                if (mp < -ellp) or (mp > ellp):
-                    continue
-                yield (ellp, mp, ell, m, (prefac * mat_el_ethbar_chi(s, ellp, mp, 1.0, sign, ell, m)))
-
-
-ethbar_chi_plus = functools.partial(ethbar_chi_plusminus, sign=+1)
-ethbar_chi_minus = functools.partial(ethbar_chi_plusminus, sign=-1)
-ethbar_chi_plus.__doc__ = ethbar_chi_plusminus.__doc__
-ethbar_chi_minus.__doc__ = ethbar_chi_plusminus.__doc__
 
 
 def boost_flux(h, hdot=None):
-    """p_z, p_plusminus and the matrix elements defined above will be used here.
-    matrix_expectation_value is used to calcuate the component of the flux.
-    The spin value taken by the matrix element is specified for each term.
+    """Computes the boost flux from the waveform.
+    
+    This implements Eq. (C.1) from Flanagan & Nichols (2016) [1510.03386] for the boost vector field.
+    
     """
 
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
 
+# We start with defining matrix elements that are not present already in this code.
+
+    @swsh_indices_to_matrix_indices
+    def eth_chi_z(ell_min, ell_max, s=-2):
+        """Generator for the matrix element <\\eth N|\\eth \\chi|h> in the z direction.
+           For the z direction \\chi is m = 0 spherical harmonic function.
+    
+           <\\eth N|\\eth \\chi|h> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
+                                           <ell,-s,1,-1|ellp,-1-s> *<ell,m,1,0|ellp,m>
+        """
+
+        for ell in range(ell_min, ell_max + 1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in range(ellp_min, ellp_max + 1):
+                cg2 = CG(ell, -s, 1, -1, ellp, -1 - s)
+                prefac = np.sqrt((2.0 * ell + 1.0) / (2.0 * ellp + 1.0))
+                for m in range(-ell, ell + 1):
+                    if (m < -ellp) or (m > ellp):
+                        continue
+                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)                
+                    yield ellp, m, ell, m, (prefac * cg1 * cg2)
+
+
+    @swsh_indices_to_matrix_indices
+    def ethbar_chi_z(ell_min, ell_max, s=-2):
+        """Generator for the matrix element <h|\\ethbar \\chi|\\eth N> in the z direction.
+           For the z direction \\chi is m = 0 spherical harmonic function.
+    
+           <h|\\ethbar \\chi|\\eth N> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
+                                           <ell,-s-1,1,1|ellp,-s> *<ell,m,1,0|ellp,m>
+        """
+ 
+        for ell in range(ell_min, ell_max + 1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in range(ellp_min, ellp_max + 1):
+                cg2 = CG(ell, -s - 1, 1, 1, ellp, -s)
+                prefac = np.sqrt((2.0 * ell + 1.0) / (2.0 * ellp + 1.0))
+                for m in range(-ell, ell + 1):
+                    if (m < -ellp) or (m > ellp):
+                        continue
+                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)                
+                    yield ellp, m, ell, m, (prefac * cg1 * cg2)
+
+
+# Flux components in the x and y direction can be obtained in the plusminus basis.
+# plus and minus corresponds to the value taken by m as +1 and -1 respectively.
+# Change of basis will give the x and y component.
+
+
+    @swsh_indices_to_matrix_indices
+    def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
+        """Compute the <\\eth N|\\eth \\chi|h> matrix element based on the sign.
+        Plus and Minus sign corresponds to the value taken by m = ±1.
+        Because \\chi is l = 1 spherical harmonic function.
+    
+        The analytical expression is:
+           <\\eth N|\\eth \\chi|h> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,-1,l2,-s|l3,-1-s>*<l1,m1,l2,m2|l3,m3>
+    
+        We use `mat_el_eth_chi` to compute the matrix elements.
+        Notice that since the operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
+        """
+    
+        if (sign != 1) and (sign != -1):
+            raise ValueError("sign must be either 1 or -1 in eth_N_eth_chi_h_plusminus")
+    
+        prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
+    
+        def mat_el_eth_chi(s, l3, m3, l1, m1, l2, m2):
+    
+            cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
+            cg2 = CG(l1, -1.0, l2, -s, l3, -1 - s)
+    
+            return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
+    
+        for ell in range(ell_min, ell_max + 1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in range(ellp_min, ellp_max + 1):
+                for m in range(-ell, ell + 1):
+                    mp = round(m + 1 * sign)
+                    if (mp < -ellp) or (mp > ellp):
+                        continue
+                    yield (ellp, mp, ell, m, (prefac * mat_el_eth_chi(s, ellp, mp, 1.0, sign, ell, m)))
+    
+    
+    eth_chi_plus = functools.partial(eth_chi_plusminus, sign=+1)
+    eth_chi_minus = functools.partial(eth_chi_plusminus, sign=-1)
+    eth_chi_plus.__doc__ = eth_chi_plusminus.__doc__
+    eth_chi_minus.__doc__ = eth_chi_plusminus.__doc__
+    
+    
+    @swsh_indices_to_matrix_indices
+    def ethbar_chi_plusminus(ell_min, ell_max, sign, s=-2):
+        """Compute the <h|\\eth \\chi|\\eth N> matrix element depending on the sign.
+        Plus and Minus sign corresponds to the value taken by m = ±1.
+        Because \\chi is l = 1 spherical harmonic function.
+    
+        The analytical expression is:
+            <h|\\eth \\chi|\\eth N> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,1,l2,-1-s|l3,-s>*<l1,m1,l2,m2|l3,m3>
+    
+        We use `mat_el_ethbar_chi` to compute the matrix elements.
+        The operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
+        """
+    
+        if (sign != 1) and (sign != -1):
+            raise ValueError("sign must be either 1 or -1 in h_ethbar_chi_eth_N_plusminus")
+    
+        prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
+    
+        def mat_el_ethbar_chi(s, l3, m3, l1, m1, l2, m2):
+    
+            cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
+            cg2 = CG(l1, 1.0, l2, -1 - s, l3, -s)
+    
+            return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
+    
+        for ell in range(ell_min, ell_max + 1):
+            ellp_min = max(ell_min, ell - 1)
+            ellp_max = min(ell_max, ell + 1)
+            for ellp in range(ellp_min, ellp_max + 1):
+                for m in range(-ell, ell + 1):
+                    mp = round(m + 1 * sign)
+                    if (mp < -ellp) or (mp > ellp):
+                        continue
+                    yield (ellp, mp, ell, m, (prefac * mat_el_ethbar_chi(s, ellp, mp, 1.0, sign, ell, m)))
+    
+    
+    ethbar_chi_plus = functools.partial(ethbar_chi_plusminus, sign=+1)
+    ethbar_chi_minus = functools.partial(ethbar_chi_plusminus, sign=-1)
+    ethbar_chi_plus.__doc__ = ethbar_chi_plusminus.__doc__
+    ethbar_chi_minus.__doc__ = ethbar_chi_plusminus.__doc__
+    
+        
+    
     if not isinstance(h, WaveformModes):
         raise ValueError(
             "Boost fluxes can only be calculated from a `WaveformModes` object; "

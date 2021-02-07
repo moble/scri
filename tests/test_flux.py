@@ -142,14 +142,15 @@ def test_boost_flux():
     import numpy as np
     import scri
     from quaternion import rotate_vectors    
-    
+     
     h = scri.sample_waveforms.single_mode(ell = 8, m = 5)
+    # Any mode can be used to implement this. 
     R = np.quaternion(1,1,1,1).normalized()
-    A = scri.boost_flux(h)
+    A = h.boost_flux()
     
     for i in range(len(A)):
         A[i,:] = rotate_vectors(R,A[i,:],axis = -1)
         
-    B = scri.boost_flux(h.rotate_decomposition_basis(~R))
+    B = (h.rotate_decomposition_basis(~R)).boost_flux()
     assert np.allclose(A, B, rtol=1e-13, atol=1e-13)
     
