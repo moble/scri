@@ -15,9 +15,10 @@ def kerr_schild(mass, spin, ell_max=8):
     psi1 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
     psi0 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
 
+    # In the Moreschi-Boyle convention
     psi2[0] = -sf.constant_as_ell_0_mode(mass)
-    psi1[2] = (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
-    psi0[6] = (3 * spin ** 2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
+    psi1[2] = -np.sqrt(2) * (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
+    psi0[6] = 2 * (3 * spin ** 2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
 
     return psi2, psi1, psi0
 
@@ -112,7 +113,7 @@ def test_abd_schwarzschild_transform():
         γ = 1 / np.sqrt(1 - β ** 2)
         abdprime = abd.transform(boost_velocity=v)
         transformed_four_momentum = abdprime.bondi_four_momentum()
-        expected_four_momentum = mass * γ * np.array([1,] + v.tolist())
+        expected_four_momentum = mass * γ * np.array([1, *-v])
         # print()
         # print(f"v={v}, β={β}, γ={γ}, βγ={β*γ}")
         # print(f"Expected four-momentum:\n{expected_four_momentum}")
