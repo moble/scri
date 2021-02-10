@@ -161,6 +161,10 @@ def supermomentum(self, supermomentum_def, **kwargs):
           * 'Geroch-Winicour' or 'GW'
     integrated : bool, default: False
         If true, then return the integrated form of the supermomentum. See Eq. (6) in arXiv:1404.2475.
+    working_ell_max: int, optional
+        The value of ell_max to be used to define the computation grid. The
+        number of theta points and the number of phi points are set to
+        2*working_ell_max+1. Defaults to 2*self.ell_max.
 
     Returns
     -------
@@ -170,17 +174,17 @@ def supermomentum(self, supermomentum_def, **kwargs):
     return_integrated = kwargs.pop("integrated") if "integrated" in kwargs else False
 
     if supermomentum_def.lower() in ["bondi-sachs", "bs"]:
-        supermomentum = self.psi2 + self.sigma * self.sigma.bar.dot
+        supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs)
     elif supermomentum_def.lower() in ["moreschi", "m"]:
-        supermomentum = self.psi2 + self.sigma * self.sigma.bar.dot + self.sigma.bar.eth_GHP.eth_GHP
+        supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) + self.sigma.bar.eth_GHP.eth_GHP
     elif supermomentum_def.lower() in ["geroch", "g"]:
         supermomentum = (
             self.psi2
-            + self.sigma * self.sigma.bar.dot
+            + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs)
             + 0.5 * (self.sigma.bar.eth_GHP.eth_GHP - self.sigma.ethbar_GHP.ethbar_GHP)
         )
     elif supermomentum_def.lower() in ["geroch-winicour", "gw"]:
-        supermomentum = self.psi2 + self.sigma * self.sigma.bar.dot - self.sigma.ethbar_GHP.ethbar_GHP
+        supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) - self.sigma.ethbar_GHP.ethbar_GHP
     else:
         raise ValueError(
             f"Supermomentum defintion '{supermomentum_def}' not recognized. Please choose one of "

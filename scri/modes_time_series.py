@@ -137,3 +137,68 @@ class ModesTimeSeries(spherical_functions.Modes):
     def ethbar_GHP(self):
         """Lower spin-weight with GHP convention"""
         return self.ethbar / np.sqrt(2)
+
+    def grid_multiply(self, mts, **kwargs):
+        """This will compute the values of self and abd on a grid, multiply the
+        grid values together, and then return the mode coefficients of the product.
+        This takes less time and memory compared to the SWSH_modes.Modes.multiply()
+        function, at the risk of introducing aliasing effects if working_ell_max is
+        too small.
+
+        Parameters
+        ----------
+        self: ModesTimeSeries
+            One of the quantities to multiply.
+        mts: ModesTimeSeries
+            The quantity to multiply with 'self'.
+        working_ell_max: int, optional
+            The value of ell_max to be used to define the computation grid. The
+            number of theta points and the number of phi points are set to
+            2*working_ell_max+1. Defaults to 2*self.ell_max.
+        output_ell_max: int, optional
+            The value of ell_max in the output mts object. Defaults to self.ell_max.
+
+        """
+        import spinsfast
+        import spherical_functions as sf
+        from spherical_functions import LM_index
+
+        output_ell_max = kwargs.pop("output_ell_max") if "output_ell_max" in kwargs else self.ell_max
+        working_ell_max = kwargs.pop("working_ell_max") if "working_ell_max" in kwargs else 2 * self.ell_max
+        n_theta = n_phi = 2 * working_ell_max + 1
+
+        if (self.t == mts.t).all():
+            n_times = self.n_times
+
+        # Transform to grid representation
+        self_grid = np.empty((n_times, n_theta, n_phi), dtype=complex)
+        mts_grid = self_grid.copy()
+        for t_i in range(self.n_times):
+            self_grid[t_i, :, :] = spinsfast.salm2map(
+                self.ndarray[t_i, :], self.spin_weight, lmax=self.ell_max, Ntheta=n_theta, Nphi=n_phi
+            )
+            mts_grid[t_i, :, :] = spinsfast.salm2map(
+                mts.ndarray[t_i, :], mts.spin_weight, lmax=mts.ell_max, Ntheta=n_theta, Nphi=n_phi
+            )
+
+        product_grid = self_grid * mts_grid
+        product_spin_weight = self.spin_weight + mts.spin_weight
+
+        # Transform back to mode representation
+        product = np.empty((n_times, (working_ell_max) ** 2), dtype=complex)
+        for t_i in range(self.n_times):
+            product[t_i, :] = spinsfast.map2salm(product_grid[t_i, :], product_spin_weight, lmax=working_ell_max - 1)
+
+        # Convert product ndarray to a ModesTimeSeries object
+        product = product[:, : LM_index(output_ell_max, output_ell_max, 0) + 1]
+        product = ModesTimeSeries(
+            sf.SWSH_modes.Modes(
+                product,
+                spin_weight=product_spin_weight,
+                ell_min=0,
+                ell_max=output_ell_max,
+                multiplication_truncator=max,
+            ),
+            time=self.t,
+        )
+        return product
