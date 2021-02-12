@@ -343,8 +343,8 @@ class WaveformGrid(WaveformBase):
           3. Boost
         All input parameters refer to the transformation required to take the mode's inertial frame onto the inertial
         frame of the grid's inertial observers.  In what follows, the inertial frame of the modes will be unprimed,
-        while the inertial frame of the grid will be primed.  NOTE: These are passive transformations, e.g. supplying 
-        the option space_translation=[0, 0, 5] to a Schwarzschild spacetime will move the coordinates to z'=z+5 and so 
+        while the inertial frame of the grid will be primed.  NOTE: These are passive transformations, e.g. supplying
+        the option space_translation=[0, 0, 5] to a Schwarzschild spacetime will move the coordinates to z'=z+5 and so
         the center of mass will be shifted in the negative z direction by 5 in the new coordinates.
 
         The translations (space, time, spacetime, or super) can be given in various ways, which may override each
@@ -396,11 +396,11 @@ class WaveformGrid(WaveformBase):
         psi3_modes : WaveformModes, required only if w_modes is type psi2, psi1, or psi0
         psi2_modes : WaveformModes, required only if w_modes is type psi1 or psi0
         psi1_modes : WaveformModes, required only if w_modes is type psi0
-            The objects storing the modes of the original waveforms of the same spacetime that 
-            w_modes belongs to. A BMS transformation of an asymptotic Weyl scalar requires mode 
-            information from all higher index Weyl scalars. E.g. if w_modes is of type scri.psi2, 
-            then psi4_modes and psi3_modes will be required. Note: the WaveformModes objects 
-            supplied to these arguments will themselves NOT be transformed. Please use the 
+            The objects storing the modes of the original waveforms of the same spacetime that
+            w_modes belongs to. A BMS transformation of an asymptotic Weyl scalar requires mode
+            information from all higher index Weyl scalars. E.g. if w_modes is of type scri.psi2,
+            then psi4_modes and psi3_modes will be required. Note: the WaveformModes objects
+            supplied to these arguments will themselves NOT be transformed. Please use the
             AsymptoticBondiData class to efficiently transform all asymptotic data at once.
 
         Returns

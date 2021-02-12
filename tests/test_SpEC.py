@@ -19,7 +19,9 @@ def tempdir(tmp_path_factory):
     tmpdir = tmp_path_factory.mktemp("test_extrapolation")
     filename = tmpdir / "rh_FiniteRadii_CodeUnits.h5"
     scri.sample_waveforms.create_fake_finite_radius_strain_h5file(
-        output_file_path=filename, ell_max=3, t_1=2000.0,
+        output_file_path=filename,
+        ell_max=3,
+        t_1=2000.0,
     )
     return tmpdir
 

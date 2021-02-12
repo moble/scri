@@ -15,6 +15,7 @@ import scipy.constants as spc
 from scipy.interpolate import CubicSpline
 from . import *
 
+
 @jit("void(c16[:,:], f8[:])")
 def complex_array_norm(c, s):
     for i in range(len(s)):
@@ -22,6 +23,7 @@ def complex_array_norm(c, s):
         for j in range(c.shape[1]):
             s[i] += c[i, j].real ** 2 + c[i, j].imag ** 2
     return
+
 
 @jit("void(c16[:,:], f8[:])")
 def complex_array_abs(c, s):
@@ -577,7 +579,7 @@ class WaveformBase(_object):
 
         This function simply subtracts the data in this waveform from the data
         in Waveform A, and finds the rotation needed to take this frame into frame A.
-        Note that the waveform data are stored as complex numbers, rather than as 
+        Note that the waveform data are stored as complex numbers, rather than as
         modulus and phase.
         """
         from quaternion.means import mean_rotor_in_chordal_metric

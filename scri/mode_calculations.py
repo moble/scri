@@ -476,7 +476,7 @@ def corotating_frame(W, R0=quaternion.one, tolerance=1e-12, z_alignment_region=N
         R = frame[i1:i2]
         i1m = max(0, i1 - 10)
         i1p = i1m + 21
-        RoughDirection = omega[i1m+10]
+        RoughDirection = omega[i1m + 10]
         Vhat = W[i1:i2].LLDominantEigenvector(RoughDirection=RoughDirection, RoughDirectionIndex=0)
         Vhat_corot = np.array([(Ri.conjugate() * quaternion.quaternion(*Vhati) * Ri).vec for Ri, Vhati in zip(R, Vhat)])
         Vhat_corot_mean = quaternion.quaternion(*np.mean(Vhat_corot, axis=0)).normalized()

@@ -53,7 +53,8 @@ def test_space_translation():
                         auxiliary_waveforms[f"psi{4-i}_modes"] = samples.single_mode_proportional_to_time(s=i - 2)
                         auxiliary_waveforms[f"psi{4-i}_modes"].data *= 0
                     w_m1 = samples.single_mode_proportional_to_time(s=s, ell=ell, m=m).transform(
-                        space_translation=space_translation, **auxiliary_waveforms,
+                        space_translation=space_translation,
+                        **auxiliary_waveforms,
                     )
                     w_m2 = samples.single_mode_proportional_to_time_supertranslated(
                         s=s, ell=ell, m=m, space_translation=np.array(space_translation)
@@ -118,7 +119,8 @@ def test_hyper_translation():
                         auxiliary_waveforms[f"psi{4-i}_modes"] = samples.single_mode_proportional_to_time(s=i - 2)
                         auxiliary_waveforms[f"psi{4-i}_modes"].data *= 0
                     w_m1 = samples.single_mode_proportional_to_time(s=s, ell=ell, m=m).transform(
-                        supertranslation=supertranslation, **auxiliary_waveforms,
+                        supertranslation=supertranslation,
+                        **auxiliary_waveforms,
                     )
                     w_m2 = samples.single_mode_proportional_to_time_supertranslated(
                         s=s, ell=ell, m=m, supertranslation=supertranslation

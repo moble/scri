@@ -161,7 +161,7 @@ def bump_function(x, x0, x1, x2, x3, y0=0.0, y12=1.0, y3=0.0):
 
 def transition_to_constant(f, t, t1, t2):
     """Smoothly transition from the function to a constant.
-    
+
     This works (implicitly) by multiplying the derivative of `f` with the transition function, and
     then integrating.  Using integration by parts, this simplifies to multiplying `f` itself by the
     transition function, and then subtracting the integral of `f` times the derivative of the

@@ -73,7 +73,14 @@ if __name__ == "__main__":
         url="https://github.com/moble/scri",
         author="Michael Boyle",
         author_email="mob22@cornell.edu",
-        packages=["scri", "scri.asymptotic_bondi_data", "scri.LVC", "scri.pn", "scri.SpEC", "scri.SpEC.file_io",],
+        packages=[
+            "scri",
+            "scri.asymptotic_bondi_data",
+            "scri.LVC",
+            "scri.pn",
+            "scri.SpEC",
+            "scri.SpEC.file_io",
+        ],
         zip_safe=False,
         install_requires=[
             "numpy>=1.13",

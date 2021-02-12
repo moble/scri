@@ -58,7 +58,7 @@ def charge_vector_from_aspect(charge):
 def bondi_rest_mass(self):
     """Compute the rest mass from the Bondi four-momentum of the AsymptoticBondiData."""
     four_momentum = self.bondi_four_momentum()
-    rest_mass = np.sqrt(four_momentum[:, 0]**2 - np.sum(four_momentum[:, 1:]**2, axis=1))
+    rest_mass = np.sqrt(four_momentum[:, 0] ** 2 - np.sum(four_momentum[:, 1:] ** 2, axis=1))
     return rest_mass
 
 
@@ -108,9 +108,9 @@ def bondi_boost_charge(self):
         self.psi1.truncate_ell(ell_max)
         + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
         + 0.5 * (self.sigma.multiply(self.sigma.bar, truncator=lambda tup: ell_max)).eth_GHP
-        - self.t * (
-            self.psi2.truncate_ell(ell_max)
-            + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: ell_max)
+        - self.t
+        * (
+            self.psi2.truncate_ell(ell_max) + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: ell_max)
         ).real.eth_GHP
     ).view(np.ndarray)
     return charge_vector_from_aspect(charge_aspect)[:, 1:]

@@ -324,7 +324,7 @@ def read_from_h5(file_name, **kwargs):
 
 def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_format=True):
     """
-    Output the Waveform to an HDF5 file. Default behavior uses the NRAR format. 
+    Output the Waveform to an HDF5 file. Default behavior uses the NRAR format.
 
     Note that the file_name is prepended with some descriptive information involving the data type and the frame type,
     such as 'rhOverM_Corotating_' or 'rMpsi4_Aligned_'.
@@ -469,6 +469,7 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
 
     if kwargs:
         import pprint
+
         warnings.warn("\nUnused kwargs passed to this function:\n{}".format(pprint.pformat(kwargs, width=1)))
 
     # Sanity check
@@ -483,7 +484,11 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
             )
 
     # Create an instance of AsymptoticBondiData
-    abd = AsymptoticBondiData(time=WM_ref.t, ell_max=WM_ref.ell_max, multiplication_truncator=max,)
+    abd = AsymptoticBondiData(
+        time=WM_ref.t,
+        ell_max=WM_ref.ell_max,
+        multiplication_truncator=max,
+    )
 
     # Define factors to convert between input waveform convention and Moreschi-Boyle convention
     conversion_factor = {
