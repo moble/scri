@@ -35,7 +35,7 @@ def mass_aspect(self, truncate_ell=max):
 
     """
     if callable(truncate_ell):
-        return -(self.psi2 + self.sigma.multiply(self.sigma.bar.dot, truncator=truncate_ell))
+        return -(self.psi2 + self.sigma.multiply(self.sigma.bar.dot, truncator=truncate_ell)).real
     elif truncate_ell:
         return -(
             self.psi2.truncate_ell(truncate_ell)
