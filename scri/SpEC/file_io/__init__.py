@@ -480,7 +480,7 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
         if not (WM_ref.t == WMs[i].t).all():
             raise ValueError(
                 f"All waveforms must share the same set of times. The data "
-                "for {list(WMs.keys())[i].data_type_string} has a different set of times."
+                f"for {list(WMs.keys())[i].data_type_string} has a different set of times."
             )
 
     # Create an instance of AsymptoticBondiData

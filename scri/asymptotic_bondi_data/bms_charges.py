@@ -14,7 +14,7 @@ def mass_aspect(self, truncate_ell=max):
 
     The Bondi mass aspect is given by
 
-        M = -Re(\\psi_2 + \\sigma * \\dot{\\bar{\\sigma}})
+        M = -ℜ{ψ₂ + σ ∂ₜσ̄}
 
     Note that the last term is a product between two fields.  If, for example, these both have
     ell_max=8, then their full product would have ell_max=16, meaning that we would go from
@@ -56,22 +56,31 @@ def charge_vector_from_aspect(charge):
 
 
 def bondi_rest_mass(self):
-    """Compute the rest mass from the Bondi four-momentum of the AsymptoticBondiData."""
+    """Compute the rest mass from the Bondi four-momentum"""
     four_momentum = self.bondi_four_momentum()
     rest_mass = np.sqrt(four_momentum[:, 0] ** 2 - np.sum(four_momentum[:, 1:] ** 2, axis=1))
     return rest_mass
 
 
 def bondi_four_momentum(self):
-    """Compute the Bondi four-momentum of the AsymptoticBondiData."""
+    """Compute the Bondi four-momentum
+
+    This is just the ell<2 component of the mass aspect, expressed as a four-vector.
+
+    """
     ell_max = 1  # Compute only the parts we need, ell<=1
     charge_aspect = self.mass_aspect(ell_max).view(np.ndarray)
     return charge_vector_from_aspect(charge_aspect)
 
 
 def bondi_angular_momentum(self, output_dimensionless=False):
-    """Compute the (total) Bondi angular momentum vector of the AsymptoticBondiData via
-    Eq. (8) in T. Dray (1985) [DOI:10.1088/0264-9381/2/1/002]."""
+    """Compute the total Bondi angular momentum vector
+    
+        i (ψ₁ + σ ðσ̄)
+
+    See Eq. (8) of Dray (1985) iopscience.iop.org/article/10.1088/0264-9381/2/1/002
+
+    """
     ell_max = 1  # Compute only the parts we need, ell<=1
     charge_aspect = (
         1j
@@ -81,7 +90,7 @@ def bondi_angular_momentum(self, output_dimensionless=False):
 
 
 def bondi_dimensionless_spin(self):
-    """Compute the dimensionless Bondi spin vector of the AsymptoticBondiData."""
+    """Compute the dimensionless Bondi spin vector"""
     N = self.bondi_boost_charge()
     J = self.bondi_angular_momentum()
     P = self.bondi_four_momentum()
@@ -100,9 +109,13 @@ def bondi_dimensionless_spin(self):
 
 
 def bondi_boost_charge(self):
-    """Compute the Bondi boost charge vector of the AsymptoticBondiData via Eq. (8)
-    in T. Dray (1985) [DOI:10.1088/0264-9381/2/1/002]. This gives the boost charge
-    corresponding to the boost with origin at t=0."""
+    """Compute the Bondi boost charge vector
+    
+        - [ψ₁ + σ ðσ̄ + ½ð(σ σ̄) - t ð ℜ{ψ₂ + σ ∂ₜσ̄}]
+
+    See Eq. (8) of Dray (1985) iopscience.iop.org/article/10.1088/0264-9381/2/1/002
+
+    """
     ell_max = 1  # Compute only the parts we need, ell<=1
     charge_aspect = -(
         self.psi1.truncate_ell(ell_max)
@@ -117,12 +130,13 @@ def bondi_boost_charge(self):
 
 
 def bondi_comoving_CoM_charge(self):
-    """Compute the comoving center-of-mass charge vector defined as:
+    """Compute the comoving center-of-mass charge vector
 
-        G^i = N^i + t*P^i
+        Gⁱ = Nⁱ + t Pⁱ = - [ψ₁ + σ ðσ̄ + ½ð(σ σ̄)]
 
-    where N^i is the boost charge and P^i is the momentum. See Eq. (3.4) and the
-    discussion in arXiv:1912.03164."""
+    where Nⁱ is the boost charge and Pⁱ is the momentum.  See Eq. (3.4) of arXiv:1912.03164.
+
+    """
     ell_max = 1  # Compute only the parts we need, ell<=1
     charge_aspect = -(
         self.psi1.truncate_ell(ell_max)
@@ -133,34 +147,43 @@ def bondi_comoving_CoM_charge(self):
 
 
 def supermomentum(self, supermomentum_def, **kwargs):
-    """Computes the supermomentum of the AsymptoticBondiData. Allows for several different definitions
-    of the supermomentum. These differences only apply to ell > 1 modes, so they do not affect the Bondi
-    four-momentum. See Eqs. (7-9) in arXiv:1404.2475 for the different supermomentum definitions and links
-    to further references.
+    """Compute the supermomentum
 
-    In the literature, there is an ambiguity of vocabulary. When it comes to other BMS charges, we clearly
-    distinuish between the "charge" and the "aspect". However, the term "supermomentum" is used for both.
-    Accordingly, this function provides two ways to compute the supermomentum.
+    This function allows for several different definitions of the
+    supermomentum.  These differences only apply to ell > 1 modes,
+    so they do not affect the Bondi four-momentum.  See
+    Eqs. (7-9) in arXiv:1404.2475 for the different supermomentum
+    definitions and links to further references.
 
-    1) By default, the supermomentum will be computed as:
+    In the literature, there is an ambiguity of vocabulary.  When
+    it comes to other BMS charges, we clearly distinuish between
+    the "charge" and the "aspect".  However, the
+    term "supermomentum" is used for both.  Accordingly, this
+    function provides two ways to compute the supermomentum.
 
-        \\Psi = \\psi_2 + \\sigma * \\dot{\\bar{\\sigma}} + f(\\theta,\\phi)
+    1) By default, the supermomentum will be computed as
 
-    2) By passing the option 'integrated=True', the supermomentum will instead be computed as:
+        Ψ = ψ₂ + σ ∂ₜσ̄ + f(θ, ϕ)
 
-        P_{\\ell,m} = - \\frac{1}{4\\pi} \int \\Psi(\\theta,\\phi) Y_{\\ell,m} (\\theta,\\phi) d\\Omega
+       (See below for the definitions of `f`.)
+
+    2) By passing the option `integrated=True`, the supermomentum
+       will instead be computed as
+
+        Pₗₘ = - (1/4π) ∫ Ψ(θ, ϕ) Yₗₘ(θ, ϕ) dΩ
 
     Parameters
     ----------
     supermomentum_def : str
-        The definition of the supermomentum to be computed. One of the following options (case insensitive)
-        can be specified:
-          * 'Bondi-Sachs' or 'BS'
-          * 'Moreschi' or 'M'
-          * 'Geroch' or 'G'
-          * 'Geroch-Winicour' or 'GW'
-    integrated : bool, default: False
-        If true, then return the integrated form of the supermomentum. See Eq. (6) in arXiv:1404.2475.
+        The definition of the supermomentum to be computed.  One of the
+        following (case-insensitive) options can be specified:
+          * 'Bondi-Sachs' or 'BS' for f = 0
+          * 'Moreschi' or 'M' for f = ð²σ̄
+          * 'Geroch' or 'G' for f = ½ (ð²σ̄ - ð̄²σ)
+          * 'Geroch-Winicour' or 'GW' for f = - ð̄²σ
+    integrated : bool, optional
+        If True, then return the integrated form of the supermomentum — see
+        Eq. (6) in arXiv:1404.2475.  Default is False
     working_ell_max: int, optional
         The value of ell_max to be used to define the computation grid. The
         number of theta points and the number of phi points are set to
@@ -171,7 +194,7 @@ def supermomentum(self, supermomentum_def, **kwargs):
     ModesTimeSeries
 
     """
-    return_integrated = kwargs.pop("integrated") if "integrated" in kwargs else False
+    return_integrated = kwargs.pop("integrated", False)
 
     if supermomentum_def.lower() in ["bondi-sachs", "bs"]:
         supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs)
