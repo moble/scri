@@ -163,8 +163,6 @@ def test_abd_kerr():
     tolerance = 1e-14
     # This is true beacuse we are in the center of momentum frame
     assert np.allclose(S * mass ** 2, angular_momentum, atol=tolerance, rtol=tolerance)
-    β = np.linalg.norm(v)
-    γ = 1 / np.sqrt(1 - β ** 2)
     abdprime = abd.transform(boost_velocity=v)
     S_prime = abdprime.bondi_dimensionless_spin()
     tolerance = 1e-14

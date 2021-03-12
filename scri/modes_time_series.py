@@ -156,7 +156,7 @@ class ModesTimeSeries(spherical_functions.Modes):
         working_ell_max: int, optional
             The value of ell_max to be used to define the computation grid. The
             number of theta points and the number of phi points are set to
-            2*working_ell_max+1. Defaults to 2*self.ell_max.
+            2*working_ell_max+1. Defaults to (self.ell_max + mts.ell_max).
         output_ell_max: int, optional
             The value of ell_max in the output mts object. Defaults to self.ell_max.
 
@@ -169,8 +169,8 @@ class ModesTimeSeries(spherical_functions.Modes):
         working_ell_max = kwargs.pop("working_ell_max", self.ell_max + mts.ell_max)
         n_theta = n_phi = 2 * working_ell_max + 1
 
-        if (self.t == mts.t).all():
-            n_times = self.n_times
+        if self.n_times != mts.n_times or not np.equal(self.t, mts.t).all():
+            raise ValueError("The time series of objects to be multiplied must be the same.")
 
         # Transform to grid representation
         self_grid = spinsfast.salm2map(
@@ -184,7 +184,7 @@ class ModesTimeSeries(spherical_functions.Modes):
         product_spin_weight = self.spin_weight + mts.spin_weight
 
         # Transform back to mode representation
-        product = spinsfast.map2salm(product_grid, product_spin_weight, lmax=working_ell_max - 1)
+        product = spinsfast.map2salm(product_grid, product_spin_weight, lmax=working_ell_max)
 
         # Convert product ndarray to a ModesTimeSeries object
         product = product[:, : LM_index(output_ell_max, output_ell_max, 0) + 1]

@@ -179,12 +179,8 @@ class AsymptoticBondiData:
         new_abd.psi0 = self.psi0.interpolate(new_times)
         # interpolate frame data if necessary
         if self.frame.shape[0] == self.n_times:
-            from scipy.interpolate import CubicSpline
             import quaternion
-
-            frame = quaternion.as_float_array(self.frame)
-            new_frame = CubicSpline(self.t, frame, axis=0)(new_times)
-            new_abd.frame = quaternion.as_quat_array(new_frame)
+            new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
         return new_abd
 
     from .from_initial_values import from_initial_values
