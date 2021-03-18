@@ -1,6 +1,8 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moble/scri/blob/master/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/scri/badge/?version=latest)](https://scri.readthedocs.io/en/latest/?badge=latest)
 ![pytest](https://github.com/moble/scri/workflows/pytest/badge.svg)
+[![release](https://img.shields.io/badge/release-v1.2-informational)](https://github.com/moble/scri/releases/tag/v1.2)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4041972.svg)](https://doi.org/10.5281/zenodo.4041972)
 
 Scri
 ====
@@ -11,7 +13,11 @@ spherical harmonics
 ## Citing this code
 
 If you use this code for academic work (I can't actually imagine any other use
-for it), please cite the papers for/by which it was produced:
+for it), please cite the latest version that you used in your publication. The DOI is:
+
+* DOI: [10.5281/zenodo.4041972](https://doi.org/10.5281/zenodo.4041972) ([BibTeX entry on Zenodo](https://zenodo.org/record/4041972/export/hx#.YFNpLe1KiV4))
+
+Also please cite the papers for/by which it was produced:
 
 * "Angular velocity of gravitational radiation from precessing binaries and the
   corotating frame", Boyle,
