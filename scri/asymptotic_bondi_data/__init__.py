@@ -205,6 +205,6 @@ class AsymptoticBondiData:
         bondi_angular_momentum,
         bondi_dimensionless_spin,
         bondi_boost_charge,
-        bondi_comoving_CoM_charge,
+        bondi_CoM_charge,
         supermomentum,
     )

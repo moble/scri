@@ -75,7 +75,7 @@ def bondi_four_momentum(self):
 
 def bondi_angular_momentum(self, output_dimensionless=False):
     """Compute the total Bondi angular momentum vector
-    
+
         i (ψ₁ + σ ðσ̄)
 
     See Eq. (8) of Dray (1985) iopscience.iop.org/article/10.1088/0264-9381/2/1/002
@@ -110,7 +110,7 @@ def bondi_dimensionless_spin(self):
 
 def bondi_boost_charge(self):
     """Compute the Bondi boost charge vector
-    
+
         - [ψ₁ + σ ðσ̄ + ½ð(σ σ̄) - t ð ℜ{ψ₂ + σ ∂ₜσ̄}]
 
     See Eq. (8) of Dray (1985) iopscience.iop.org/article/10.1088/0264-9381/2/1/002
@@ -129,8 +129,8 @@ def bondi_boost_charge(self):
     return charge_vector_from_aspect(charge_aspect)[:, 1:]
 
 
-def bondi_comoving_CoM_charge(self):
-    """Compute the comoving center-of-mass charge vector
+def bondi_CoM_charge(self):
+    """Compute the center-of-mass charge vector
 
         Gⁱ = Nⁱ + t Pⁱ = - [ψ₁ + σ ðσ̄ + ½ð(σ σ̄)]
 

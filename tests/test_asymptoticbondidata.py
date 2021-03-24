@@ -168,6 +168,6 @@ def test_abd_kerr():
     tolerance = 1e-14
     assert np.allclose(S_prime[-1], S[-1], atol=tolerance, rtol=tolerance)
     N = abdprime.bondi_boost_charge()
-    G = abdprime.bondi_comoving_CoM_charge()
+    G = abdprime.bondi_CoM_charge()
     P = abdprime.bondi_four_momentum()
     assert np.allclose(N, G - abdprime.t[:, np.newaxis] * P[:, 1:], atol=tolerance, rtol=tolerance)
