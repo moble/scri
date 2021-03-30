@@ -46,7 +46,17 @@ def mass_aspect(self, truncate_ell=max):
 
 
 def charge_vector_from_aspect(charge):
-    """Output the ell<=1 modes of a BMS charge aspect as the charge four-vector."""
+    """Output the ell<=1 modes of a BMS charge aspect as the charge four-vector.
+
+    Considering the aspect as a function a(θ, ϕ), we express the corresponding
+    four-vector in terms of Cartesian components as
+
+      vᵝ = (1/4π) ∫ ℜ{a} (tᵝ + rᵝ) dΩ
+
+    where the integral is taken over the 2-sphere, and tᵝ + rᵝ has components
+    (1, sinθ cosϕ, sinθ sinϕ, cosθ).
+
+    """
     four_vector = np.empty(charge.shape, dtype=float)
     four_vector[..., 0] = charge[..., 0].real
     four_vector[..., 1] = (charge[..., 1] - charge[..., 3]).real / sqrt(6)
