@@ -15,9 +15,10 @@ def kerr_schild(mass, spin, ell_max=8):
     psi1 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
     psi0 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
 
+    # In the Moreschi-Boyle convention
     psi2[0] = -sf.constant_as_ell_0_mode(mass)
-    psi1[2] = (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
-    psi0[6] = (3 * spin ** 2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
+    psi1[2] = -np.sqrt(2) * (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
+    psi0[6] = 2 * (3 * spin ** 2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
 
     return psi2, psi1, psi0
 
@@ -29,11 +30,14 @@ def test_abd_schwarzschild():
     psi2, psi1, psi0 = kerr_schild(mass, 0.0, ell_max)
     abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2)
     expected_four_momentum = np.array([mass, 0, 0, 0])
-    computed_four_momentum = abd.bondi_four_momentum
+    computed_four_momentum = abd.bondi_four_momentum()
+    expected_angular_momentum = np.zeros(3)
+    computed_angular_momentum = abd.bondi_angular_momentum()
     # print()
     # print(f"Expected four-momentum: {expected_four_momentum}")
     # print(f"Computed four-momentum: {computed_four_momentum}")
     assert np.allclose(computed_four_momentum, expected_four_momentum, atol=1e-14, rtol=1e-14)
+    assert np.allclose(computed_angular_momentum, expected_angular_momentum, atol=1e-14, rtol=1e-14)
     # print('Bondi-violation norms', abd.bondi_violation_norms)
 
 
@@ -108,13 +112,62 @@ def test_abd_schwarzschild_transform():
         u = np.linspace(0, 100, num=5000)
         psi2, psi1, psi0 = kerr_schild(mass, 0.0, ell_max)
         abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2)
+        rest_mass = abd.bondi_rest_mass()
         β = np.linalg.norm(v)
         γ = 1 / np.sqrt(1 - β ** 2)
         abdprime = abd.transform(boost_velocity=v)
-        transformed_four_momentum = abdprime.bondi_four_momentum
-        expected_four_momentum = mass * γ * np.array([1,] + v.tolist())
+        transformed_rest_mass = abdprime.bondi_rest_mass()
+        transformed_four_momentum = abdprime.bondi_four_momentum()
+        expected_four_momentum = mass * γ * np.array([1, *-v])
         # print()
         # print(f"v={v}, β={β}, γ={γ}, βγ={β*γ}")
         # print(f"Expected four-momentum:\n{expected_four_momentum}")
         # print(f"New four-momentum:\n{transformed_four_momentum}")
         assert np.allclose(expected_four_momentum, transformed_four_momentum, atol=tolerance, rtol=tolerance)
+        assert np.allclose(rest_mass[0], transformed_rest_mass, atol=tolerance, rtol=tolerance)
+
+
+def test_abd_bondi_angular_momentum():
+    tolerance = 1e-14
+    for v in [
+        np.array([0.1, 0.0, 0.0]),
+        np.array([0.0, 0.1, 0.0]),
+        np.array([0.1, 0.1, 0.1]),
+        np.array([0.0, 0.0, 0.1]),
+    ]:
+        mass = 1.0
+        spin = 0.456
+        ell_max = 8
+        u = np.linspace(0, 100, num=5000)
+        psi2, psi1, psi0 = kerr_schild(mass, spin, ell_max)
+        abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2, psi1=psi1)
+        β = np.linalg.norm(v)
+        γ = 1 / np.sqrt(1 - β ** 2)
+        abdprime = abd.transform(boost_velocity=v)
+        transformed_angular_momentum = abdprime.bondi_angular_momentum()
+        angular_momentum = abd.bondi_angular_momentum()[0]
+        expected_angular_momentum = γ * angular_momentum + (1 - γ) * np.dot(angular_momentum, v / β) * (v / β)
+        assert np.allclose(expected_angular_momentum, transformed_angular_momentum, atol=tolerance, rtol=tolerance)
+
+
+def test_abd_kerr():
+    v = np.array([0.085, -0.034, 0.1])
+    mass = 2.0
+    spin = 0.456
+    ell_max = 8
+    u = np.linspace(0, 100, num=5000)
+    psi2, psi1, psi0 = kerr_schild(mass, spin, ell_max)
+    abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2, psi1=psi1)
+    angular_momentum = abd.bondi_angular_momentum()
+    S = abd.bondi_dimensionless_spin()
+    tolerance = 1e-14
+    # This is true beacuse we are in the center of momentum frame
+    assert np.allclose(S * mass ** 2, angular_momentum, atol=tolerance, rtol=tolerance)
+    abdprime = abd.transform(boost_velocity=v)
+    S_prime = abdprime.bondi_dimensionless_spin()
+    tolerance = 1e-14
+    assert np.allclose(S_prime[-1], S[-1], atol=tolerance, rtol=tolerance)
+    N = abdprime.bondi_boost_charge()
+    G = abdprime.bondi_CoM_charge()
+    P = abdprime.bondi_four_momentum()
+    assert np.allclose(N, G - abdprime.t[:, np.newaxis] * P[:, 1:], atol=tolerance, rtol=tolerance)

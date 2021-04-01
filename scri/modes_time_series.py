@@ -60,6 +60,10 @@ class ModesTimeSeries(spherical_functions.Modes):
         self._metadata["time"][:] = new_time
         return self.time
 
+    @property
+    def n_times(self):
+        return self.time.size
+
     u = time
 
     t = time
@@ -121,6 +125,10 @@ class ModesTimeSeries(spherical_functions.Modes):
         return self.antiderivative(2)
 
     @property
+    def LM(self):
+        return spherical_functions.LM_range(self.ell_min, self.ell_max)
+
+    @property
     def eth_GHP(self):
         """Raise spin-weight with GHP convention"""
         return self.eth / np.sqrt(2)
@@ -129,3 +137,65 @@ class ModesTimeSeries(spherical_functions.Modes):
     def ethbar_GHP(self):
         """Lower spin-weight with GHP convention"""
         return self.ethbar / np.sqrt(2)
+
+    def grid_multiply(self, mts, **kwargs):
+        """Compute mode weights of the product of two functions
+
+        This will compute the values of `self` and `mts` on a grid, multiply the grid
+        values together, and then return the mode coefficients of the product.  This
+        takes less time and memory compared to the `SWSH_modes.Modes.multiply()`
+        function, at the risk of introducing aliasing effects if `working_ell_max` is
+        too small.
+
+        Parameters
+        ----------
+        self: ModesTimeSeries
+            One of the quantities to multiply.
+        mts: ModesTimeSeries
+            The quantity to multiply with 'self'.
+        working_ell_max: int, optional
+            The value of ell_max to be used to define the computation grid. The
+            number of theta points and the number of phi points are set to
+            2*working_ell_max+1. Defaults to (self.ell_max + mts.ell_max).
+        output_ell_max: int, optional
+            The value of ell_max in the output mts object. Defaults to self.ell_max.
+
+        """
+        import spinsfast
+        import spherical_functions as sf
+        from spherical_functions import LM_index
+
+        output_ell_max = kwargs.pop("output_ell_max", self.ell_max)
+        working_ell_max = kwargs.pop("working_ell_max", self.ell_max + mts.ell_max)
+        n_theta = n_phi = 2 * working_ell_max + 1
+
+        if self.n_times != mts.n_times or not np.equal(self.t, mts.t).all():
+            raise ValueError("The time series of objects to be multiplied must be the same.")
+
+        # Transform to grid representation
+        self_grid = spinsfast.salm2map(
+            self.ndarray, self.spin_weight, lmax=self.ell_max, Ntheta=n_theta, Nphi=n_phi
+        )
+        mts_grid = spinsfast.salm2map(
+            mts.ndarray, mts.spin_weight, lmax=mts.ell_max, Ntheta=n_theta, Nphi=n_phi
+        )
+
+        product_grid = self_grid * mts_grid
+        product_spin_weight = self.spin_weight + mts.spin_weight
+
+        # Transform back to mode representation
+        product = spinsfast.map2salm(product_grid, product_spin_weight, lmax=working_ell_max)
+
+        # Convert product ndarray to a ModesTimeSeries object
+        product = product[:, : LM_index(output_ell_max, output_ell_max, 0) + 1]
+        product = ModesTimeSeries(
+            sf.SWSH_modes.Modes(
+                product,
+                spin_weight=product_spin_weight,
+                ell_min=0,
+                ell_max=output_ell_max,
+                multiplication_truncator=max,
+            ),
+            time=self.t,
+        )
+        return product

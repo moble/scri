@@ -435,16 +435,12 @@ class WaveformModes(WaveformBase):
 
     @property
     def eth(self):
-        """Returns the spin-raised waveform mode data.
-
-        """
+        """Returns the spin-raised waveform mode data."""
         return self.apply_eth(operations="+")
 
     @property
     def ethbar(self):
-        """Returns the spin-lowered waveform mode data.
-
-        """
+        """Returns the spin-lowered waveform mode data."""
         return self.apply_eth(operations="-")
 
     def inner_product(self, b, t1=None, t2=None, allow_LM_differ=False, allow_times_differ=False):

@@ -1,7 +1,7 @@
-from math import sqrt, pi
 import numpy as np
 from spherical_functions import LM_total_size
 from .. import ModesTimeSeries
+from .. import Inertial
 
 
 class AsymptoticBondiData:
@@ -31,7 +31,7 @@ class AsymptoticBondiData:
 
     """
 
-    def __init__(self, time, ell_max, multiplication_truncator=sum):
+    def __init__(self, time, ell_max, multiplication_truncator=sum, frameType=Inertial):
         """Create new storage for asymptotic Bondi data
 
         Parameters
@@ -61,6 +61,8 @@ class AsymptoticBondiData:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
         ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
         shape = [6, time.size, LM_total_size(0, ell_max)]
+        self.frame = np.array([])
+        self.frameType = frameType
         self._time = time.copy()
         self._raw_data = np.zeros(shape, dtype=complex)
         self._psi0 = ModesTS(self._raw_data[0], self._time, spin_weight=2)
@@ -98,6 +100,10 @@ class AsymptoticBondiData:
     @property
     def ell_max(self):
         return self._psi2.ell_max
+
+    @property
+    def LM(self):
+        return self.psi2.LM
 
     @property
     def sigma(self):
@@ -153,56 +159,31 @@ class AsymptoticBondiData:
         self._psi0[:] = psi0prm
         return self.psi0
 
+    def copy(self):
+        import copy
+
+        new_abd = type(self)(self.t, self.ell_max)
+        state = copy.deepcopy(self.__dict__)
+        new_abd.__dict__.update(state)
+        return new_abd
+
+    def interpolate(self, new_times):
+        new_abd = type(self)(new_times, self.ell_max)
+        new_abd.frameType = self.frameType
+        # interpolate waveform data
+        new_abd.sigma = self.sigma.interpolate(new_times)
+        new_abd.psi4 = self.psi4.interpolate(new_times)
+        new_abd.psi3 = self.psi3.interpolate(new_times)
+        new_abd.psi2 = self.psi2.interpolate(new_times)
+        new_abd.psi1 = self.psi1.interpolate(new_times)
+        new_abd.psi0 = self.psi0.interpolate(new_times)
+        # interpolate frame data if necessary
+        if self.frame.shape[0] == self.n_times:
+            import quaternion
+            new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
+        return new_abd
+
     from .from_initial_values import from_initial_values
-
-    def mass_aspect(self, truncate_ell=max):
-        """Compute the Bondi mass aspect of the AsymptoticBondiData
-
-        The Bondi mass aspect is given by
-
-            \\Psi = \\psi_2 + \\eth \\eth \bar{\\sigma} + \\sigma * \\dot{\bar{\\sigma}}
-
-        Note that the last term is a product between two fields.  If, for example, these both have
-        ell_max=8, then their full product would have ell_max=16, meaning that we would go from
-        tracking 77 modes to 289.  This shows that deciding how to truncate the output ell is
-        important, which is why this function has the extra argument that it does.
-
-        Parameters
-        ==========
-        truncate_ell: int, or callable [defaults to `max`]
-            Determines how the ell_max value of the output is determined.  If an integer is passed,
-            each term in the output is truncated to have at most that ell_max.  (In particular,
-            terms that will not be used in the output are simply not computed, without incurring any
-            errors due to aliasing.)  If a callable is passed, it is passed on to the
-            spherical_functions.Modes.multiply method.  See that function's docstring for details.
-            The default behavior will result in the output having ell_max equal to the largest of
-            any of the individual Modes objects in the equation for \\Psi above -- but not the
-            product.
-
-        """
-        if callable(truncate_ell):
-            return self.psi2 + self.sigma.bar.eth.eth + self.sigma.multiply(self.sigma.bar.dot, truncator=truncate_ell)
-        elif truncate_ell:
-            return (
-                self.psi2.truncate_ell(truncate_ell)
-                + self.sigma.bar.eth.eth.truncate_ell(truncate_ell)
-                + self.sigma.multiply(self.sigma.bar.dot, truncator=lambda tup: truncate_ell)
-            )
-        else:
-            return self.psi2 + self.sigma.bar.eth.eth + self.sigma * self.sigma.bar.dot
-
-    @property
-    def bondi_four_momentum(self):
-        """Compute the Bondi four-momentum of the AsymptoticBondiData"""
-        import spherical_functions as sf
-
-        P_restricted = -self.mass_aspect(1).view(np.ndarray) / sqrt(4 * pi)  # Compute only the parts we need, ell<=1
-        four_momentum = np.empty(P_restricted.shape, dtype=float)
-        four_momentum[..., 0] = P_restricted[..., 0].real
-        four_momentum[..., 1] = (P_restricted[..., 3] - P_restricted[..., 1]).real / sqrt(6)
-        four_momentum[..., 2] = (1j * (P_restricted[..., 3] + P_restricted[..., 1])).real / sqrt(6)
-        four_momentum[..., 3] = -P_restricted[..., 2].real / sqrt(3)
-        return four_momentum
 
     from .constraints import (
         bondi_constraints,
@@ -217,3 +198,13 @@ class AsymptoticBondiData:
     )
 
     from .transformations import transform
+    from .bms_charges import (
+        mass_aspect,
+        bondi_rest_mass,
+        bondi_four_momentum,
+        bondi_angular_momentum,
+        bondi_dimensionless_spin,
+        bondi_boost_charge,
+        bondi_CoM_charge,
+        supermomentum,
+    )
