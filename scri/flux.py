@@ -3,6 +3,7 @@
 
 import functools
 import numpy as np
+import numba
 from spherical_functions import clebsch_gordan as CG
 from . import jit
 
@@ -68,7 +69,7 @@ def sparse_expectation_value(abar, rows, columns, values, b):
     """
     n_times = abar.shape[0]
     n_elements = rows.shape[0]
-    expectation_value = np.zeros(n_times, dtype=complex)
+    expectation_value = np.zeros(n_times, dtype=numba.complex128)
     for i_time in range(n_times):
         for i_element in range(n_elements):
             expectation_value[i_time] += (
