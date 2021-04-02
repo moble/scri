@@ -68,7 +68,7 @@ def sparse_expectation_value(abar, rows, columns, values, b):
     """
     n_times = abar.shape[0]
     n_elements = rows.shape[0]
-    expectation_value = np.zeros(n_times, dtype=np.complex_)
+    expectation_value = np.zeros(n_times, dtype=complex)
     for i_time in range(n_times):
         for i_element in range(n_elements):
             expectation_value[i_time] += (

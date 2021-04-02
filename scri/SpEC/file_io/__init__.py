@@ -250,7 +250,7 @@ def read_from_h5(file_name, **kwargs):
                     f"The number of time steps in this dataset should be {n_times}; "
                     + "it is {} in '{}'.".format(f[DataSet].shape[0], DataSet)
                 )
-            w.data[:, m] = f[DataSet][:, 1:3].view(dtype=np.complex)[monotonic, 0]
+            w.data[:, m] = f[DataSet][:, 1:3].view(dtype=complex)[monotonic, 0]
 
         # Now that the data is set, we can set these
         w.ells = ell_min, ell_max

@@ -228,7 +228,7 @@ def load(file_name, ignore_validation=False):
 
         # Read the data
         time = f["time"][:].view(np.float64)
-        modes = f["modes"][:].view(np.complex128)
+        modes = f["modes"][:].view(complex)
         ell_min = f["modes"].attrs["ell_min"]
         ell_max = f["modes"].attrs["ell_max"]
         if "log_frame" in f:

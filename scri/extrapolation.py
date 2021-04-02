@@ -249,7 +249,7 @@ def read_finite_radius_waveform(
         Ws[n] = scri.WaveformModes(
             t=T / ChMass,
             # frame=,  # not set because we assume the inertial frame below
-            data=np.zeros((NTimes, NModes), dtype=np.complex),
+            data=np.zeros((NTimes, NModes), dtype=complex),
             history=[construction],
             version_hist=VersionHist,
             frameType=scri.Inertial,  # Assumption! (but this should be safe)

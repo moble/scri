@@ -75,7 +75,7 @@ class ModesTimeSeries(spherical_functions.Modes):
                 raise ValueError(
                     f"Output array should have shape {new_shape} for consistency with new time array and modes array"
                 )
-            if out.dtype != np.complex:
+            if out.dtype != complex:
                 raise ValueError(f"Output array should have dtype `complex`; it has dtype {out.dtype}")
         result = out or np.empty(new_shape, dtype=complex)
         if derivative_order > 3:
