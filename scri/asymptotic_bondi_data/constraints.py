@@ -12,10 +12,15 @@ def bondi_constraints(self, lhs=True, rhs=True):
     Bondi gauge establishes some relations that the data must satisfy:
 
         ψ̇₀ = ðψ₁ + 3 σ ψ₂
+
         ψ̇₁ = ðψ₂ + 2 σ ψ₃
+
         ψ̇₂ = ðψ₃ + 1 σ ψ₄
+
         ψ₃ = -∂ðσ̄/∂u
+
         ψ₄ = -∂²σ̄/∂u²
+
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
     This function returns a 6-tuple of 2-tuples, corresponding to these 6 equations
@@ -39,10 +44,15 @@ def bondi_violations(self):
     Bondi gauge establishes some relations that the data must satisfy:
 
         ψ̇₀ = ðψ₁ + 3 σ ψ₂
+
         ψ̇₁ = ðψ₂ + 2 σ ψ₃
+
         ψ̇₂ = ðψ₃ + 1 σ ψ₄
+
         ψ₃ = -∂ðσ̄/∂u
+
         ψ₄ = -∂²σ̄/∂u²
+
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
     This function returns a tuple of 6 arrays, corresponding to these 6 equations,
@@ -61,10 +71,15 @@ def bondi_violation_norms(self):
     Bondi gauge establishes some relations that the data must satisfy:
 
         ψ̇₀ = ðψ₁ + 3 σ ψ₂
+
         ψ̇₁ = ðψ₂ + 2 σ ψ₃
+
         ψ̇₂ = ðψ₃ + 1 σ ψ₄
+
         ψ₃ = -∂ðσ̄/∂u
+
         ψ₄ = -∂²σ̄/∂u²
+
         Im[ψ₂] = -Im[ð²σ̄ + σ ∂σ̄/∂u]
 
     This function returns a tuple of 6 arrays, corresponding to the norms of these
