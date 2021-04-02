@@ -4,6 +4,7 @@
 import numpy as np
 import quaternion
 import spinsfast
+import scri
 from numpy import *
 import pytest
 
@@ -27,8 +28,6 @@ def silly_momentum_flux(h):
     arrive at the result that would be achieved by integrating over the sphere.
 
     """
-    import spinsfast
-
     hdot = h.data_dot
     zeros = np.zeros((hdot.shape[0], 4), dtype=hdot.dtype)
     data = np.concatenate((zeros, hdot), axis=1)  # Pad with zeros for spinsfast
@@ -62,8 +61,6 @@ def silly_angular_momentum_flux(h, hdot=None):
     methods used in the main code.
 
     """
-    import spinsfast
-
     hdot = hdot or h.data_dot
     zeros = np.zeros((hdot.shape[0], 4), dtype=hdot.dtype)
     data = np.concatenate((zeros, hdot), axis=1)  # Pad with zeros for spinsfast
@@ -119,9 +116,6 @@ def silly_angular_momentum_flux(h, hdot=None):
 
 
 def test_momentum_flux():
-    import numpy as np
-    import scri
-
     h = scri.sample_waveforms.fake_precessing_waveform(t_1=1_000.0)
     pdot1 = silly_momentum_flux(h)
     pdot2 = scri.momentum_flux(h)
@@ -129,9 +123,6 @@ def test_momentum_flux():
 
 
 def test_angular_momentum_flux():
-    import numpy as np
-    import scri
-
     h = scri.sample_waveforms.fake_precessing_waveform(t_1=1_000.0)
     jdot1 = silly_angular_momentum_flux(h)
     jdot2 = scri.angular_momentum_flux(h)
@@ -139,18 +130,12 @@ def test_angular_momentum_flux():
     
 
 def test_boost_flux():
-    import numpy as np
-    import scri
     from quaternion import rotate_vectors    
-     
-    h = scri.sample_waveforms.single_mode(ell = 8, m = 5)
-    # Any mode can be used to implement this. 
-    R = np.quaternion(1,1,1,1).normalized()
+
+    h = scri.sample_waveforms.single_mode(ell=8, m=5)  # Any mode can be used to implement this
+    R = np.quaternion(1, 4, 3, 2).normalized()
     A = h.boost_flux()
-    
     for i in range(len(A)):
-        A[i,:] = rotate_vectors(R,A[i,:],axis = -1)
-        
+        A[i, :] = rotate_vectors(R, A[i,:], axis=-1)
     B = (h.rotate_decomposition_basis(~R)).boost_flux()
     assert np.allclose(A, B, rtol=1e-13, atol=1e-13)
-    

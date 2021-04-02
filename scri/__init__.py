@@ -193,4 +193,3 @@ __all__ = [
     "m_sun_in_seconds",
     "parsec_in_meters",
 ]
-

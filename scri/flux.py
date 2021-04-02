@@ -3,17 +3,19 @@
 
 import functools
 import numpy as np
-from . import jit
 from spherical_functions import clebsch_gordan as CG
+from . import jit
+
 
 def swsh_indices_to_matrix_indices(matrix_iterator):
-    """Convert SWSH-indexed function into caching sparse matrix-indexed function.
+    """Convert SWSH-indexed function into caching sparse matrix-indexed function
 
-    This function is designed to decorate functions with signature (ell_min, ell_max) that yield
-    tuples of (ellp, mp, ell, m, value), and convert them into functions with the same signature but
-    returning tuples of (rows, columns, values).  Here, the rows are row indices of a matrix,
-    corresponding to the (ellp, mp) in standard `spherical_functions` order.  Similarly the columns
-    are column indices corresponding to (ell, m).  The result can be passed into the
+    This function is designed to decorate functions with signature (ell_min,
+    ell_max) that yield tuples of (ellp, mp, ell, m, value), and convert them into
+    functions with the same signature but returning tuples of (rows, columns,
+    values).  Here, the rows are row indices of a matrix, corresponding to the
+    (ellp, mp) in standard `spherical_functions` order.  Similarly the columns are
+    column indices corresponding to (ell, m).  The result can be passed into the
     `sparse_expectation_value` function.
 
     """
@@ -36,16 +38,16 @@ def swsh_indices_to_matrix_indices(matrix_iterator):
 
 @jit
 def sparse_expectation_value(abar, rows, columns, values, b):
-    """Low-level numba-friendly helper function for the main
-    calculation of `matrix_expectation_value`.
+    """Helper function for the main calculation of `matrix_expectation_value`
 
-    Computes <a|M|b>, assuming that <a| and |b> have the same shapes, and that (rows, columns,
-    values) are corresponding arrays containing the nonzero elements of the matrix M.
+    Computes ⟨a|M|b⟩, assuming that ⟨a| and |b⟩ have the same shapes, and that
+    (rows, columns, values) are corresponding arrays containing the nonzero
+    elements of the matrix M.
 
     Parameters
     ----------
     abar : ndarray
-        The data for <a| (after complex conjugation was applied).
+        The data for ⟨a| (after complex conjugation was applied).
 
     rows, columns : list
         Lists of same length, containing indices into (respectively)
@@ -57,7 +59,7 @@ def sparse_expectation_value(abar, rows, columns, values, b):
         be summed.
 
     b : ndarray
-        The data for |b>. Must have the same shape as abar.
+        The data for |b⟩. Must have the same shape as abar.
 
     Returns
     -------
@@ -76,21 +78,21 @@ def sparse_expectation_value(abar, rows, columns, values, b):
 
 
 def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=False):
-    r"""The matrix expectation value <a|M|b>(u), where M is a linear operator.
+    """The matrix expectation value ⟨a|M|b⟩(u), where M is a linear operator
 
     Treat two spin-s waveforms a, b (in the modal representation) as vectors.
     Then we can form the 'expectation value'
 
-    .. math:: <a|M|b>(u) \equiv \sum_{\ell', m', \ell, m} a^*_{\ell' m'}(u) M_{\ell' m' \ell m} b_{\ell m}(u) \,.
+      ⟨a|M|b⟩(u) ≡ ∑ⱼₙₗₘ āⱼₙ(u) Mⱼₙₗₘ bₗₘ(u).
 
-    For efficiency with sparse matrices, M should be implemented as a
-    generator which yields tuples (ellp, mp, ell, m, M_{ellp mp ell m})
-    for only the non-vanishing matrix elements.
+    For efficiency with sparse matrices, M should be implemented as a generator
+    which yields tuples (j, n, l, m, Mⱼₙₗₘ) for only the non-vanishing matrix
+    elements.
 
     Parameters
     ----------
     a : WaveformModes object
-        The waveform |a>. This function is "antilinear" in `a`.
+        The waveform |a⟩. This function is "antilinear" in `a`.
 
     M : callable
         M will be called like
@@ -101,7 +103,7 @@ def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=
         for only the non-vanishing matrix elements of M.
 
     b : WaveformModes object
-        The waveform |b>. This function is linear in `b`.
+        The waveform |b⟩. This function is linear in `b`.
 
     allow_LM_differ : bool, optional [default: False]
         If True and if the set of (ell,m) modes between a and b
@@ -118,7 +120,7 @@ def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=
     times, expect_val : ndarray, complex ndarray
         Resulting tuple has length two.  The first element is the set
         of times u for the timeseries.  The second element is the
-        timeseries of <a|M|b>(u).
+        timeseries of ⟨a|M|b⟩(u).
 
     """
     from .extrapolation import intersection
@@ -179,7 +181,8 @@ def matrix_expectation_value(a, M, b, allow_LM_differ=False, allow_times_differ=
 def energy_flux(h):
     """Compute energy flux from waveform
 
-    This implements Eq. (2.8) from Ruiz+ (2008) [0707.4654].
+    This implements Eq. (2.8) from Ruiz et al. (2008) [0707.4654].
+
     """
     from .waveform_modes import WaveformModes
     from . import h as htype
@@ -208,22 +211,25 @@ def energy_flux(h):
 
 @swsh_indices_to_matrix_indices
 def p_z(ell_min, ell_max, s=-2):
-    """Generator for p^z matrix elements (for use with matrix_expectation_value)
+    """Generator for pᶻ matrix elements (for use with `matrix_expectation_value`)
 
     This function is specific to the case where waveforms have s=-2.
 
-    p^z = \\cos\theta = 2 \\sqrt{\\pi/3} Y_{1,0}
-    This is what Ruiz+ (2008) [0707.4654] calls "l^z", which is a bad name.
+      pᶻ = cosθ = 2 √(π/3) Y₁₀
+
+    This is what Ruiz et al. (2008) [0707.4654] call "lᶻ".
 
     The matrix elements yielded are
-    < s, ellp, mp | \\cos\theta | s, ell, m > =
-      \\sqrt{ \frac{2*ell+1}{2*ellp+1} } *
-      < ell, m, 1, 0 | ellp, m > < ell, -s, 1, 0 | ellp, -s >
-    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
-    Because of the magnetic selection rules, we only have mp == m
 
-    We could have used `_swsh_Y_mat_el` but I am just preemptively
-    combining the prefactors.
+      ⟨s,j,n|cosθ|s,l,m⟩ = √[(2l+1)/(2j+1)] ⟨l,m,1,0|j,m⟩ ⟨l,-s,1,0|j,-s⟩
+
+    where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
+    Because of the magnetic selection rules, we only have nonzero elements for
+    n==m.
+
+    We could have used `_swsh_Y_mat_el` but I am just preemptively combining the
+    prefactors.
+
     """
 
     for ell in range(ell_min, ell_max + 1):
@@ -243,13 +249,14 @@ def p_z(ell_min, ell_max, s=-2):
 def p_plusminus(ell_min, ell_max, sign, s=-2):
     """Produce the function p_plus or p_minus, based on sign.
 
-      p^+ = -\\sqrt{8 \\pi / 3} Y_{1,+1} = \\sin\theta e^{+i\\phi}
-      p^- = +\\sqrt{8 \\pi / 3} Y_{1,-1} = \\sin\theta e^{-i\\phi}
+      p⁺ = -√(8π/3) Y₁₊₁ = sinθ exp[+iϕ]
+      p⁻ = +√(8π/3) Y₁₋₁ = sinθ exp[-iϕ]
 
-    This is what Ruiz+ (2008) [0707.4654] calls "l^±", which is a confusing name.
+    These are what Ruiz et al. (2008) [0707.4654] call "l⁺" and "l⁻".
 
-    We use `swsh_Y_mat_el` to compute the matrix elements.  Notice that since the operator has
-    definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
+    We use `swsh_Y_mat_el` to compute the matrix elements.  Notice that since the
+    operator has definite m=±1, we only have mp==m±1 nonvanishing in the
+    matrix elements.
 
     """
 
@@ -259,21 +266,22 @@ def p_plusminus(ell_min, ell_max, sign, s=-2):
     prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
 
     def swsh_Y_mat_el(s, l3, m3, l1, m1, l2, m2):
-        """Compute a matrix element treating Y_{\\ell, m} as a linear operator
+        """Compute a matrix element treating Yₗₘ as a linear operator
 
         From the rules for the Wigner D matrices, we get the result that
-        <s, l3, m3 | Y_{l1, m1} | s, l2, m2 > =
-          \\sqrt{ \frac{(2*l1+1)(2*l2+1)}{4*\\pi*(2*l3+1)} } *
-          < l1, m1, l2, m2 | l3, m3 > < l1, 0, l2, −s | l3, −s >
-        where the terms on the last line are the ordinary Clebsch-Gordan coefficients.
-        See e.g. Campbell and Morgan (1971).
+
+          ⟨s,l₃,m₃|Yₗ₁ₘ₁|s,l₂,m₂⟩ =
+            √[(2l₁+1)(2l₂+1)/(4π(2l₃+1))] ⟨l₁,m₁,l₂,m₂|l₃,m₃⟩ ⟨l₁,0,l₂,−s|l₃,−s⟩
+
+        where the terms on the last line are the ordinary Clebsch-Gordan
+        coefficients.  See, e.g., Campbell and Morgan (1971).
+
         """    	
-        
         cg1 = CG(l1, m1, l2, m2, l3, m3)
         cg2 = CG(l1, 0.0, l2, -s, l3, -s)
 
         return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-	
+
     for ell in range(ell_min, ell_max + 1):
         ellp_min = max(ell_min, ell - 1)
         ellp_max = min(ell_max, ell + 1)
@@ -294,8 +302,8 @@ p_minus.__doc__ = p_plusminus.__doc__
 def momentum_flux(h):
     """Compute momentum flux from waveform
 
-    This implements Eq. (2.11) from Ruiz+ (2008) [0707.4654] by using `matrix_expectation_value`
-    with `p_z`, `p_plus`, and `p_minus`.
+    This implements Eq. (2.11) from Ruiz et al. (2008) [0707.4654] by using
+    `matrix_expectation_value` with `p_z`, `p_plus`, and `p_minus`.
 
     """
     from .waveform_modes import WaveformModes
@@ -335,13 +343,13 @@ def momentum_flux(h):
 
 @swsh_indices_to_matrix_indices
 def j_z(ell_min, ell_max):
-    r"""Generator for j^z matrix elements (for use with matrix_expectation_value)
+    r"""Generator for jᶻ matrix elements (for use with matrix_expectation_value)
 
     Matrix elements yielded are
 
-      <ellp, mp|j^z|ell, m> = 1.j * m \delta_{ellp ell} \delta_{mp, m}
+      ⟨j,n|jᶻ|l,m⟩ = i m δⱼₗ δₙₘ
 
-    This follows the convention for j^z from Ruiz+ (2008) [0707.4654]
+    This follows the convention for jᶻ from Ruiz et al. (2008) [0707.4654]
 
     """
     for ell in range(ell_min, ell_max + 1):
@@ -353,12 +361,14 @@ def j_z(ell_min, ell_max):
 def j_plusminus(ell_min, ell_max, sign):
     r"""Produce the function j_plus or j_minus, based on sign.
 
-    The conventions for these matrix elements, to agree with Ruiz+ (2008) [0707.4654], should be:
+    The conventions for these matrix elements, to agree with Ruiz et al. (2008)
+    [0707.4654], should be:
 
-      <ellp, mp|j^+|ell, m> = 1.j * np.sqrt((l-m)(l+m+1)) \delta{ellp, ell} \delta{mp, (m+1)}
-      <ellp, mp|j^-|ell, m> = 1.j * np.sqrt((l+m)(l-m+1)) \delta{ellp, ell} \delta{mp, (m-1)}
+      ⟨j,n|j⁺|l,m⟩ = i √[(l-m)(l+m+1)] δⱼₗ δₙₘ₊₁
+      ⟨j,n|j⁻|l,m⟩ = i √[(l+m)(l-m+1)] δⱼₗ δₙₘ₋₁
 
-    The spinsfast function ladder_operator_coefficient(l, m) gives np.sqrt((l-m)(l+m+1)).
+    The spinsfast function `ladder_operator_coefficient(l, m)` gives
+    √[(l-m)(l+m+1)].
 
     """
     from spherical_functions import ladder_operator_coefficient as ladder
@@ -383,8 +393,9 @@ j_minus.__doc__ = j_plusminus.__doc__
 def angular_momentum_flux(h, hdot=None):
     """Compute angular momentum flux from waveform
 
-    This implements Eq. (2.24) from Ruiz+ (2008) [0707.4654] by using `matrix_expectation_value`
-    with (internal) helper functions `j_z`, `j_plus`, and `j_minus`.
+    This implements Eq. (2.24) from Ruiz et al. (2008) [0707.4654] by using
+    `matrix_expectation_value` with (internal) helper functions `j_z`, `j_plus`, and
+    `j_minus`.
 
     """
     from .waveform_modes import WaveformModes
@@ -429,53 +440,51 @@ def angular_momentum_flux(h, hdot=None):
     return jdot
 
 
-# Boost flux is analytically calculated using the Wald & Zoupas formalism.
-# Flanagan and Nichols [1510.03386] is referred for the calculation.
-# Then, the NP formalism is implemented to make it computationally feasible.
-# The conventions of Ruiz+ (2008) [0707.4654] are followed.
-
-# The expressions for Boost flux in the GHP formalism is
-# boost_flux(h) = \\frac{-1}{32 \\pi} ( \\frac{1}{8}[<\ethbar N|\chi|\ethbar h> - <\eth N|\chi|\eth h>
-# + <\ethbar h|\chi|\ethbar N>  -<\eth h|\chi|\eth N> + 6 <N|\chi|h> + 6 <h|\chi|N> ]
-# -\\frac{1}{4} [<\eth N|\eth \chi|h> + <h |\ethbar \chi |\eth N>] - \\frac{u}{2}<N|\chi|N> )
-
-# h and N has the spin weight of s = -2
-# \chi represents l=1, s=0 spherical harmonics. It is the function that characterizes the boost.
-# \chi has spin weight s = 0.
-# \eth and \ethbar are spin raising and lowering operators.
-
-# The matrix elements for most of the terms are identical to p_z and p_plusminus matrix elements,
-# except that input for s is different. Ex. <\ethbar N|\chi|\ethbar h> will have s = -3.
-# There are two terms <\eth N|\eth \chi|h> & <h |\ethbar \chi |\eth N>
-# for which matrix elements have been defined below.
-
-# Starting with the z direction, the matrix element has been computed analytically,
-# and defined here.
-
-
-
 def boost_flux(h, hdot=None):
     """Computes the boost flux from the waveform.
-    
-    This implements Eq. (C.1) from Flanagan & Nichols (2016) [1510.03386] for the boost vector field.
-    
-    """
 
+    This implements Eq. (C.1) from Flanagan & Nichols (2016) [1510.03386] for the
+    boost vector field.
+
+    Notes
+    -----
+    Boost flux is analytically calculated using the Wald & Zoupas formalism,
+    following the calculation by Flanagan & Nichols [1510.03386].  Then, the NP
+    formalism is implemented to make it computationally feasible.  The conventions
+    of Ruiz et al. (2008) [0707.4654] are followed.
+
+    The expression for boost flux is
+
+      boost_flux(h) = (-1/32π) (
+        (1/8) [⟨ð̄N|χ|ð̄h⟩ - ⟨ðN|χ|ðh⟩ + ⟨ð̄h|χ|ð̄N⟩ - ⟨ðh|χ|ðN⟩ + 6⟨N|χ|h⟩ + 6⟨h|χ|N⟩]
+        - (1/4) [⟨ðN|ðχ|h⟩ + ⟨h|ð̄χ|ðN⟩]
+        - (u/2) ⟨N|χ|N⟩
+      )
+
+    h and N have spin weight s=-2.  χ is an l=1, s=0 function characterizing the
+    direction of the boost.  ð and ð̄ are spin raising and lowering operators.
+
+    The matrix elements for most of the terms are identical to pᶻ, p⁺, and p⁻
+    matrix elements, except that input for s is different.  For example, ⟨ð̄N|χ|ð̄h⟩
+    will have s = -3.  There are two terms ⟨ðN|ðχ|h⟩ and ⟨h|ð̄χ|ðN⟩ for which matrix
+    elements have been defined below.
+
+    """
     from .waveform_modes import WaveformModes
     from . import h as htype
     from . import hdot as hdottype
 
-# We start with defining matrix elements that are not present already in this code.
+    # We start by defining matrix elements that are not present already in this code.
 
     @swsh_indices_to_matrix_indices
     def eth_chi_z(ell_min, ell_max, s=-2):
-        """Generator for the matrix element <\\eth N|\\eth \\chi|h> in the z direction.
-           For the z direction \\chi is m = 0 spherical harmonic function.
-    
-           <\\eth N|\\eth \\chi|h> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
-                                           <ell,-s,1,-1|ellp,-1-s> *<ell,m,1,0|ellp,m>
-        """
+        """Generator for the matrix element ⟨ðN|ðχ|h⟩ in the z direction
 
+        For the z direction χ is an m = 0 function.  The matrix element is
+
+          √[(6/4π) ((2l+1)/(2j+1))] ⟨l,-s,1,-1|j,-1-s⟩ ⟨l,m,1,0|j,m⟩
+
+        """
         for ell in range(ell_min, ell_max + 1):
             ellp_min = max(ell_min, ell - 1)
             ellp_max = min(ell_max, ell + 1)
@@ -485,19 +494,18 @@ def boost_flux(h, hdot=None):
                 for m in range(-ell, ell + 1):
                     if (m < -ellp) or (m > ellp):
                         continue
-                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)                
+                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)
                     yield ellp, m, ell, m, (prefac * cg1 * cg2)
-
 
     @swsh_indices_to_matrix_indices
     def ethbar_chi_z(ell_min, ell_max, s=-2):
-        """Generator for the matrix element <h|\\ethbar \\chi|\\eth N> in the z direction.
-           For the z direction \\chi is m = 0 spherical harmonic function.
-    
-           <h|\\ethbar \\chi|\\eth N> = \\sqrt{[2*(3/(4*\\pi))*(\frac{2 ell+1}{2 ellp+1})]} *
-                                           <ell,-s-1,1,1|ellp,-s> *<ell,m,1,0|ellp,m>
+        """Generator for the matrix element ⟨h|ð̄χ|ðN⟩ in the z direction
+
+        For the z direction χ is an m = 0 function.  The matrix element is
+
+          √[(6/4π) ((2l+1)/(2j+1))] ⟨l,-s-1,1,1|j,-s⟩ ⟨l,m,1,0|j,m⟩
+
         """
- 
         for ell in range(ell_min, ell_max + 1):
             ellp_min = max(ell_min, ell - 1)
             ellp_max = min(ell_max, ell + 1)
@@ -507,40 +515,38 @@ def boost_flux(h, hdot=None):
                 for m in range(-ell, ell + 1):
                     if (m < -ellp) or (m > ellp):
                         continue
-                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)                
+                    cg1 = np.sqrt(2) * CG(ell, m, 1, 0, ellp, m)
                     yield ellp, m, ell, m, (prefac * cg1 * cg2)
 
-
-# Flux components in the x and y direction can be obtained in the plusminus basis.
-# plus and minus corresponds to the value taken by m as +1 and -1 respectively.
-# Change of basis will give the x and y component.
-
+    # Flux components in the x and y direction can be obtained in the plusminus
+    # basis.  plus and minus corresponds to the value taken by m as +1 and -1
+    # respectively.  Change of basis will give the x and y component.
 
     @swsh_indices_to_matrix_indices
     def eth_chi_plusminus(ell_min, ell_max, sign, s=-2):
-        """Compute the <\\eth N|\\eth \\chi|h> matrix element based on the sign.
-        Plus and Minus sign corresponds to the value taken by m = ±1.
-        Because \\chi is l = 1 spherical harmonic function.
-    
-        The analytical expression is:
-           <\\eth N|\\eth \\chi|h> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,-1,l2,-s|l3,-1-s>*<l1,m1,l2,m2|l3,m3>
-    
-        We use `mat_el_eth_chi` to compute the matrix elements.
-        Notice that since the operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
+        """Compute the ⟨ðN|ðχ|h⟩ matrix element based on the sign
+
+        Plus and minus sign corresponds to the value taken by m=±1.
+
+        χ is an l=1 function, and the matrix element is
+
+          √[2(2l₁+1)(2l₂+1)/(4π(2l₃+1))] ⟨l₁,-1,l₂,-s|l₃,-1-s⟩ ⟨l₁,m₁,l₂,m₂|l₃,m₃⟩
+
+        We use `mat_el_eth_chi` to compute the matrix elements.  Note that since
+        the operator has definite m=±1, we only have mp==m±1 nonvanishing in the
+        matrix elements.
+
         """
-    
         if (sign != 1) and (sign != -1):
             raise ValueError("sign must be either 1 or -1 in eth_N_eth_chi_h_plusminus")
-    
+
         prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
-    
+
         def mat_el_eth_chi(s, l3, m3, l1, m1, l2, m2):
-    
             cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
             cg2 = CG(l1, -1.0, l2, -s, l3, -1 - s)
-    
             return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-    
+
         for ell in range(ell_min, ell_max + 1):
             ellp_min = max(ell_min, ell - 1)
             ellp_max = min(ell_max, ell + 1)
@@ -550,39 +556,35 @@ def boost_flux(h, hdot=None):
                     if (mp < -ellp) or (mp > ellp):
                         continue
                     yield (ellp, mp, ell, m, (prefac * mat_el_eth_chi(s, ellp, mp, 1.0, sign, ell, m)))
-    
-    
+
     eth_chi_plus = functools.partial(eth_chi_plusminus, sign=+1)
     eth_chi_minus = functools.partial(eth_chi_plusminus, sign=-1)
     eth_chi_plus.__doc__ = eth_chi_plusminus.__doc__
     eth_chi_minus.__doc__ = eth_chi_plusminus.__doc__
-    
-    
+
     @swsh_indices_to_matrix_indices
     def ethbar_chi_plusminus(ell_min, ell_max, sign, s=-2):
-        """Compute the <h|\\eth \\chi|\\eth N> matrix element depending on the sign.
-        Plus and Minus sign corresponds to the value taken by m = ±1.
-        Because \\chi is l = 1 spherical harmonic function.
-    
-        The analytical expression is:
-            <h|\\eth \\chi|\\eth N> = \\sqrt{\frac{(2*l1+1)*(2*l2+1)}{4*\\pi*(2*l3+1})}*\\sqrt{2}*<l1,1,l2,-1-s|l3,-s>*<l1,m1,l2,m2|l3,m3>
-    
-        We use `mat_el_ethbar_chi` to compute the matrix elements.
-        The operator has definite m = ±1, we only have mp == m ± 1 nonvanishing in the matrix elements.
+        """Compute the ⟨h|ðχ|ðN⟩ matrix element depending on the sign.
+
+        Plus and minus sign corresponds to the value taken by m=±1.  Because χ is an
+        l=1 function the analytical expression is
+
+            √[2(2l₁+1)(2l₂+1)/(4π(2l₃+1))] ⟨l₁,1,l₂,-1-s|l₃,-s⟩ ⟨l₁,m₁,l₂,m₂|l₃,m₃⟩
+
+        We use `mat_el_ethbar_chi` to compute the matrix elements.  The operator has
+        definite m=±1, so we only have mp==m±1 nonvanishing in the matrix elements.
+
         """
-    
         if (sign != 1) and (sign != -1):
             raise ValueError("sign must be either 1 or -1 in h_ethbar_chi_eth_N_plusminus")
-    
+
         prefac = -1.0 * sign * np.sqrt(8.0 * np.pi / 3.0)
-    
+
         def mat_el_ethbar_chi(s, l3, m3, l1, m1, l2, m2):
-    
             cg1 = np.sqrt(2) * CG(l1, m1, l2, m2, l3, m3)
             cg2 = CG(l1, 1.0, l2, -1 - s, l3, -s)
-    
             return np.sqrt((2.0 * l1 + 1.0) * (2.0 * l2 + 1.0) / (4.0 * np.pi * (2.0 * l3 + 1))) * cg1 * cg2
-    
+
         for ell in range(ell_min, ell_max + 1):
             ellp_min = max(ell_min, ell - 1)
             ellp_max = min(ell_max, ell + 1)
@@ -592,15 +594,12 @@ def boost_flux(h, hdot=None):
                     if (mp < -ellp) or (mp > ellp):
                         continue
                     yield (ellp, mp, ell, m, (prefac * mat_el_ethbar_chi(s, ellp, mp, 1.0, sign, ell, m)))
-    
-    
+
     ethbar_chi_plus = functools.partial(ethbar_chi_plusminus, sign=+1)
     ethbar_chi_minus = functools.partial(ethbar_chi_plusminus, sign=-1)
     ethbar_chi_plus.__doc__ = ethbar_chi_plusminus.__doc__
     ethbar_chi_minus.__doc__ = ethbar_chi_plusminus.__doc__
-    
-        
-    
+
     if not isinstance(h, WaveformModes):
         raise ValueError(
             "Boost fluxes can only be calculated from a `WaveformModes` object; "
@@ -641,11 +640,11 @@ def boost_flux(h, hdot=None):
     ethbar_h = h.copy()
     ethbar_h.data = h.ethbar
 
-    # eth_hdot --> Spin of h raised by 1; s = -1
+    # eth_hdot --> Spin of ḣ raised by 1; s = -1
     eth_hdot = hdot.copy()
     eth_hdot.data = hdot.eth
 
-    # ethbar_hdot --> Spin of h lowered by 1; s = -3
+    # ethbar_hdot --> Spin of ḣ lowered by 1; s = -3
     ethbar_hdot = hdot.copy()
     ethbar_hdot.data = hdot.ethbar
 
@@ -655,7 +654,7 @@ def boost_flux(h, hdot=None):
     # between waveform like objects (h, hdot, eth_h, ethbar_h, eth_hdot, ethbar_hdot)
     # and the matrix elements.
     # The spin of the waveform like object is taken as input for spin value s in matrix elements p_z and p_plusminus.
-    # Because both <a| and |b> have the same spin when the matrix element is p_z and p_plusminus.
+    # Because both ⟨a| and |b⟩ have the same spin when the matrix element is p_z and p_plusminus.
 
     # plus and minus terms are computed here.
     _, ethbar_hdot_chiplus_ethbar_h = matrix_expectation_value(ethbar_hdot, functools.partial(p_plus, s=-3), ethbar_h)
@@ -690,12 +689,39 @@ def boost_flux(h, hdot=None):
 
     # These terms needs to be added to get the components in a particular direction.
     # The basis will be changed from (plus, minus, z) to (x, y, z).
-    
-    boost_flux_plus = (1 / 8)* (ethbar_hdot_chiplus_ethbar_h - eth_hdot_chiplus_eth_h + 6 * hdot_chiplus_h + ethbar_h_chiplus_ethbar_hdot - eth_h_chiplus_eth_hdot + 6 * h_chiplus_hdot) - (1 / 2) * np.multiply(h.t, hdot_chiplus_hdot) - (1 / 4) * (eth_hdot_eth_chiplus_h - h_eth_chiplus_eth_hdot)
-    
-    boost_flux_minus = (1 / 8) * (ethbar_hdot_chiminus_ethbar_h - eth_hdot_chiminus_eth_h + 6 * hdot_chiminus_h + ethbar_h_chiminus_ethbar_hdot - eth_h_chiminus_eth_hdot + 6 * h_chiminus_hdot) - (1 / 2) * np.multiply(h.t, hdot_chiminus_hdot) - (1 / 4) * (eth_hdot_eth_chiminus_h - h_eth_chiminus_eth_hdot)
-    
-    
+
+    boost_flux_plus = (
+        (1 / 8) * (
+            ethbar_hdot_chiplus_ethbar_h
+            - eth_hdot_chiplus_eth_h
+            + 6 * hdot_chiplus_h
+            + ethbar_h_chiplus_ethbar_hdot
+            - eth_h_chiplus_eth_hdot
+            + 6 * h_chiplus_hdot
+        )
+        - (1 / 2) * np.multiply(h.t, hdot_chiplus_hdot)
+        - (1 / 4) * (
+            eth_hdot_eth_chiplus_h
+            - h_eth_chiplus_eth_hdot
+        )
+    )
+
+    boost_flux_minus = (
+        (1 / 8) * (
+            ethbar_hdot_chiminus_ethbar_h
+            - eth_hdot_chiminus_eth_h
+            + 6 * hdot_chiminus_h
+            + ethbar_h_chiminus_ethbar_hdot
+            - eth_h_chiminus_eth_hdot
+            + 6 * h_chiminus_hdot
+        )
+        - (1 / 2) * np.multiply(h.t, hdot_chiminus_hdot)
+        - (1 / 4) * (
+            eth_hdot_eth_chiminus_h
+            - h_eth_chiminus_eth_hdot
+        )
+    )
+
     # This is the component in the x direction. x = 0.5 * ( plus + minus).real
     boost_flux[:, 0] = (0.5) * (boost_flux_plus + boost_flux_minus).real
 
@@ -714,19 +740,18 @@ def boost_flux(h, hdot=None):
         + (1 / 4) * h_ethbar_chiz_eth_hdot
     ).real
 
-    # A final factor of \frac{-1}{32 \pi} should be included that is present outside the integral expression of flux.
-
-    boost_flux /= (-32) * np.pi
+    # A final factor of -1/32π should be included that is present outside the integral expression of flux.
+    boost_flux /= -32 * np.pi
 
     return boost_flux
 
 
 def poincare_fluxes(h, hdot=None):
-    """Compute fluxes of energy, momentum, angular momemntum, and boost. This
-    function will compute the time derivative 1 or 0 times (if an
-    optional argument is passed) so is more efficient than separate
-    calls to `energy_flux`, `momentum_flux`, `angular_momentum_flux`,
-    and `boost_flux`.
+    """Compute fluxes of energy, momentum, angular momemntum, and boost
+
+    This function will compute the time derivative 1 or 0 times (if an optional
+    argument is passed) so is more efficient than separate calls to `energy_flux`,
+    `momentum_flux`, `angular_momentum_flux`, and `boost_flux`.
 
     Parameters
     ----------
