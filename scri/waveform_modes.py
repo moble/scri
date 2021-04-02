@@ -192,8 +192,8 @@ class WaveformModes(WaveformBase):
 
         test(
             errors,
-            self.data.dtype == np.dtype(np.complex),
-            f"self.data.dtype == np.dtype(np.complex) # self.data.dtype={self.data.dtype}",
+            self.data.dtype == np.dtype(complex),
+            f"self.data.dtype == np.dtype(complex) # self.data.dtype={self.data.dtype}",
         )
         test(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
         test(
@@ -326,7 +326,7 @@ class WaveformModes(WaveformBase):
 
         """
         ell_m = np.array(ell_m, copy=False)
-        if not (ell_m.dtype == np.int and ell_m.shape[1] == 2):
+        if not (ell_m.dtype == int and ell_m.shape[1] == 2):
             raise ValueError("Input `ell_m` should be an Nx2 sequence of integers")
         return ell_m[:, 0] * (ell_m[:, 0] + 1) - self.ell_min ** 2 + ell_m[:, 1]
 

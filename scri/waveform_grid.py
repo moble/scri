@@ -236,8 +236,8 @@ class WaveformGrid(WaveformBase):
 
         test(
             errors,
-            self.data.dtype == np.dtype(np.complex),
-            f"self.data.dtype == np.dtype(np.complex)  # self.data.dtype={self.data.dtype}",
+            self.data.dtype == np.dtype(complex),
+            f"self.data.dtype == np.dtype(complex)  # self.data.dtype={self.data.dtype}",
         )
         test(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
         test(

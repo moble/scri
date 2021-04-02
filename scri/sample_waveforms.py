@@ -69,7 +69,7 @@ def constant_waveform(**kwargs):
         warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     def data_functor(t, LM):
-        data = np.empty((t.shape[0], LM.shape[0]), dtype=complex)
+        data = np.zeros((t.shape[0], LM.shape[0]), dtype=complex)
         for i, m in enumerate(LM[:, 1]):
             data[:, i] = m - 1j * m
         return data
@@ -94,7 +94,7 @@ def single_mode(ell, m, **kwargs):
         warnings.warn(f"\nUnused kwargs passed to this function:\n{pprint.pformat(kwargs, width=1)}")
 
     def data_functor(t, LM):
-        data = np.empty((t.shape[0], LM.shape[0]), dtype=complex)
+        data = np.zeros((t.shape[0], LM.shape[0]), dtype=complex)
         data[:, sf.LM_index(ell, m, min(LM[:, 0]))] = 1.0 + 0.0j
         return data
 

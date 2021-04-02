@@ -273,7 +273,7 @@ def load(file_name, ignore_validation=False, check_md5=True):
 
     # Reshape and re-interpret the data
     t = t.view(np.float64)
-    data = data.reshape((-1, n_times)).T.copy().view(np.complex128)
+    data = data.reshape((-1, n_times)).T.copy().view(complex)
     log_frame = log_frame.reshape((-1, n_times)).T.copy().view(np.float64)
 
     # Un-XOR the data

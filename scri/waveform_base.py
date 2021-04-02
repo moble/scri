@@ -304,8 +304,8 @@ class WaveformBase(_object):
         )
         test(
             errors,
-            self.t.dtype == np.dtype(np.float),
-            f"self.t.dtype == np.dtype(np.float) # self.t.dtype={self.t.dtype}",
+            self.t.dtype == np.dtype(float),
+            f"self.t.dtype == np.dtype(float) # self.t.dtype={self.t.dtype}",
         )
         if alter and self.t.ndim == 2 and self.t.shape[1] == 1:
             self.t = self.t[:, 0]
@@ -333,7 +333,7 @@ class WaveformBase(_object):
             isinstance(self.frame, np.ndarray),
             "isinstance(self.frame, np.ndarray) # type(self.frame)={}".format(type(self.frame)),
         )
-        if alter and self.frame.dtype == np.dtype(np.float):
+        if alter and self.frame.dtype == np.dtype(float):
             try:  # Might fail because of shape
                 self.frame = quaternion.as_quat_array(self.frame)
                 alterations += ["{0}.frame = quaternion.as_quat_array({0}.frame)".format(self)]
