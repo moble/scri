@@ -139,7 +139,7 @@ If changes need to be made to the requirements or anything else in `recipe/meta.
 
 ## Documentation
 
-Automatically-generated API documentation is available on [Read the Docs: scri](https://scri.readthedocs.io/).
+Tutorials and automatically-generated API documentation are available on [Read the Docs: scri](https://scri.readthedocs.io/).
 
 ## Acknowledgments
 
