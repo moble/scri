@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Boyle"
+  given-names: "Michael"
+  orcid: "https://orcid.org/0000-0002-5075-5116"
+- family-names: "Iozzo"
+  given-names: "Dante"
+  orcid: "https://orcid.org/0000-0002-7244-1900"
+- family-names: "Stein"
+  given-names: "Leo"
+  orcid: "https://orcid.org/0000-0001-7559-9597"
+- family-names: "Khairnar"
+  given-names: "Aniket"
+  orcid: "https://orcid.org/0000-0001-5138-572X"
+- family-names: "Rüter"
+  given-names: "Hannes"
+  orcid: "https://orcid.org/0000-0002-3442-5360"
+title: "scri"
+version: 1.2.0
+  doi: 10.5281/zenodo.4041972
+date-released: 2020-09-21
+url: "https://github.com/moble/scri"
