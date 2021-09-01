@@ -98,7 +98,7 @@ other catalog using the same file format:
 The first argument specifies three different ways that the HDF5 files can be
 internally structured. We currently support ``SXS`` for extrapolated asymptotic
 files in the the SXS catalog, ``CCE`` for asymptotic files produced by
-`SpECTRE CCE <https://spectre-code.org/index.html>`_, and ``RPXM`` for compressed
+`SpECTRE CCE <https://spectre-code.org/index.html>`_, and ``RPXMB`` for compressed
 waveform files. See the documentation for :meth:`scri.SpEC.file_io.create_abd_from_h5`
 for more information about these formats. This loader will convert the data into
 the Moreschi-Boyle convention and set :math:`\sigma = \bar{h}` for ``abd.sigma``.

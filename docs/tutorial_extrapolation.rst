@@ -52,7 +52,7 @@ Despite the fact that the NRAR format for HDF5 files (described in detail above)
 is quite wasteful, it's better to output the extrapolated files in this format
 for two reasons. First, the NRAR format extrapolated files interface more widely
 with functions in ``scri``. Second, these files can be highly compressed with
-the RPXM scheme described in the next section below. The RPXM-compressed files
+the RPXMB scheme described in the next section below. The RPXMB-compressed files
 are far smaller than the default scri-format extrapolated files.
 
 The last two options, ``DifferenceFiles=''`` and ``PlotFormat=''``, are set to 
@@ -76,24 +76,24 @@ For more options of extrapolation function, see the documentation for
 :meth:`scri.extrapolation.extrapolate`.
 
 ============================================
-Compressing Extrapolated Waveforms with RPXM
+Compressing Extrapolated Waveforms with RPXMB
 ============================================
 
 Extrapolated waveforms in the NRAR format (described in the previous section) use
 an extravagant amount of needless space. Instead, a highly compressed HDF5 file can 
 be produced with using ``scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2``,
-referred to as RPXM for short. Files can be reduced by anywhere from a factor 6 
+referred to as RPXMB for short. Files can be reduced by anywhere from a factor 6 
 to a factor of 10, depending on the waveform data. 
 
 This compression can be performed in ``scri``. For example, let's say we want to 
 compress an extrapolated file ``rhOverM_Extrapolated_N4.h5`` and output the 
 compressed waveform to the same directory with the name 
-``rhOverM_Extrapolated_N4_RPXM.h5``. This can be done as follows:
+``rhOverM_Extrapolated_N4_RPXMB.h5``. This can be done as follows:
 
 .. code-block:: python
   
   >>> in_file = scri.SpEC.read_from_h5("path/to/rhOverM_Extrapolated_N4.h5")
   >>> scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2.save(
   ...     in_file,
-  ...     "path/to/rhOverM_Extrapolated_N4_RPXM.h5",
+  ...     "path/to/rhOverM_Extrapolated_N4_RPXMB.h5",
   ... ) 
