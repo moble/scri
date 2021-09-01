@@ -302,9 +302,9 @@ def remove_avg_com_motion(
         If None and there is no Matter.h5 file, the mass will be read from
         Horizons.h5; otherwise, the mass will be read from the metadata
         `reference_mass2`.
-    file_format: 'NRAR' or 'RPXM' [default is 'NRAR']
+    file_format: 'NRAR' or 'RPXMB' [default is 'NRAR']
         The file format of the waveform data H5 file. The 'NRAR' format is the
-        default file format found in the SXS Catalog. The 'RPXM' format is data
+        default file format found in the SXS Catalog. The 'RPXMB' format is data
         compressed with the rotating_paired_xor_multishuffle_bzip2 scheme.
 
     Returns
@@ -326,10 +326,10 @@ def remove_avg_com_motion(
     # Read the waveform data in
     if file_format.lower() == "nrar":
         w_m = read_from_h5(path_to_waveform_h5)
-    elif file_format.lower() == "rpxm":
+    elif file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
         w_m = rotating_paired_xor_multishuffle_bzip2.load(path_to_waveform_h5)[0].to_inertial_frame()
     else:
-        raise ValueError(f"File format {file_format} not recognized. Must be either 'NRAR' or 'RPXM'.")
+        raise ValueError(f"File format {file_format} not recognized. Must be either 'NRAR' or 'RPXMB'.")
 
     if path_to_horizons_h5 is None:
         path_to_horizons_h5 = os.path.join(directory, "Horizons.h5")
@@ -402,7 +402,7 @@ def remove_avg_com_motion(
             try:
                 if file_format.lower() == "nrar":
                     aux_waveforms[f"psi{4-i}_modes"] = read_from_h5(aux_path)
-                elif file_format.lower() == "rpxm":
+                elif file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
                     aux_waveforms[f"psi{4-i}_modes"] = rotating_paired_xor_multishuffle_bzip2.load(aux_path)[0]
                     aux_waveforms[f"psi{4-i}_modes"].to_inertial_frame()
             except (FileNotFoundError, OSError):
@@ -428,7 +428,7 @@ def remove_avg_com_motion(
             file_write_mode=file_write_mode,
             attributes={"space_translation": x_0, "boost_velocity": v_0},
         )
-    elif file_format.lower() == "rpxm":
+    elif file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
         path_to_new_waveform_h5 = path_to_waveform_h5.replace(".h5", "_CoM.h5", 1)
         w_m.boost_velocity = v_0
         w_m.space_translation = x_0

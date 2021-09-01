@@ -414,11 +414,11 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
 
     Parameters
     ----------
-    file_format : 'SXS', 'CCE', or 'RPXM'
+    file_format : 'SXS', 'CCE', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
           * 'CCE'  - Asymptotic waveforms output by SpECTRE CCE. These are not dimensionless.
-          * 'RPXM' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
+          * 'RPXMB' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
     convention : 'SpEC' or 'Moreschi-Boyle'
         The data conventions of the waveform data that will be loaded. This defaults to 'SpEC' since this will be
         most often used with 'SpEC' convention waveforms.
@@ -461,11 +461,11 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
                     r_is_scaled_out=True,
                     m_is_scaled_out=False,
                 )
-            elif file_format == "rpxm":
+            elif file_format == "rpxmb" or file_format == "rpxm":
                 WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
                 WMs[data_label].to_inertial_frame()
             else:
-                raise ValueError(f"File format '{file_format}' not recognized. Must be either 'SXS', 'CCE', or 'RPXM'.")
+                raise ValueError(f"File format '{file_format}' not recognized. Must be either 'SXS', 'CCE', or 'RPXMB'.")
 
     if kwargs:
         import pprint

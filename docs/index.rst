@@ -13,6 +13,9 @@ For a quick start, take a look at the `quick start section <README.html#quick-st
    :caption: Contents:
 
    README.md
+   tutorial_abd
+   tutorial_waveformmodes
+   tutorial_extrapolation
    api
 
 Indices and tables
