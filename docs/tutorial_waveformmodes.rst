@@ -104,9 +104,7 @@ to load the data directly into a `WaveformModes` object:
   >>> h = scri.SpEC.read_from_h5("path/to/rhOverM_Extrapolated_N4.h5")
 
   >>> # For RPXMB-compressed waveforms:
-  >>> h = scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2.load(
-  ...       "path/to/rhOverM_Extrapolated_N4_RPXMB.h5"
-  ... )[0].to_inertial_frame()
+  >>> h = scri.rpxmb.load("path/to/rhOverM_Extrapolated_N4_RPXMB.h5")[0].to_inertial_frame()
 
 More information needs to be passed into ``read_from_h5`` when trying to load a
 finite-radius file. For example, if we are loading a strain waveform with data

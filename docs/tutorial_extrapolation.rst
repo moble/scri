@@ -75,15 +75,15 @@ two options:
 For more options of extrapolation function, see the documentation for 
 :meth:`scri.extrapolation.extrapolate`.
 
-============================================
+=============================================
 Compressing Extrapolated Waveforms with RPXMB
-============================================
+=============================================
 
-Extrapolated waveforms in the NRAR format (described in the previous section) use
-an extravagant amount of needless space. Instead, a highly compressed HDF5 file can 
-be produced with using ``scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2``,
-referred to as RPXMB for short. Files can be reduced by anywhere from a factor 6 
-to a factor of 10, depending on the waveform data. 
+Extrapolated waveforms in the NRAR format (described in the previous section)
+use an extravagant amount of needless space. Instead, a highly compressed HDF5
+file can be produced using ``scri.rpxmb``, referred to as RPXMB for
+short. Files can be reduced by anywhere from a factor 6 to a factor of 10,
+depending on the waveform data.
 
 This compression can be performed in ``scri``. For example, let's say we want to 
 compress an extrapolated file ``rhOverM_Extrapolated_N4.h5`` and output the 
@@ -92,8 +92,8 @@ compressed waveform to the same directory with the name
 
 .. code-block:: python
   
-  >>> in_file = scri.SpEC.read_from_h5("path/to/rhOverM_Extrapolated_N4.h5")
-  >>> scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2.save(
-  ...     in_file,
+  >>> w_in = scri.SpEC.read_from_h5("path/to/rhOverM_Extrapolated_N4.h5")
+  >>> scri.rpxmb.save(
+  ...     w_in,
   ...     "path/to/rhOverM_Extrapolated_N4_RPXMB.h5",
-  ... ) 
+  ... )
