@@ -2,31 +2,34 @@
 Tutorial: WaveformModes/WaveformGrid
 ************************************
 
-In addition to :meth:`scri.asymptotic_bondi_data.AsymptoticBondiData`, there are
-two classes that can be used together to work with waveform data:
-:meth:`scri.WaveformModes` and :meth:`scri.WaveformGrid`. Eventually, these will
-be deprecated by the AsymptoticBondiData class, but at the current time there are
-still several features only available to ``WaveformModes`` (``WaveformGrid``).
-A ``WaveformModes`` (``WaveformGrid``) holds the data for one waveform, and lacks
-the features for complicated expressions involving multiple waveform types. For
-tasks of that sort, ``AsymptoticBondiData`` should be used instead.
+In addition to :meth:`scri.asymptotic_bondi_data.AsymptoticBondiData`, there
+are two classes that can be used together to work with waveform data:
+:meth:`scri.WaveformModes` and :meth:`scri.WaveformGrid`.  Eventually, these
+will be deprecated by the AsymptoticBondiData class, but at the current time
+there are still several features only available to ``WaveformModes``
+(``WaveformGrid``).  A ``WaveformModes`` (``WaveformGrid``) holds the data for
+one waveform, and lacks the features for complicated expressions involving
+multiple waveform types.  For tasks of that sort, ``AsymptoticBondiData``
+should be used instead.
 
-There are two ways to represent waveform data. The most straightfoward way is to
-compute the values of the field on a grid of points over the sphere. The
-``WaveformGrid`` object is used for this purpose. More optimally, however, the data
-can be expanded in a basis of spin-weighted spherical harmonics (SWSHs) and the
-coefficients of each mode can be stored. The ``WaveformModes`` object is used
-to store and analyze waveform data stored as coefficients of SWSH modes.
+There are two ways to represent waveform data.  The most straightfoward way is
+to compute the values of the field on a grid of points over the sphere.  The
+``WaveformGrid`` object is used for this purpose.  More optimally, however, the
+data can be expanded in a basis of spin-weighted spherical harmonics (SWSHs)
+and the coefficients of each mode can be stored.  The ``WaveformModes`` object
+is used to store and analyze waveform data stored as coefficients of SWSH
+modes.
 
 ===============================
 Creating a WaveformModes Object
 ===============================
 
-Let's say we have a set of SWSH coefficients representing waveform data for gravitational
-wave strain, ``my_strain_data``. Since the strain has spin-weight :math:`s=-2`, any coefficients
-for modes with :math:`\ell < |s|` will be zero. ``WaveformModes`` allows us to store the
-the data starting with :math:`\ell = 2` and ignore the lower modes that would all be zero. We
-can create such a ``WaveformModes`` object as follows:
+Let's say we have a set of SWSH coefficients representing waveform data for
+gravitational wave strain, ``my_strain_data``.  Since the strain has
+spin-weight :math:`s=-2`, any coefficients for modes with :math:`\ell < |s|`
+will be zero.  ``WaveformModes`` allows us to store the the data starting with
+:math:`\ell = 2` and ignore the lower modes that would all be zero.  We can
+create such a ``WaveformModes`` object as follows:
 
 .. testsetup::
 
@@ -47,19 +50,20 @@ can create such a ``WaveformModes`` object as follows:
   ...       m_is_scaled_out = True,
   ... )
 
-Here we have assumed that the leading fall-off behavior of the data has been scaled
-out (i.e. ``r_is_scaled_out = True``) and that the data has been scaled by the total
-initial mass of the system (i.e. ``m_is_scaled_out = True``). See the documentation
-on :meth:`scri.WaveformModes` for complete details about each option. We have also
-set the dataType to be that of gravitational wave strain ``scri.h``. The avialable
-dataTypes are: ``scri.UnknownDataType``, ``scri.psi0``, ``scri.psi1``, ``scri.psi2``,
-``scri.psi3``, ``scri.psi4``, ``scri.h``, the time derivative of the strain
-``scri.hdot``, the Newman-Penrose shear ``scri.sigma``, and ``scri.news``.
+Here we have assumed that the leading fall-off behavior of the data has been
+scaled out (i.e., ``r_is_scaled_out = True``) and that the data has been scaled
+by the total initial mass of the system (i.e., ``m_is_scaled_out = True``).
+See the documentation on :meth:`scri.WaveformModes` for complete details about
+each option.  We have also set the dataType to be that of gravitational wave
+strain ``scri.h``.  The avialable dataTypes are: ``scri.UnknownDataType``,
+``scri.psi0``, ``scri.psi1``, ``scri.psi2``, ``scri.psi3``, ``scri.psi4``,
+``scri.h``, the time derivative of the strain ``scri.hdot``, the Newman-Penrose
+shear ``scri.sigma``, and ``scri.news``.
 
-A ``WaveformGrid`` object can be created in the same way. For example, let's say we have
-an grid of 144 equidistant points on the sphere at which the strain has been evaluated,
-and we have an array ``my_strain_grid_data`` of this strain data. We can create the
-following ``WaveformGrid``:
+A ``WaveformGrid`` object can be created in the same way.  For example, let's
+say we have an grid of 144 equidistant points on the sphere at which the strain
+has been evaluated, and we have an array ``my_strain_grid_data`` of this strain
+data.  We can create the following ``WaveformGrid``:
 
 .. testsetup::
 
@@ -92,8 +96,8 @@ The points in the array correspond to the following points on the sphere:
 Loading a WaveformModes Object
 ------------------------------
 
-Depending on the format of the waveform in the HDF5 file, there are several ways
-to load the data directly into a `WaveformModes` object:
+Depending on the format of the waveform in the HDF5 file, there are several
+ways to load the data directly into a `WaveformModes` object:
 
 .. code-block:: python
 
@@ -104,14 +108,14 @@ to load the data directly into a `WaveformModes` object:
   >>> h = scri.SpEC.read_from_h5("path/to/rhOverM_Extrapolated_N4.h5")
 
   >>> # For RPXMB-compressed waveforms:
-  >>> h = scri.SpEC.file_io.rotating_paired_xor_multishuffle_bzip2.load(
+  >>> h = scri.rpxmb.load(
   ...       "path/to/rhOverM_Extrapolated_N4_RPXMB.h5"
   ... )[0].to_inertial_frame()
 
 More information needs to be passed into ``read_from_h5`` when trying to load a
-finite-radius file. For example, if we are loading a strain waveform with data
-beloning to extraction radius :math:`R = 123\, M`. Then we would need to do the
-following:
+finite-radius file.  For example, if we are loading a strain waveform with data
+beloning to extraction radius :math:`R = 123\, M`.  Then we would need to do
+the following:
 
 .. code-block:: python
 
@@ -123,10 +127,11 @@ following:
   ...       m_is_scaled_out = True,
   ... )
 
-In addition to this, there are several templates for generating sample waveforms
-that can be loaded quickly and easily. See the documentation on :meth:`scri.sample_waveforms`
-for all the options available. For example, a post-Newtonian waveform can be quickly
-generated by using the :meth:`scri.sample_waveforms.fake_precessing_waveform` function:
+In addition to this, there are several templates for generating sample
+waveforms that can be loaded quickly and easily.  See the documentation on
+:meth:`scri.sample_waveforms` for all the options available.  For example, a
+post-Newtonian waveform can be quickly generated by using the
+:meth:`scri.sample_waveforms.fake_precessing_waveform` function:
 
 .. doctest::
 
@@ -143,12 +148,13 @@ generated by using the :meth:`scri.sample_waveforms.fake_precessing_waveform` fu
 Working with WaveformModes
 ==========================
 
-If we have a ``WaveformModes`` object named ``h``, the time array of the waveform
-can be accessed by calling ``h.t`` and the data array can be accessed by calling
-``h.data``. Individual modes can be accessed by the ``h.index`` function.
-Alternatively, you can use the ``spherical_functions.LM_index`` function from the
-`spherical_functions <https://github.com/moble/spherical_functions>`_ module. This
-can be aliased to ``lm`` for convenience, as done below:
+If we have a ``WaveformModes`` object named ``h``, the time array of the
+waveform can be accessed by calling ``h.t`` and the data array can be accessed
+by calling ``h.data``.  Individual modes can be accessed by the ``h.index``
+function.  Alternatively, you can use the ``spherical_functions.LM_index``
+function from the `spherical_functions
+<https://github.com/moble/spherical_functions>`_ module.  This can be aliased
+to ``lm`` for convenience, as done below:
 
 .. code-block:: python
 
@@ -175,8 +181,8 @@ We can convert between ``WaveformModes`` and ``WaveformGrid``:
   >>> h_modes = h_grid.to_modes(new_lmax)
 
 There are many built-in functions that can be performed with ``WaveformModes``.
-See the documentation of :meth:`scri.WaveformModes` for the complete details, but
-to name a few of the functions:
+See the documentation of :meth:`scri.WaveformModes` for the complete details,
+but to name a few of the functions:
 
 .. code-block:: python
 
@@ -211,11 +217,11 @@ applying the :math:`\eth` and :math:`\bar{\eth}` operators.
 BMS Transformations
 ===================
 
-Boosts, spacetime translations, supertranslations, and a simple frame rotation can
-all be performed with the :meth:`scri.WaveformModes.transform` function.
-function. See the documentation of that function (and the underlying function
-:meth:`scri.WaveformGrid.from_modes`) for details. The transformation is not performed
-in place, so it will return a new object with the transformed data:
+Boosts, spacetime translations, supertranslations, and a simple frame rotation
+can all be performed with the :meth:`scri.WaveformModes.transform` function.
+function.  See the documentation of that function (and the underlying function
+:meth:`scri.WaveformGrid.from_modes`) for details.  The transformation is not
+performed in place, so it will return a new object with the transformed data:
 
 .. doctest::
 
@@ -224,10 +230,10 @@ in place, so it will return a new object with the transformed data:
   ...     boost_velocity=[0., 0., 1e-2],
   ... )
 
-The ABD class also supports more advanced frame rotations that interfaces with the
-`quaternion <https://github.com/moble/quaternion>`_ python module. Given a unit
-quaternion ``R`` or an array of unit quaterions ``R``, you can perform a rotation
-of the data:
+The ABD class also supports more advanced frame rotations that interfaces with
+the `quaternion <https://github.com/moble/quaternion>`_ python module.  Given a
+unit quaternion ``R`` or an array of unit quaterions ``R``, you can perform a
+rotation of the data:
 
 .. testsetup::
 
@@ -244,7 +250,7 @@ of the data:
 This will return the rotated quantity, which will also store the rotor or array
 of rotors that made the transformation.
 
-There are functions to go to the corotating or coprecessing frame too. At any
+There are functions to go to the corotating or coprecessing frame too.  At any
 point you can undo all the frame rotations by going back to the inertial frame:
 
 .. code-block:: python
