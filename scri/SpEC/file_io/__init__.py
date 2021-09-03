@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Michael Boyle
+# Copyright (c) 2021, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/spherical_functions/blob/master/LICENSE>
 
 import warnings
@@ -27,6 +27,8 @@ from ... import (
 from sxs.metadata import Metadata
 from . import corotating_paired_xor, rotating_paired_xor_multishuffle_bzip2
 from ...asymptotic_bondi_data import AsymptoticBondiData
+
+rpxmb = rotating_paired_xor_multishuffle_bzip2
 
 
 def translate_data_types_GWFrames_to_waveforms(d):
@@ -97,6 +99,11 @@ def read_from_h5(file_name, **kwargs):
         is present in the H5 file (which is not common) that value will override this argument.  If neither the file
         nor these parameters are present, defaults will be applied, assuming that the frame is inertial, R and M are
         both scaled out, and the data type (hdot, h, psi4, psi4, psi2, psi1, or psi0) can be gleaned from `file_name`.
+
+    See also
+    --------
+    * `scri.rpxmb.save` — Save a waveform in RPXMB format
+    * `scri.rpxmb.load` — Load a file in RPXMB format
 
     """
 
@@ -328,6 +335,11 @@ def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_forma
 
     Note that the file_name is prepended with some descriptive information involving the data type and the frame type,
     such as 'rhOverM_Corotating_' or 'rMpsi4_Aligned_'.
+
+    See also
+    --------
+    * `scri.rpxmb.save` — Save a waveform in RPXMB format
+    * `scri.rpxmb.load` — Load a file in RPXMB format
 
     """
 

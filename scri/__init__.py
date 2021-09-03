@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Michael Boyle
+# Copyright (c) 2021, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 """Module for operating on gravitational waveforms in various forms
 
@@ -158,6 +158,7 @@ from .modes_time_series import ModesTimeSeries
 from .asymptotic_bondi_data import AsymptoticBondiData
 
 from . import sample_waveforms, SpEC, LVC, utilities
+from .SpEC import rpxmb
 
 __all__ = [
     "WaveformModes",

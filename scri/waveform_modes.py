@@ -334,8 +334,12 @@ class WaveformModes(WaveformBase):
     def truncate(self, tol=1e-10):
         """Truncate the precision of this object's `data` in place
 
-        This function sets bits in `self.data` to 0 when they have lower significance than `tol`
-        times the norm of the Waveform at that instant in time.
+        This function sets bits in `self.data` to 0 when they will typically contribute
+        less than `tol` times the norm of the Waveform at that instant in time.  Here,
+        "typically" means that we divide `tol` by the square-root of the number of
+        modes in the waveform, so that if each mode contributes a random amount of
+        error at that level, we can expect a *total* error of roughly `tol` times the
+        norm.
 
         """
         if tol != 0.0:
