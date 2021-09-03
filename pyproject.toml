@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "scri"
 description = "Time-dependent functions of spin-weighted spherical harmonics"
-version = "2020.0"
+version = "2021.9.3.14.57.00"
 readme = "README.md"
 license = "MIT"
 authors = ["Michael Boyle <michael.oliver.boyle@gmail.com>"]
@@ -40,7 +40,7 @@ target-version = ['py36']
 minversion = "6.0"
 norecursedirs = ".* build dist *.egg-info install ENV"
 junit_family="xunit2"
-addopts = "-v --tb=short --doctest-glob='' --cov --cov-branch --cov-report html"
+addopts = "-v --tb=short"
 
 [build-system]
 requires = [
