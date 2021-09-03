@@ -7,12 +7,13 @@ sxs_formats = [
 default_shuffle_widths = (8, 8, 4, 4, 4, 2,) + (1,) * 34
 
 
-def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, shuffle_widths=default_shuffle_widths):
+def save(w, file_name=None, file_write_mode="w", L2norm_fractional_tolerance=1e-10, log_frame=None, shuffle_widths=default_shuffle_widths):
     """Save a waveform in RPXMB format
 
     This function converts the data to "rotating paired XOR multishuffle bzip2"
-    format.  In particular, it uses the corotating frame, and truncates the data to
-    allow for optimal compression while maintaining the given tolerance.
+    format.  In particular, it uses the corotating frame, and zeroes out bits at
+    high precision to allow for optimal compression while maintaining the requested
+    tolerance.
 
     Parameters
     ----------
@@ -27,6 +28,12 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
         key if relevant).  For testing purposes, this argument may be `None`, in
         which case a temporary directory is used, just to test how large the output
         will be; it is deleted immediately upon returning.
+    file_write_mode : str, optional
+        One of the valid [file modes for
+        h5py](https://docs.h5py.org/en/stable/high/file.html#opening-creating-files).
+        Default value is `"w"`, which overwrites any existing file.  If writing
+        into a group, you may prefer `"a"`, which will just ensure the file exists
+        without erasing it first.
     L2norm_fractional_tolerance : float, optional
         Tolerance passed to `WaveformModes.truncate`; see that function's docstring
         for details.  Default value is 1e-10.
@@ -146,7 +153,7 @@ def save(w, file_name=None, L2norm_fractional_tolerance=1e-10, log_frame=None, s
             print(f'Saving H5 to "{h5_path}"')
 
         # Write the H5 file
-        with h5py.File(h5_path, "w") as f:
+        with h5py.File(h5_path, file_write_mode) as f:
             # If we are writing to a group within the file, create it
             if group is not None:
                 g = f.create_group(group)
