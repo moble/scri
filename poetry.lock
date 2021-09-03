@@ -975,7 +975,7 @@ mktheapidocs = ["mktheapidocs"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.10"
-content-hash = "4eeff0bbff08004f6b36acb88a6f11387a6b0042a7994b345b9c612fcba25be4"
+content-hash = "6f7887e2a9051754c1569c2557817623b1843ca386397df6108616278608f92f"
 
 [metadata.files]
 ads = [

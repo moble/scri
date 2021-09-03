@@ -15,7 +15,7 @@ numba = ">=0.54"
 h5py = ">=2.10.0"
 numpy-quaternion = "^2019"
 spinsfast = "^104"
-spherical-functions = "^2020"
+spherical-functions = ">=2020"
 sxs = "^2020"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 mkdocs = {version = "^1.1.2", optional = true}
