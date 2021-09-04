@@ -103,8 +103,8 @@ def read_from_h5(file_name, **kwargs):
 
     See also
     --------
-    * `scri.rpxmb.save` — Save a waveform in RPXMB format
-    * `scri.rpxmb.load` — Load a file in RPXMB format
+    scri.rpxmb.save : Save a waveform in RPXMB format
+    scri.rpxmb.load : Load a file in RPXMB format
 
     """
 
@@ -339,8 +339,8 @@ def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_forma
 
     See also
     --------
-    * `scri.rpxmb.save` — Save a waveform in RPXMB format
-    * `scri.rpxmb.load` — Load a file in RPXMB format
+    scri.rpxmb.save : Save a waveform in RPXMB format
+    scri.rpxmb.load : Load a file in RPXMB format
 
     """
 
