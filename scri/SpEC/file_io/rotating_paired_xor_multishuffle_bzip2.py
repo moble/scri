@@ -202,6 +202,8 @@ def save(w, file_name=None, file_write_mode="w", L2norm_fractional_tolerance=1e-
                 "sxs_format": sxs_formats[0],
                 "data_info": {
                     "data_type": w.data_type_string,
+                    "m_is_scaled_out": w.m_is_scaled_out,
+                    "r_is_scaled_out": w.r_is_scaled_out,
                     "spin_weight": int(w.spin_weight),
                     "ell_min": int(w.ell_min),
                     "ell_max": int(w.ell_max),
@@ -258,7 +260,7 @@ def save(w, file_name=None, file_write_mode="w", L2norm_fractional_tolerance=1e-
     return w, log_frame
 
 
-def load(file_name, ignore_validation=False, check_md5=True):
+def load(file_name, ignore_validation=False, check_md5=True, **kwargs):
     """Load a waveform in RPXMB format
 
     Parameters
@@ -279,6 +281,20 @@ def load(file_name, ignore_validation=False, check_md5=True):
     check_md5 : bool, optional
         Default is `True`.  See `ignore_validation` for explanation.
 
+    Keyword parameters
+    ------------------
+    data_type : str, optional
+        One of `scri.DataNames`.  Default is "UnknownDataType".
+    m_is_scaled_out : bool, optional
+        Default is True
+    r_is_scaled_out : bool, optional
+        Default is True
+
+    Note that the keyword parameters will be overridden by corresponding entries in
+    the JSON file, if they exist.  If the JSON file does not exist, any keyword
+    parameters not listed above will be passed through as the `json_data` field of
+    the returned waveform.
+
     """
     import os
     import warnings
@@ -294,6 +310,8 @@ def load(file_name, ignore_validation=False, check_md5=True):
 
     def invalid(message):
         if ignore_validation:
+            pass
+        elif ignore_validation is None:
             warnings.warn(message)
         else:
             raise ValueError(message)
@@ -308,25 +326,32 @@ def load(file_name, ignore_validation=False, check_md5=True):
     json_path = h5_path.with_suffix(".json")
 
     # This will be used for validation
-    h5_size = os.stat(h5_path).st_size
+    h5_size = h5_path.stat().st_size
+
+    data_type = kwargs.pop("data_type", "UnknownDataType")
+    m_is_scaled_out = bool(kwargs.pop("m_is_scaled_out", True))
+    r_is_scaled_out = bool(kwargs.pop("r_is_scaled_out", True))
 
     if not json_path.exists():
         invalid(f'\nJSON file "{json_path}" cannot be found, but is expected for this data format.')
-        json_data = {}
+        json_data = kwargs.copy()
     else:
         with open(json_path) as f:
             json_data = json.load(f)
         if group is not None:
             json_data = json_data[group]
 
-        dataType = json_data.get("data_info", {}).get("data_type", "UnknownDataType")
-        dataType = scri.DataType[scri.DataNames.index(dataType)]
+        data_type = json_data.get("data_info", {}).get("data_type", data_type)
+        m_is_scaled_out = bool(json_data.get("data_info", {}).get("m_is_scaled_out", m_is_scaled_out))
+        r_is_scaled_out = bool(json_data.get("data_info", {}).get("r_is_scaled_out", r_is_scaled_out))
 
         # Make sure this is our format
         sxs_format = json_data.get("sxs_format", "")
         if sxs_format not in sxs_formats:
             invalid(
-                f'\nThe `sxs_format` found in JSON file is "{sxs_format}"; it should be one of\n' f"    {sxs_formats}."
+                f"\nThe `sxs_format` found in JSON file is '{sxs_format}';\n"
+                f"it should be one of\n"
+                f"    {sxs_formats}."
             )
 
         if group is None:
@@ -344,6 +369,8 @@ def load(file_name, ignore_validation=False, check_md5=True):
                 json_md5sum = json_data.get("validation", {}).get("md5sum", "")
                 if json_md5sum != md5sum:
                     invalid(f"\nMismatch between `validation/md5sum` key in JSON file and observed MD5 checksum.")
+
+    dataType = scri.DataType[scri.DataNames.index(data_type)]
 
     with h5py.File(h5_path, "r") as f:
         if group is not None:
@@ -405,8 +432,8 @@ def load(file_name, ignore_validation=False, check_md5=True):
         data=data,
         frameType=scri.Corotating,
         dataType=dataType,
-        m_is_scaled_out=True,
-        r_is_scaled_out=True,
+        m_is_scaled_out=m_is_scaled_out,
+        r_is_scaled_out=r_is_scaled_out,
         ell_min=ell_min,
         ell_max=ell_max,
     )
