@@ -247,7 +247,7 @@ def save(w, file_name=None, file_write_mode="w", L2norm_fractional_tolerance=1e-
             json_path = h5_path.with_suffix(".json")
             print(f'Saving JSON to "{json_path}"')
             if group is not None:
-                if json_path.exists():
+                if json_path.exists() and file_write_mode!="w":
                     with json_path.open("r") as f:
                         original_json = json.load(f)
                 else:
