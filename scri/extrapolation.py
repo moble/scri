@@ -203,112 +203,144 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
         print("In '{}', the following waveforms are not valid:\n\t{}".format(filename, "\n\t".join(FailedWaveforms)))
     return Valid
 
+def read_finite_radius_waveform_nrar(filename, WaveformName):
 
-def read_finite_radius_waveform(
-    n, filename, WaveformName, ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws,
-):
-    """This is just a worker function defined for read_finite_radius_data, below, reading a single
-    waveform from an h5 file of many waveforms. You probably don't need to call this directly.
-
-    """
-    from scipy.integrate import cumtrapz as integrate
-    from numpy import sqrt, log, array
     from h5py import File
+    from numpy import array
     import scri
+    import os
 
-    construction = (
-        """# extrapolation.read_finite_radius_waveform""" + """({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, Ws)"""
-    )
-    construction = construction.format(
-        n,
-        filename,
-        WaveformName,
-        ChMass,
-        InitialAdmEnergy,
-        YLMRegex.pattern,
-        LModes,
-        DataType,
-        VersionHist,
-    )
-    try:
-        f = File(filename, "r")
-    except OSError:
-        print(f"read_finite_radius_waveform could not open the file '{filename}'")
-        raise
-    try:
+    # Open the file twice.
+    # The first time is for the auxiliary quantities.
+    with File(filename,"r") as f:
         W = f[WaveformName]
-        NTimes_Input = W["AverageLapse.dat"].shape[0]
+        
+        # Read the time, account for repeated indices
         T = W["AverageLapse.dat"][:, 0]
         Indices = monotonic_indices(T)
         T = T[Indices]
+
+        # Read the other auxiliary quantities
         Radii = array(W["ArealRadius.dat"])[Indices, 1]
         AverageLapse = array(W["AverageLapse.dat"])[Indices, 1]
         CoordRadius = W["CoordRadius.dat"][0, 1]
-        YLMdata = [
-            DataSet for DataSet in list(W) for m in [YLMRegex.search(DataSet)] if (m and int(m.group("L")) in LModes)
-        ]
-        YLMdata = sorted(
-            YLMdata,
-            key=lambda DataSet: [int(YLMRegex.search(DataSet).group("L")), int(YLMRegex.search(DataSet).group("M")),],
-        )
-        LM = sorted(
-            [[int(m.group("L")), int(m.group("M"))] for DataSet in YLMdata for m in [YLMRegex.search(DataSet)] if m]
-        )
-        ell_min = LM[0][0]
-        ell_max = LM[-1][0]
-        NModes = len(LM)
-        # Lapse is given by 1/sqrt(-g^{00}), where g is the full 4-metric
-        T[1:] = integrate(AverageLapse / sqrt(((-2.0 * InitialAdmEnergy) / Radii) + 1.0), T) + T[0]
-        T -= Radii + (2.0 * InitialAdmEnergy) * log((Radii / (2.0 * InitialAdmEnergy)) - 1.0)
-        NTimes = T.size
-        Ws[n] = scri.WaveformModes(
-            t=T / ChMass,
-            # frame=,  # not set because we assume the inertial frame below
-            data=np.zeros((NTimes, NModes), dtype=complex),
-            history=[construction],
-            version_hist=VersionHist,
-            frameType=scri.Inertial,  # Assumption! (but this should be safe)
-            dataType=DataType,
-            r_is_scaled_out=True,  # Assumption! (but it should be safe)
-            m_is_scaled_out=True,  # We have made this true
-            ell_min=ell_min,
-            ell_max=ell_max,
-        )
-        if DataType == scri.h:
-            UnitScaleFactor = 1.0 / ChMass
-            RadiusRatioExp = 1.0
-        elif DataType == scri.hdot:
-            UnitScaleFactor = 1.0
-            RadiusRatioExp = 1.0
-        elif DataType == scri.psi4:
-            UnitScaleFactor = ChMass
-            RadiusRatioExp = 1.0
-        elif DataType == scri.psi3:
-            UnitScaleFactor = 1.0
-            RadiusRatioExp = 2.0
-        elif DataType == scri.psi2:
-            UnitScaleFactor = 1.0 / ChMass
-            RadiusRatioExp = 3.0
-        elif DataType == scri.psi1:
-            UnitScaleFactor = 1.0 / ChMass ** 2
-            RadiusRatioExp = 4.0
-        elif DataType == scri.psi0:
-            UnitScaleFactor = 1.0 / ChMass ** 3
-            RadiusRatioExp = 5.0
-        else:
-            raise ValueError(f'DataType "{DataType}" is unknown.')
-        RadiusRatio = (Radii / CoordRadius) ** RadiusRatioExp
-        for m, DataSet in enumerate(YLMdata):
-            modedata = array(W[DataSet])
-            Ws[n].data[:, m] = (modedata[Indices, 1] + 1j * modedata[Indices, 2]) * RadiusRatio * UnitScaleFactor
-    finally:
-        f.close()
-    return Radii / ChMass
+        InitialAdmEnergy = W["InitialAdmEnergy.dat"][0, 1]
 
+    # The second time we read the file is for the waveform
+    waveform = scri.SpEC.file_io.read_from_h5(
+        os.path.join(filename,WaveformName),
+        frameType=scri.Inertial,
+        dataType=datatype_from_filename(filename),
+        r_is_scaled_out=True,
+        m_is_scaled_out=False, # For now. We will change this later.
+    )
+    
+    return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
-def read_finite_radius_data(
-    ChMass=0.0, filename="rh_FiniteRadii_CodeUnits.h5", CoordRadii=[], LModes=range(2, 100),
-):
+def read_finite_radius_waveform_rpxmb(filename, groupname, WaveformName):
+    """This is just a worker function defined for read_finite_radius_data, 
+       below, reading a single waveform from an h5 file of many waveforms. 
+       You probably don't need to call this directly.
+    """
+
+    from h5py import File
+    import scri
+    from numpy import array
+
+    # Open the file twice.
+    # The first time is for the auxiliary quantities.
+    with File(filename,"r") as f:
+        W = f[groupname][WaveformName]
+
+        # Read the time, account for repeated indices
+        T = array(W["Time.dat"])
+        Indices = monotonic_indices(T)
+        T = T[Indices]
+
+        # Read the other auxiliary quantities
+        Radii = array(W["ArealRadius.dat"])[Indices]
+        AverageLapse = array(W["AverageLapse.dat"])[Indices]
+        CoordRadius = W["CoordRadius.dat"][1]
+        InitialAdmEnergy = W["InitialAdmEnergy.dat"][1]
+
+    # The second time we read the file is for the waveform
+    # Note that groupname begins with a '/' so
+    # os.path.join(filename,groupname,WaveformName) does not work.
+    waveform=scri.rpxmb.load(filename+groupname+"/"+
+                             WaveformName)[0].to_inertial_frame()
+
+    return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
+
+def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
+    from scipy.integrate import cumtrapz as integrate
+    from numpy import log, sqrt
+    import scri
+
+    if groupname is None:
+       waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy = \
+           read_finite_radius_waveform_nrar(filename,WaveformName)
+    else:
+       waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy = \
+           read_finite_radius_waveform_rpxmb(filename,groupname,WaveformName)
+
+    # Rescale and offset the time array so that the time array is
+    # approximately the tortoise coordinate.
+    T[1:] = integrate(AverageLapse / sqrt(((-2.0 * InitialAdmEnergy) / Radii)\
+                                          + 1.0), T) + T[0]
+    T -= Radii + (2.0 * InitialAdmEnergy) \
+        * log((Radii / (2.0 * InitialAdmEnergy)) - 1.0)
+   
+    # Now determine the scaling with mass.
+    if waveform.dataType == scri.h:
+        UnitScaleFactor = 1.0 / ChMass
+        RadiusRatioExp = 1.0
+    elif waveform.dataType == scri.hdot:
+        UnitScaleFactor = 1.0
+        RadiusRatioExp = 1.0
+    elif waveform.dataType == scri.psi4:
+        UnitScaleFactor = ChMass
+        RadiusRatioExp = 1.0
+    elif waveform.dataType == scri.psi3:
+        UnitScaleFactor = 1.0
+        RadiusRatioExp = 2.0
+    elif waveform.dataType == scri.psi2:
+        UnitScaleFactor = 1.0 / ChMass
+        RadiusRatioExp = 3.0
+    elif waveform.dataType == scri.psi1:
+        UnitScaleFactor = 1.0 / ChMass ** 2
+        RadiusRatioExp = 4.0
+    elif waveform.dataType == scri.psi0:
+        UnitScaleFactor = 1.0 / ChMass ** 3
+        RadiusRatioExp = 5.0
+    else:
+        raise ValueError(f'DataType "{waveform.dataType}" is unknown.')
+
+    # Rescale the times and the data
+    RadiusRatio = (Radii / CoordRadius) ** RadiusRatioExp
+    waveform.t = T/ChMass
+    for m,_ in enumerate(waveform.LM):
+        waveform.data[:,m] = \
+            waveform.data[Indices,m] * RadiusRatio * UnitScaleFactor
+    waveform.m_is_scaled_out = True
+
+    # Add the history information
+    history =  (
+        """# extrapolation.read_finite_radius_waveform""" +
+        """({0}, {1}, {2}, {3})"""
+    )
+    history = history.format(
+        filename,
+        groupname,
+        WaveformName,
+        ChMass,
+    )
+    waveform.history=[history]
+
+    return waveform, Radii/ChMass
+        
+def read_finite_radius_data(ChMass=0.0,
+                            filename="rh_FiniteRadii_CodeUnits.h5",
+                            CoordRadii=[], LModes=range(2, 100)):
     """Read data at various radii, and offset by tortoise coordinate."""
 
     if ChMass == 0.0:
@@ -321,6 +353,18 @@ def read_finite_radius_data(
     import scri
 
     YLMRegex = re_compile(mode_regex)
+    
+    # If 'filename' is of the form "h5_file_name.h5/groupname" then we have an
+    # RPXMB file, and groupname identifies the quantity we are extrapolating.
+    # Otherwise, we have a NRAR finite-radius file and the filename identifies
+    # the quantity we are extrapolating.
+    groupname = None
+    if ".h5" in filename and not filename.endswith(".h5"):
+        filename, groupname = filename.split(".h5")
+        filename = filename + ".h5"
+        if groupname == "/":
+            groupname = None
+
     try:
         f = File(filename, "r")
     except OSError:
@@ -328,12 +372,13 @@ def read_finite_radius_data(
         raise
     try:
         # Get list of waveforms we'll be using
-        WaveformNames = list(f)
-        try:
-            VersionHist = f["VersionHist.ver"][:]
-            WaveformNames.remove("VersionHist.ver")
-        except KeyError:
-            VersionHist = []
+        if groupname is None:
+            WaveformNames = list(f)
+            # VersionHist.ver is not one of the WaveformNames.
+            if "VersionHist.ver" in WaveformNames:
+                WaveformNames.remove("VersionHist.ver")
+        else:
+            WaveformNames = list(f[groupname])
         if not CoordRadii:
             # If the list of Radii is empty, figure out what they are
             CoordRadii = [
@@ -350,57 +395,38 @@ def read_finite_radius_data(
                 m.group("r") for Name in CoordRadii for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m
             ]
         NWaveforms = len(WaveformNames)
-        # Check input data
-        if not validate_group_of_waveforms(f, filename, WaveformNames, LModes):
-            raise ValueError(f"Bad input waveforms in {filename}.")
-        stdout.write(f"{filename} passed the data-integrity tests.\n")
-        stdout.flush()
+        
+        # Check input data for NRAR format
+        if groupname is None:
+            if not validate_group_of_waveforms(f, filename,
+                                               WaveformNames, LModes):
+                raise ValueError(f"Bad input waveforms in {filename}.")
+            stdout.write(f"{filename} passed the data-integrity tests.\n")
+            stdout.flush()
         Ws = [scri.WaveformModes() for i in range(NWaveforms)]
         Radii = [None] * NWaveforms
-        InitialAdmEnergy = f[WaveformNames[0] + "/InitialAdmEnergy.dat"][0, 1]
-        DataType = basename(filename).partition("_")[0]
-        if "hdot" in DataType.lower():
-            DataType = scri.hdot
-        elif "h" in DataType.lower():
-            DataType = scri.h
-        elif "psi4" in DataType.lower():
-            DataType = scri.psi4
-        elif "psi3" in DataType.lower():
-            DataType = scri.psi3
-        elif "psi2" in DataType.lower():
-            DataType = scri.psi2
-        elif "psi1" in DataType.lower():
-            DataType = scri.psi1
-        elif "psi0" in DataType.lower():
-            DataType = scri.psi0
-        else:
-            DataType = scri.UnknownDataType
-            message = (
-                "The file '{0}' does not contain a recognizable description "
-                + "of the data type ('h', 'psi4', 'psi3', 'psi2', 'psi1', 'psi0')."
-            )
-            raise ValueError(message.format(filename))
-        PrintedLine = ""
-        for n in range(NWaveforms):
-            if n == NWaveforms - 1:
-                WaveformNameString = WaveformNames[n] + "\n"
-            else:
-                WaveformNameString = WaveformNames[n] + ", "
-            if len(PrintedLine + WaveformNameString) > 100:
-                stdout.write("\n" + WaveformNameString)
-                stdout.flush()
-                PrintedLine = WaveformNameString
-            else:
-                stdout.write(WaveformNameString)
-                stdout.flush()
-                PrintedLine += WaveformNameString
-            Radii[n] = read_finite_radius_waveform(
-                n, filename, WaveformNames[n], ChMass, InitialAdmEnergy, YLMRegex, LModes, DataType, VersionHist, Ws,
-            )
+
     finally:
         f.close()
-    return Ws, Radii, CoordRadii
 
+    PrintedLine = ""
+    for n in range(NWaveforms):
+        if n == NWaveforms - 1:
+            WaveformNameString = WaveformNames[n] + "\n"
+        else:
+            WaveformNameString = WaveformNames[n] + ", "
+        if len(PrintedLine + WaveformNameString) > 100:
+            stdout.write("\n" + WaveformNameString)
+            stdout.flush()
+            PrintedLine = WaveformNameString
+        else:
+            stdout.write(WaveformNameString)
+            stdout.flush()
+            PrintedLine += WaveformNameString
+        Ws[n], Radii[n] = read_finite_radius_waveform(filename,groupname,
+                                                      WaveformNames[n],
+                                                      ChMass)
+    return Ws, Radii, CoordRadii
 
 def set_common_time(Ws, Radii, MinTimeStep=0.005, EarliestTime=-3e300, LatestTime=3e300):
     """Interpolate Waveforms and radius data to a common set of times."""
