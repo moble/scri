@@ -1,274 +1,194 @@
-# Copyright (c) 2020, Michael Boyle
+## Copyright (c) 2020, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
-### NOTE: The functions in this file are intended purely for inclusion in the AsymptoticBondData class.
-### In particular, they assume that the first argument, `self` is an instance of AsymptoticBondData.  
-### They should probably not be used outside of that class.
-
 import os
-import scri
-import numpy as np
-import quaternion
-import spherical_functions as sf
-
-from spherical_functions import LM_index as lm
-
-from scipy.optimize import minimize
-
 import ast
 import json
+import scri
+import numpy as np
+import spherical_functions as sf
+from spherical_functions import LM_index as LM
 
 from quaternion.calculus import indefinite_integral as integrate
 
-### Useful Functions
+from scipy.optimize import minimize
 
 def modes_time_series_to_waveform_modes(mts, dataType=scri.h):
-    """Convert a ModesTimeSeries obejct to a WaveformModes object"""
+    """Convert a ModesTimeSeries obejct to a WaveformModes object."""
     
     h = scri.WaveformModes(t=mts.t,\
-                           data=np.array(mts)[:,lm(mts.ell_min, -mts.ell_min, mts.ell_min):lm(mts.ell_max+1, -(mts.ell_max+1), mts.ell_min)],\
-                           ell_min=mts.ell_min,\
+                           data=np.array(mts)[:,LM(abs(mts.s), -abs(mts.s), mts.ell_min):LM(mts.ell_max+1, -(mts.ell_max+1), mts.ell_min)],\
+                           ell_min=abs(mts.s),\
                            ell_max=mts.ell_max,\
                            frameType=scri.Inertial,\
                            dataType=dataType
                           )
+    h.r_is_scaled_out = True
+    h.m_is_scaled_out = True
+    
     return h
 
-def time_after_half_orbits(h, n_half_orbits, start_time = None):
-    """Compute the time that is a certain number of half orbits past a starting time"""
-    
-    if start_time == None:
-        start_time = h.t[0]
-    a = np.angle(scri.to_coprecessing_frame(h.copy()).data[:,lm(2,2,h.ell_min)])
-    maxs = np.array(np.r_[True, a[1:] > a[:-1]] & np.r_[a[:-1] > a[1:], True], dtype=bool)
-    maxs_after = maxs[np.argmin(abs(h.t - start_time)):]
-    dt = h.t[np.where(maxs_after[1:] == 1)[0][n_half_orbits - 1]] - h.t[np.where(maxs_after[1:] == 1)[0][0]]
-    return h.t[np.argmin(abs(h.t - (start_time + dt)))]
-
-### Functions for CoM
-
-def transformation_from_com_charge(G, t, t1, t2):
-    """Obtain the space translation and boost velocity from the CoM charge G"""
+def transformation_from_CoM_charge(G, t, t1, t2):
+    """Obtain the space translation and boost velocity from the bondi_CoM_charge G."""
     
     idx1 = np.argmin(abs(t - t1))
     idx2 = np.argmin(abs(t - t2))
-    space_translation = []
-    boost_velocity = []
-    for i in range(3):
-        polynomial_fit = np.polyfit(t[idx1:idx2], G[idx1:idx2, i], deg=1)
-        space_translation.append(polynomial_fit[1])
-        boost_velocity.append(polynomial_fit[0])
 
-    transformation = {
-        "space_translation": np.array(space_translation),
-        "boost_velocity": np.array(boost_velocity)
+    polynomial_fit = np.polyfit(t[idx1:idx2], G[idx1:idx2], deg=1)
+
+    CoM_transformation = {
+        "space_translation": polynomial_fit[1],
+        "boost_velocity": polynomial_fit[0]
     }
     
-    return transformation
+    return CoM_transformation
 
-def transformation_to_map_to_com_frame(abd, t1=None, t2=None, n_iterations=5, padding_time=100, interpolate=False, return_convergence=False):
-    """Obtain the optimal space translation and boost velocity to map to the CoM frame"""
-    
-    if t1 == None:
-        t1 = time_after_half_orbits(modes_time_series_to_waveform_modes(2.0*abd.sigma.bar,scri.h), 6, 200)
-    if t2 == None:
-        t2 = time_after_half_orbits(modes_time_series_to_waveform_modes(2.0*abd.sigma.bar,scri.h), 8, t1)
 
-    # interpolate to make things faster
-    if interpolate:
-        abd = abd.interpolate(abd.t[np.argmin(abs(abd.t - (t1 - padding_time))):np.argmin(abs(abd.t - (t2 + padding_time)))])
-    
-    G = abd.bondi_comoving_CoM_charge()/abd.bondi_four_momentum()[:, 0, None]
-    
-    com_transformation = transformation_from_com_charge(G, abd.t, t1, t2)
-    
-    com_transformations = [com_transformation]
+def transformation_to_map_to_CoM_frame(self, t1, t2, tol=1e-10, n_itr_max=10, padding_time=5):
+    """Obtain the space translation and boost velocity to map to the CoM frame.
 
-    for itr in range(n_iterations - 1):
-        abd_prime = abd.transform(space_translation = com_transformation["space_translation"],\
-                                  boost_velocity = com_transformation["boost_velocity"])
+    This fits degree one polynomials, a * t + b, to the three components of the
+    Bondi center-of-mass charge to obtain the space translation (b) and the
+    boost velocity (a) needed to map the system to the CoM frame. To obtain the
+    most accurate transformations, this function iterates over the aforementioned
+    charge-fitting procedure until the transformations converge below the tolerance.
 
-        G_prime = abd_prime.bondi_comoving_CoM_charge()/abd_prime.bondi_four_momentum()[:, 0, None]
+    Parameters
+    ==========
+    t1: float
+        Where to start the charge-fitting procedure.
 
-        com_transformation_prime = transformation_from_com_charge(G_prime, abd_prime.t, t1, t2)
-        
-        for transformation in com_transformation_prime:
-            com_transformation[transformation] += com_transformation_prime[transformation]
+    t2: float
+        Where to end the charge-fitting procedure.
 
-        com_transformations.append(com_transformation)
+    tol: float, optional
+        The required tolerance for the relative error of the transformations.
+        Default is 1e-10. 
 
-    if return_convergence:
-        def norm(v):
-            return np.sqrt(sum(n * n for n in v))
-        
-        convergence = {
-            "space_translation": np.array([norm(com_transformations[0]["space_translation"])] + \
-                                          [0.0]*(len(com_transformations)-1)),
-            "boost_velocity": np.array([norm(com_transformations[0]["boost_velocity"])] +\
-                                       [0.0]*(len(com_transformations)-1))
-        }
-        for i in range(1,len(com_transformations)):
-            for transformation in convergence:
-                convergence[transformation][i] =\
-                    norm(com_transformations[i][transformation]) -\
-                    norm(com_transformations[i-1][transformation])
-        return com_transformation, convergence
+    n_itr_max: int, optional
+        Maximum number of iterations to perform.
+        Default is 10
+
+    padding_time: float, optional
+        The time by which to extend t1 and t2 when performing transformations.
+        Default is 5.
+
+    Returns
+    -------
+    transformations: dict
+        Dict with keys 'space_translation' and 'boost_velocity' whose values
+        are the transformations needed to map to the CoM frame.
+    """
+
+    if not (t1 and t2):
+        raise ValueError("The inputs t1 and t2 are both required.")
+    elif t1 > t2:
+        raise ValueError(f"t1 = {t1} must be less than t2 = {t2}.")
     else:
-        return com_transformation
-
-### Functions for BMS
-
-def combine_transformations_to_supertranslation(transformations):
-    """Convert time and space translations to ell=0 and ell=1 supertranslations"""
+        if t1 < self.t[0] + padding_time:
+            print(f"t1 = {t1} is less than self.t[0] + padding_time = {self.t[0] + padding_time}, using self.t[0] instead.")
+        if t2 > self.t[-1] - padding_time:
+            print(f"t2 = {t2} is more than self.t[-1] - padding_time = {self.t[-1] - padding_time}, using self.t[-1] instead.")
     
-    combined_transformations = {}
+    # interpolate to make computations slightly faster
+    abd = self.interpolate(self.t[np.argmin(abs(self.t - (t1 - padding_time))):\
+                                  np.argmin(abs(self.t - (t2 + padding_time)))])
+
+    G = abd.bondi_CoM_charge()/abd.bondi_four_momentum()[:, 0, None]
     
-    supertranslation_modes = []
-    for transformation in transformations:
-        if transformation == "time_translation":
-            supertranslation_modes.append(0)
-        if transformation == "space_translation":
-            supertranslation_modes.append(1)
-        if "supertranslation" in transformation:
-            ell = int(transformation.split('ell_')[1])
-            supertranslation_modes.append(ell)
-            
-    if len(supertranslation_modes) > 0:
-        supertranslation = np.zeros(int((max(supertranslation_modes) + 1)**2.0)).tolist()
-        for transformation in transformations:
-            if transformation == "time_translation":
-                supertranslation[0] = sf.constant_as_ell_0_mode(transformations[transformation][0])
-            if transformation == "space_translation":
-                supertranslation[1:4] = -sf.vector_as_ell_1_modes(np.array(transformations[transformation]))
-            if transformation == "frame_rotation":
-                combined_transformations[transformation] = transformations[transformation]
-            if transformation == "boost_velocity":
-                combined_transformations[transformation] = transformations[transformation]
-            if "supertranslation" in transformation:
-                ell = int(transformation.split('ell_')[1])
-                supertranslation[int(ell**2):int(ell**2 + (2*ell+1))] = transformations[transformation]
-            
-        combined_transformations["supertranslation"] = supertranslation
-
-    return combined_transformations
-
-def transform_abd(abd, transformations):
-    """Transform an ABD object using a transformations dictionary,
-    assuming that the dictionary has already been converted to be
-    supertranslations, a frame rotation, and a boost velocity"""
+    CoM_transformation = transformation_from_CoM_charge(G, abd.t, t1, t2)
     
-    if "supertranslation" in transformations:
-        if "frame_rotation" in transformations:
-            if "boost_velocity" in transformations:
-                abd_prime = abd.transform(supertranslation=transformations["supertranslation"],\
-                                          frame_rotation=transformations["frame_rotation"],\
-                                          boost_velocity=transformations["boost_velocity"])
-            else:
-                abd_prime = abd.transform(supertranslation=transformations["supertranslation"],\
-                                          frame_rotation=transformations["frame_rotation"])
-        elif "boost_velocity" in transformations:
-            abd_prime = abd.transform(supertranslation=transformations["supertranslation"],\
-                                      boost_velocity=transformations["boost_velocity"])
-        else:
-            abd_prime = abd.transform(supertranslation=transformations["supertranslation"])
-    elif "frame_rotation" in transformations:
-        if "boost_velocity" in transformations:
-            abd_prime = abd.transform(frame_rotation=transformations["frame_rotation"],\
-                                      boost_velocity=transformations["boost_velocity"])
-        else:
-            abd_prime = abd.transform(frame_rotation=transformations["frame_rotation"])
-    elif "boost_velocity" in transformations:
-        abd_prime = abd.transform(boost_velocity=transformations["boost_velocity"])
-    else:
-        abd_prime = abd.copy()
-    return abd_prime
+    CoM_transformations = [CoM_transformation]
 
-def compute_initial_guess_for_transformation(previous_transformations, transformation, abd, iteration):
-    """Transform an ABD object using a transformations dictionary,
-    assuming that the dictionary has already been converted to be
-    supertranslations, a frame rotation, and a boost velocity"""
-    
-    initial_guess = previous_transformations.copy()
+    n_itr = 1
+    rel_err = np.ones(6)
+    while (rel_err > tol).sum() != 0 and n_itr < n_itr_max:
+        abd_prime = abd.transform(space_translation = CoM_transformations[-1]["space_translation"],\
+                                  boost_velocity = CoM_transformations[-1]["boost_velocity"])
 
-    if iteration == 0:
-        if transformation == "time_translation":
-            initial_guess[transformation] = [0.0]
-        if transformation == "frame_rotation":
-            initial_guess[transformation] = [1.0, 0.0, 0.0, 0.0]
-        if "supertranslation" in transformation:
-            ell = int(transformation.split('ell_')[1])
-            initial_guess[transformation] = [0.0]*int(2.0*ell + 1)
+        G_prime = abd_prime.bondi_CoM_charge()/abd_prime.bondi_four_momentum()[:, 0, None]
         
-    return initial_guess
+        CoM_transformation_prime = transformation_from_CoM_charge(G_prime, abd_prime.t, t1, t2)
+        
+        new_CoM_transformation = {}
+        for transformation in CoM_transformation_prime:
+            new_CoM_transformation[transformation] = CoM_transformations[-1][transformation] + CoM_transformation_prime[transformation]
+            
+        CoM_transformations.append(new_CoM_transformation)
+        
+        rel_err = np.array([(CoM_transformations[-1][transformation][i] - CoM_transformations[-2][transformation][i])\
+                            / CoM_transformations[-1][transformation][i] for transformation in CoM_transformation for i in range(3)], dtype=float)
+        
+        n_itr += 1
 
-### Functions to Convert between initial guess array and transformations
+    if not n_itr < n_itr_max:
+        print(f"Maximum number of iterations reached; the max error was {max(rel_err)}.")
+    else:
+        print(f"Tolerance achieved in {n_itr} iterations!")
+
+    return CoM_transformation
+
 
 def as_complexes(modes, ell_min, ell_max):
     """Convert a supertranslation to an array of real and imaginary components.
     The array is aranged as follows: the real component of the (ell,m) mode, with m increasing from -ell to 0 for each ell,
-    the imaginary component of (ell,m) mode, with m increasing from -ell to -1"""
+    the imaginary component of (ell,m) mode, with m increasing from -ell to -1."""
     
     complexes = []
     for L in range(ell_min, ell_max+1):
-        for M in range(-L,0+1):
-            complexes.append(modes[lm(L,M,ell_min)].real)
+        for M in range(-L, 0 + 1):
+            complexes.append(modes[LM(L, M, ell_min)].real)
     for L in range(ell_min, ell_max+1):
-        for M in range(-L,0):
-            complexes.append(modes[lm(L,M,ell_min)].imag)
+        for M in range(-L, 0):
+            complexes.append(modes[LM(L, M, ell_min)].imag)
+            
     return complexes
+
 
 def as_modes(complexes, ell_min, ell_max):
     """Convert an array of real and imaginary components to a supertranslation.
     The array is aranged as follows: the real component of the (ell,m) mode, with m increasing from -ell to 0 for each ell,
-    the imaginary component of (ell,m) mode, with m increasing from -ell to -1"""
+    the imaginary component of (ell,m) mode, with m increasing from -ell to -1."""
     
-    def fix_idx(L,ell_min):
-        return int((L-ell_min)*(L+ell_min-1)/2)
+    def fix_idx(L, ell_min):
+        return int((L - ell_min) * (L + ell_min - 1) / 2)
         
-    modes = np.zeros((ell_max + 1)**2 - (ell_min)**2, dtype=complex)
-    for L in range(ell_min, ell_max+1):
-        for M in range(-L,0+1):
+    modes = np.zeros((ell_max + 1)**2 - ell_min**2, dtype=complex)
+    for L in range(ell_min, ell_max + 1):
+        for M in range(-L, 0 + 1):
             if M == 0:
-                modes[lm(L,M,ell_min)] = complexes[lm(L,M,ell_min)-fix_idx(L,ell_min)]
+                modes[LM(L, M, ell_min)] = complexes[LM(L, M, ell_min) - fix_idx(L, ell_min)]
             else:
-                modes[lm(L,M,ell_min)] = complexes[lm(L,M,ell_min)-fix_idx(L,ell_min)] +\
-                    1.0j*complexes[(lm(ell_max,ell_max,ell_min)-fix_idx(ell_max+1,ell_min)+1)+\
-                           lm(L,M,ell_min)-fix_idx(L,ell_min)-L+ell_min]
+                modes[LM(L, M, ell_min)] = complexes[LM(L, M, ell_min) - fix_idx(L, ell_min)] +\
+                    1.0j*complexes[(LM(ell_max, ell_max, ell_min) - fix_idx(ell_max + 1, ell_min) + 1) +\
+                                   LM(L, M, ell_min) - fix_idx(L, ell_min) - L + ell_min]
         for M in range(1,L+1):
-            modes[lm(L,M,ell_min)] = (-1)**M * np.conj(modes[lm(L,-M,ell_min)])
+            modes[LM(L,M,ell_min)] = (-1)**M * np.conj(modes[LM(L, -M, ell_min)])
+            
     return modes
-
-def convert_initial_guess_transformations_to_initial_guess_array(initial_guess_transformations, bounds):
-    """Convert a initial guess transformations to an initial guess array"""
-
-    x0 = []
-    x0_bounds = []
-    x0_constraints = []
     
-    frame_rotation_idx = None
-    for transformation in initial_guess_transformations:
-        if transformation == "time_translation":
-            x0 += initial_guess_transformations[transformation]
-        if transformation == "frame_rotation":
-            # we only need the final three components (restrict to unit quaternions)
-            x0 += initial_guess_transformations[transformation][1:4]
-            frame_rotation_idx = len(x0) - 3
-            x0_constraints.append({'type': 'ineq', 'fun': lambda x: 1.0 - sum(n * n for n in x[frame_rotation_idx:frame_rotation_idx + 3])})
-        if "supertranslation" in transformation:
-            ell = int(transformation.split('ell_')[1])
-            x0 += as_complexes(initial_guess_transformations[transformation], ell, ell)
 
-        if transformation != "space_translation" and transformation != "boost_velocity":
-            for bound in bounds[transformation]:
-                x0_bounds.append(bound)
+def convert_parameters_to_transformation(x0, transformation_keys, CoM_transformation=None, combine_translations=True):
+    """Converts the parameters x0, which are arranged in order of the transformation_keys,
+    to a dict containing the keys 'supertranslation', 'frame_rotation', and 'boost_velocity'.
+    For transformations involving complex parameters, the x0 interval corresponding to that
+    transformation is organized as the real component of the (ell,m) mode, with m increasing
+    from -ell to 0 for each ell, and then the imaginary component, with m increasing from
+     -ell to -1. The reason we only include -m parameters is because the +m parameters
+    are fixed by requiring that the transformations are real."""
+    
+    bms_transformation = {
+        'supertranslation': 0,
+        'frame_rotation': [1, 0, 0, 0],
+        'boost_velocity': [0, 0, 0],
+    }             
+    if not combine_translations:
+        bms_transformation = {}
 
-    return x0, x0_bounds, tuple(x0_constraints), frame_rotation_idx
-
-def convert_initial_guess_array_to_transformations(x0, transformation_keys, com_transformation, to_constant_and_vector=True):
-    """Convert an initial guess array to transformations"""
-
-    bms_transformation = {}
-
+    if CoM_transformation != None:
+        transformation_keys.append('space_translation')
+        transformation_keys.append('boost_velocity')
+        
     supertranslation_modes = []
     for transformation in transformation_keys:
         if transformation == "time_translation":
@@ -278,546 +198,400 @@ def convert_initial_guess_array_to_transformations(x0, transformation_keys, com_
         if "supertranslation" in transformation:
             ell = int(transformation.split('ell_')[1])
             supertranslation_modes.append(ell)
-
-    idx_iterator = 0
+            
+    idx = 0
     supertranslation = np.zeros(int((max(supertranslation_modes) + 1)**2.0)).tolist()
     for transformation in transformation_keys:
         if transformation == "time_translation":
-            if to_constant_and_vector:
-                bms_transformation[transformation] = x0[idx_iterator:idx_iterator + 1]
+            if not combine_translations:
+                bms_transformation[transformation] = x0[idx:idx + 1]
             else:
-                supertranslation[0] = sf.constant_as_ell_0_mode(x0[idx_iterator:idx_iterator + 1])
-            idx_iterator += 1
+                supertranslation[0] = sf.constant_as_ell_0_mode(x0[idx])
+            idx += 1
 
-        # space translation is held fixed by CoM correction
         if transformation == "space_translation":
-            if to_constant_and_vector:
-                bms_transformation[transformation] = com_transformation[transformation]
+            if CoM_transformation == None:
+                if not combine_translations:
+                    bms_transformation[transformation] = x0[idx:idx + 3]
+                else:
+                    supertranslation[1:4] = as_modes(x0[idx:idx + 3], 1, 1)
+                    
+                idx += 3
             else:
-                supertranslation[1:4] = -sf.vector_as_ell_1_modes(np.array(com_transformation[transformation]))
-                
-        if transformation == "frame_rotation":
-            bms_transformation[transformation] = [np.sqrt(1.0 - sum(n * n for n in x0[idx_iterator:idx_iterator + 3]))] + [n for n in x0[idx_iterator:idx_iterator + 3]]
-            idx_iterator += 3
+                if not combine_translations:
+                    bms_transformation[transformation] = CoM_transformation[transformation]
+                else:
+                    supertranslation[1:4] = as_modes(CoM_transformation[transformation], 1, 1)
 
-        # boost velocity is held fixed by CoM correction
+        if transformation == "frame_rotation":
+            bms_transformation[transformation] = [np.sqrt(1.0 - sum(n * n for n in x0[idx:idx + 3]))] + [n for n in x0[idx:idx + 3]]
+            idx += 3
+
         if transformation == "boost_velocity":
-            bms_transformation[transformation] = com_transformation[transformation]
-            
+            if CoM_transformation == None:
+                bms_transformation[transformation] = x0[idx:idx + 3]
+                idx += 3
+            else:
+                bms_transformation[transformation] = CoM_transformation[transformation]
+
         if "supertranslation" in transformation:
             ell = int(transformation.split('ell_')[1])
-            if to_constant_and_vector:
-                bms_transformation[transformation] = as_modes(x0[idx_iterator:idx_iterator + int(2.0*ell + 1)], ell, ell)
+            if not combine_translations:
+                bms_transformation[transformation] = as_modes(x0[idx:idx + int(2.0 * ell + 1)], ell, ell)
             else:
-                supertranslation[int(ell**2):int(ell**2 + (2*ell+1))] = as_modes(x0[idx_iterator:idx_iterator + int(2.0*ell + 1)], ell, ell)
-            idx_iterator += int(2.0*ell + 1)
-            
-    if not to_constant_and_vector:
+                supertranslation[int(ell**2):int(ell**2 + (2 * ell + 1))] = as_modes(x0[idx:idx + int(2.0*ell + 1)], ell, ell)
+            idx += int(2.0 * ell + 1)
+
+    if combine_translations:
         bms_transformation["supertranslation"] = supertranslation
+
+    return bms_transformation
+
+
+def initial_guess_transformations_to_x0(initial_guess_transformations, bounds):
+    """Converts the bms transformations in the transformation dict to an array of parameters.
+    For transformations involving complex parameters, the x0 interval corresponding to that
+    transformation is organized as the real component of the (ell,m) mode, with m increasing
+    from -ell to 0 for each ell, and then the imaginary component, with m increasing from
+     -ell to -1. The reason we only include -m parameters is because the +m parameters
+    are fixed by requiring that the transformations are real."""
+    
+    x0 = []
+    x0_bounds = []
+    x0_constraints = []
+
+    frame_rotation_idx = None
+    for transformation in initial_guess_transformations:
+        if initial_guess_transformations[transformation] == None:
+            break
+
+        if transformation == "time_translation":
+            x0 += initial_guess_transformations[transformation]
+        elif transformation == "space_translation":
+            x0 += as_complexes(initial_guess_transformations[transformation], 1, 1)
+        elif transformation == "frame_rotation":
+            # we only need the final three components (restrict to unit quaternion)
+            x0 += initial_guess_transformations[transformation][1:4]
+            frame_rotation_idx = len(x0) - 3
+            x0_constraints.append({'type': 'ineq', 'fun': lambda x: 1.0 - sum(n * n for n in x[frame_rotation_idx:frame_rotation_idx + 3])})
+        elif transformation == "boost_velocity":
+            # boost velocity cannot a norm of one
+            x0 += initial_guess_transformations[transformation]
+            boost_velocity_idx = len(x0) - 3
+            x0_constraints.append({'type': 'ineq', 'fun': lambda x: 1.0 - sum(n * n for n in x[boost_velocity_idx:boost_velocity_idx + 3])})
+        elif "supertranslation" in transformation:
+            ell = int(transformation.split('ell_')[1])
+            x0 += as_complexes(initial_guess_transformations[transformation], ell, ell)
+            
+        for bound in bounds[transformation]:
+            x0_bounds.append(bound)
+
+    return x0, x0_bounds, tuple(x0_constraints), frame_rotation_idx, boost_velocity_idx
+        
+
+def initial_guess_from_bms_transformation(bms_transformation, bounds, transformation_names):
+    """Initialize a dict of bms transformations. If previous information is available,
+    the initial guess will use that information, otherwise it will just be zero."""
+    
+    initial_guess_transformations = {}
+    for transformation in transformation_names:
+        if bms_transformation[transformation] == None:
+            if transformation == "time_translation":
+                initial_guess_transformations[transformation] = [0.0]
+            elif transformation == "space_translation":
+                initial_guess_transformations[transformation] = [0.0]*3
+            elif transformation == "frame_rotation":
+                initial_guess_transformations[transformation] = [1.0] + [0.0]*3
+            elif transformation == "boost_velocity":
+                initial_guess_transformations[transformation] = [0.0]*3
+            elif "supertranslation" in transformation:
+                ell = int(transformation.split('ell_')[1])
+                initial_guess_transformations[transformation] = [0.0]*int(2.0*ell + 1)
+        else:
+            initial_guess_transformations[transformation] = bms_transformation[transformation]
+            
+    return initial_guess_transformations_to_x0(initial_guess_transformations, bounds)
+
+
+def func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_keys, CoM_transformation=None, frame_rotation_idx=None, boost_velocity_idx=None):
+    """Function to be minimized by SciPy's minimization function. This will either minimize
+    the norm of the difference of two strain waveforms if h_target != None, otherwise it
+    will minimize the norm of the Moreschi supermomentum."""
+    
+    minimize_Moreschi_supermomentum = True
+    if h_target != None:
+        minimize_Moreschi_supermomentum = False
+
+    if np.array(x0).size != 0:
+        if frame_rotation_idx != None:
+            if 1.0 - sum(n * n for n in x0[frame_rotation_idx:frame_rotation_idx + 3]) < 0:
+                return 1e6
+        if boost_velocity_idx != None:
+            if 1.0 - sum(n * n for n in x0[boost_velocity_idx:boost_velocity_idx + 3]) < 0:
+                return 1e6
+            
+        # this converts the parameters used in the minimization to a dict containing
+        # 'supertranslation', 'frame_rotation', and 'boost_velocity'
+        bms_transformation = convert_parameters_to_transformation(x0, transformation_keys, CoM_transformation)
+            
+        abd_prime = abd.transform(supertranslation=bms_transformation['supertranslation'],
+                                  frame_rotation=bms_transformation['frame_rotation'],
+                                  boost_velocity=bms_transformation['boost_velocity'])
+    else:
+        abd_prime = abd.copy()
+
+    if minimize_Moreschi_supermomentum:
+        PsiM = modes_time_series_to_waveform_modes(abd_prime.supermomentum('Moreschi'), scri.psi2).interpolate(abd_prime.t[t1_idx:t2_idx])
+        return integrate(PsiM.norm(), PsiM.t)[-1 ]/ (abd_prime.t[t2_idx] - abd_prime.t[t1_idx])
+    else:
+        h = modes_time_series_to_waveform_modes(2.0*abd_prime.sigma.bar)[t1_idx:t2_idx]
+        h = h[:,:(h_target.ell_max + 1)]
+        h_diff = h.copy()
+        h_diff.data -= h_target.interpolate(h.t).data
+        return integrate(h_diff.norm(), h_diff.t)[-1] / (h_diff.t[-1] - h_diff.t[0])
+
+    
+def read_bms_transformation(bms_transformation, json_file, no_CoM=False):
+    """Read a dictionary of transformations from a json file."""
+    
+    bms_transformation_from_file = {}
+    if os.path.exists(json_file):
+        with open(json_file, 'r') as f: 
+            bms_transformation_from_file = json.load(f)['transformations']
+        for transformation in bms_transformation_from_file:
+            bms_transformation[transformation] = ast.literal_eval(bms_transformation_from_file[transformation])
+    
+    if no_CoM:
+        bms_transformation.pop('space_translation', None)
+        bms_transformation.pop('boost_velocity', None)
     
     return bms_transformation
 
-### Functions for Minimizer
-
-def L2_norm(h, h_target, t1_idx, t2_idx):
-    """Get the L2 norm of the difference of two strains"""
     
-    h_interpolated = h.interpolate(
-        h.t[t1_idx:t2_idx])
-    h_target_interpolated = h_target.interpolate(h_interpolated.t)
-
-    ell_max = min(h_interpolated.ell_max, h_target_interpolated.ell_max)
-
-    diff = h_interpolated.copy()
-    diff.data = diff.data[:,lm(2,-2,diff.ell_min):lm(ell_max + 1, -(ell_max + 1), diff.ell_min)] -\
-        h_target_interpolated.data[:,lm(2,-2,h_target_interpolated.ell_min):lm(ell_max + 1, -(ell_max + 1), h_target_interpolated.ell_min)]
-    diff.ell_min = 2
-    diff.ell_max = ell_max
-
-    return integrate(diff.norm(), diff.t)[-1]
+def write_bms_transformation(bms_transformation, json_file, times, errors, in_order=False):
+    """Write a dictionary of transformations to a json file."""
     
-def minimize_L2_norm(x0, abd, h_target, t1_idx, t2_idx, transformation_keys=None, com_transformation=None, frame_rotation_idx=None):
-    """Minimize the L2 norm of the difference of two strains;
-    x0 is aranged as follows: the real component of the (ell,m) mode, with m increasing from -ell to 0 for each ell,
-    the imaginary component of (ell,m) mode, with m increasing from -ell to -1"""
-    
-    if x0 != []:
-        if frame_rotation_idx != None:
-            if 1.0 - sum(n * n for n in x0[frame_rotation_idx:frame_rotation_idx + 3]) < 0:
-                return 1e6
-            
-        bms_transformation = convert_initial_guess_array_to_transformations(x0, transformation_keys, com_transformation, to_constant_and_vector=False)
-
-        abd_prime = transform_abd(abd, bms_transformation)
-    else:
-        abd_prime = abd.copy()
-
-    h_prime = modes_time_series_to_waveform_modes(2.0*abd_prime.sigma.bar, dataType=scri.h)
-    return L2_norm(h_prime, h_target, t1_idx, t2_idx)
-
-### Functions to read transformations
-
-def minimize_supermomentum_norm(x0, abd, t1_idx, t2_idx, transformation_keys=None, com_transformation=None, frame_rotation_idx=None):
-    """Minimize the L2 norm of the difference of two strains;
-    x0 is aranged as follows: the real component of the (ell,m) mode, with m increasing from -ell to 0 for each ell,
-    the imaginary component of (ell,m) mode, with m increasing from -ell to -1"""
-    
-    if x0 != []:
-        if frame_rotation_idx != None:
-            if 1.0 - sum(n * n for n in x0[frame_rotation_idx:frame_rotation_idx + 3]) < 0:
-                return 1e6
-            
-        bms_transformation = convert_initial_guess_array_to_transformations(x0, transformation_keys, com_transformation, to_constant_and_vector=False)
-
-        abd_prime = transform_abd(abd, bms_transformation)
-    else:
-        abd_prime = abd.copy()
-
-    PsiM = modes_time_series_to_waveform_modes(abd_prime.psi2 + abd_prime.sigma*abd_prime.sigma.bar.dot + abd_prime.sigma.bar.eth_GHP.eth_GHP, scri.psi2)
-    PsiM.data = PsiM.data[:,lm(2,-2,PsiM.ell_min):]
-    PsiM.ell_min = 2
-    
-    return integrate(PsiM.norm()[t1_idx:t2_idx], PsiM.t[t1_idx:t2_idx])[-1]
-
-### Functions to read transformations
-
-def read_in_previous_bms_transformation(transformations, json_file, return_everything=False, read_transformations_thus_far=False):
-    transformations_thus_far = []
-    previous_bms_transformation = {}
-    if os.path.exists(json_file):
-        with open(json_file, 'r') as f:
-            data = json.load(f)
-            if "transformations_thus_far" in data and read_transformations_thus_far:
-                transformations_thus_far = data["transformations_thus_far"]
-                transformations_thus_far.remove("space_translation")
-                transformations_thus_far.remove("boost_velocity")
-            bms_transformation_from_file = data["transformations"]
-        if not return_everything:
-            for transformation in transformations:
-                if transformation in bms_transformation_from_file:
-                    previous_bms_transformation[transformation] = ast.literal_eval(bms_transformation_from_file[transformation])
-        else:
-            for transformation in bms_transformation_from_file:
-                previous_bms_transformation[transformation] = ast.literal_eval(bms_transformation_from_file[transformation])
-                
-    if not read_transformations_thus_far:
-        return previous_bms_transformation
-    else:
-        return previous_bms_transformation, transformations_thus_far
-
-### Functions to write transformations
-
-def write_bms_transformation(bms_transformation, times, errors, json_file, iteration, complete=False):
-    """Write a transformations dictionary to a json file"""
-    
-    default_order = ["time_translation","space_translation","frame_rotation","boost_velocity"]
-    
-    reordered_bms_transformation = {
-        "times": {
+    transformation_and_minimize_information = {
+        'times': {
         },
-        "transformations_thus_far": {
+        'transformations': {
         },
-        "transformations": {
-        },
-        "errors": {
+        'errors': {
         },
     }
 
-    # times
-    for time in times:
-        reordered_bms_transformation["times"][time] = str(np.array(times[time]).tolist())
-
-    # transformations
-    for transformation in default_order:
-        if transformation in bms_transformation:
-            reordered_bms_transformation["transformations"][transformation] = str(np.array(bms_transformation[transformation]).tolist())
-
-    supertranslations = []
-    for transformation in bms_transformation:
-        if "supertranslation" in transformation:
-            supertranslations.append(transformation)
-    supertranslations = np.sort(supertranslations)
-    for transformation in supertranslations:
-        reordered_bms_transformation["transformations"][transformation] = str(np.array(bms_transformation[transformation]).tolist())
-
-    # errors
-    for error in errors:
-        reordered_bms_transformation["errors"][error] = str(np.array(errors[error]).tolist())
-
-    if iteration == 0:
-        previous_bms_transformation = read_in_previous_bms_transformation(list(bms_transformation.keys()), json_file)
+    transformation_and_minimize_information['times'] = times
+    if not in_order:
+        for transformation in bms_transformation:
+            transformation_and_minimize_information['transformations'][transformation] = str(np.array(bms_transformation[transformation]).tolist())
     else:
-        previous_bms_transformation = read_in_previous_bms_transformation(list(bms_transformation.keys()), json_file, return_everything=True)
-    if not previous_bms_transformation == {}:
-        for transformation in previous_bms_transformation:
-            if not transformation in reordered_bms_transformation["transformations"]:
-                reordered_bms_transformation["transformations"][transformation] = str(np.array(previous_bms_transformation[transformation]).tolist())
-                
-    reordered_bms_transformation["transformations_thus_far"] = list(bms_transformation.keys())
-            
-    if complete:
-        reordered_bms_transformation.pop("transformations_thus_far", None)
-            
+        order = ["time_translation", "space_translation", "frame_rotation", "boost_velocity"]
+        for transformation in order:
+            if transformation in bms_transformation:
+                transformation_and_minimize_information['transformations'][transformation] = str(np.array(bms_transformation[transformation]).tolist())
+        for transformation in bms_transformation:
+            if 'supertranslation' in transformation:
+                transformation_and_minimize_information['transformations'][transformation] = str(np.array(bms_transformation[transformation]).tolist())
+    
     with open(json_file, 'w') as f:
-        json.dump(reordered_bms_transformation, f, indent=2, separators=(",", ": "), ensure_ascii=True)
+        json.dump(transformation_and_minimize_information, f, indent=2, separators=(",", ": "), ensure_ascii=True)
+    
 
-### Main Looping Function
+def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
+                                       bms_transformation={
+                                           "supertranslation_ell_2": None,
+                                           "time_translation":       None,
+                                           "space_translation":      None,
+                                           "frame_rotation":         None,
+                                           "boost_velocity":         None,
+                                           "supertranslation_ell_3": None,
+                                           "supertranslation_ell_4": None
+                                       },
+                                       bounds={
+                                           "time_translation":       [(-100.0, 100.0)],
+                                           "space_translation":      [(-1.0, 1.0)]*3,
+                                           "frame_rotation":         [(-1.0, 1.0)]*3,
+                                           "boost_velocity":         [(-1e-2, 1e-2)]*3,
+                                           "supertranslation_ell_2": [(-1.0, 1.0)]*5,
+                                           "supertranslation_ell_3": [(-1.0, 1.0)]*7,
+                                           "supertranslation_ell_4": [(-1.0, 1.0)]*9
+                                       },
+                                       tol=1e-12, n_itr_max=2, padding_time=100, h_target=None, CoM=False):
+    """Obtain the BMS transformation to map to a specified BMS frame. This may either
+    be the BMS frame corresponding to minimizing the Moreschi supermomentum or
+    the BMS frame of an input strain waveform, e.g., a PN waveform.
 
-def transformation_to_map_to_pn_bms_frame(self, h_target, json_file, bms_transformations=None, bounds=None, t1=None, t2=None, padding_time=100, ftol=1e-12, n_iterations=4, debug=True, CoM=True):
-    """Map an AsymptoticBondiData object to the BMS frame of another object
+    This uses SciPy's Sequential Lease Squares Programing to perform a minimization
+    over a range of BMS transformations. To help this minimizer converge, we iteratively
+    loop over each BMS transformation, using the previous findings as initial guesses.
 
     Parameters
     ==========
-    abd: AsymptoticBondiData
-        The object storing the modes of the data, which will be transformed in
-        this function. This is the only required argument to this function.
-    h_target: WaveformModes
-        The target strain waveform.
     json_file: string
-        The json_file to output the transformation to.
-    bms_transformations: dictionary, optional
-        Defaults to
+        Where to read/write BMS transformations from/to.
+
+    t1: float
+        Where to start the minimization procedure.
+
+    t2: float
+        Where to end the minimization procedure.
+
+    bms_transformation: dict, optional
+        Which transformations to include in the minmization. The order of the keys
+        determines the order in which the transformations will be included in the minimizaiton.
+        Default is
         bms_transformation = {
             "supertranslation_ell_2": None,
-            "time_translation": None,
-            "frame_rotation": None,
+            "time_translation":       None,
+            "space_translation":      None,
+            "frame_rotation":         None,
+            "boost_velocity":         None,
             "supertranslation_ell_3": None,
             "supertranslation_ell_4": None
         }
-    bounds: dictionary, optional
-        Defaults to the following bounds for the input bms transformations:
+        Note that performing the supertranslation_ell_2 first is important because this
+        tends to be the most influencial factor when mapping to a BMS frame.
+
+    bounds: dict, optional
+        Bounds on the transformations provided above.
+        Default is
         bounds = {
-            "time_translation": [(-100.0, 100.0)],
-            "space_translation": [(-1.0, 1.0)]*3,
-            "frame_rotation": [(-1.0, 1.0)]*3,
-            "boost_velocity": [(-1e-4, 1e-4)]*3,
+            "time_translation":       [(-100.0, 100.0)],
+            "space_translation":      [(-1.0, 1.0)]*3,
+            "frame_rotation":         [(-1.0, 1.0)]*3,
+            "boost_velocity":         [(-1e-4, 1e-4)]*3,
             "supertranslation_ell_2": [(-1.0, 1.0)]*5,
             "supertranslation_ell_3": [(-1.0, 1.0)]*7,
             "supertranslation_ell_4": [(-1.0, 1.0)]*9
         }
-    t1: float, optional
-        Defaults to three orbits past t=200M.
-    t2: float, optional
-        Defaults to four orbits past t1.
-    padding time: float, optional
-        Defaults to 100
-    ftol: tolerance to use in the minimizer.
-        Defaults to 1e-8
-    n_iterations: int, optional
-        Defaults to 2
+
+    tol: float, optional
+        The required tolerance for the relative error of the transformations.
+        Default is 1e-12.
+
+    n_itr_max: int, optional
+        Maximum number of iterations to perform.
+        Default is 2.
+
+    padding_time: float, optional
+        The time by which to extend t1 and t2 when performing transformations.
+        Default is 100
+
+    h_target: WaveformModes, optional
+        The strain whose BMS frame we will try to map to.
+        Default is None, i.e., minimize the L2 norm of the Moreschi supermomentum.
+
+    CoM: bool, optional
+        Determine the space translation and boost velocity based on the
+        Bondi center-of-mass charge.
+        Default is False.
 
     Returns
     -------
-    bms_transformation: dictionary
-        Object representing the optimized bms transformation.
-
+    transformations: dict
+        Dict whose keys are
+           * time_translation
+           * space_translation
+           * boost_velocity
+           * frame_rotation
+           * supertranslation_ell_2
+           * supertranslation_ell_3
+           * supertranslation_ell_4
+           ...
     """
 
-    if bms_transformations == None:
-        bms_transformations = {
-            "supertranslation_ell_2": None,
-            "time_translation": None,
-            "space_translation": [0.0]*3,
-            "frame_rotation": None,
-            "boost_velocity": [0.0]*3,
-            "supertranslation_ell_3": None,
-            "supertranslation_ell_4": None
-        }
+    if not (t1 and t2):
+        raise ValueError("The inputs t1 and t2 are both required.")
+    elif t1 > t2:
+        raise ValueError(f"t1 = {t1} must be less than t2 = {t2}.")
+    else:
+        if t1 < self.t[0] + padding_time:
+            print(f"t1 = {t1} is less than self.t[0] + padding_time = {self.t[0] + padding_time}, using self.t[0] instead.")
+        if t2 > self.t[-1] - padding_time:
+            print(f"t2 = {t2} is more than self.t[-1] - padding_time = {self.t[-1] - padding_time}, using self.t[-1] instead.")
+            
+        peak_time = self.t[np.argmax(modes_time_series_to_waveform_modes(2.0*self.sigma.bar).norm())]
+        if t1 < peak_time and t2 > peak_time:
+            print("Warning: it does not make much sense to have t1 < peak time and t2 > peak time.")
+            print(f"t1 = {t1}, t2 = {t2}, peak_time = {peak_time}.")
 
-    if t1 == None:
-        t1 = time_after_half_orbits(modes_time_series_to_waveform_modes(2.0*self.sigma.bar,scri.h), 6, 200)
-    if t2 == None:
-        t2 = time_after_half_orbits(modes_time_series_to_waveform_modes(2.0*self.sigma.bar,scri.h), 8, t1)
+    # check to make sure bms_transformations and bounds match
+    if list(bms_transformation.keys()).sort() != list(bounds.keys()).sort():
+        raise ValueError("The keys of bms_transformations and bounds do not match.")
 
-    if bounds == None:
-        bounds = bms_transformations.copy()
-        default_bounds = {
-            "time_translation": [(-100.0, 100.0)],
-            "space_translation": [(-1.0, 1.0)]*3,
-            "frame_rotation": [(-1.0, 1.0)]*3,
-            "boost_velocity": [(-1e-4, 1e-4)]*3,
-            "supertranslation_ell_2": [(-1.0, 1.0)]*5,
-            "supertranslation_ell_3": [(-1.0, 1.0)]*7,
-            "supertranslation_ell_4": [(-1.0, 1.0)]*9
-        }
-        for transformation in bounds:
-            bounds[transformation] = default_bounds[transformation]
-
+    if ('space_translation' in bms_transformation or 'boost_velocity' in bms_transformation) and CoM:
+        raise ValueError("If CoM is true, then the bms_transformation cannot include space_translation or boost_velocity.")
+            
     # interpolate to make things faster
     abd = self.interpolate(self.t[np.argmin(abs(self.t - (t1 - padding_time))):np.argmin(abs(self.t - (t2 + padding_time)))])
 
     t1_idx = np.argmin(abs(abd.t - t1))
     t2_idx = np.argmin(abs(abd.t - t2))
-
-    error1 = minimize_L2_norm([], abd, h_target, t1_idx, t2_idx)
     
-    print("\n", "Initial Error:", error1, "\n")
+    error1 = func_to_minimize([], abd, h_target.copy(), t1_idx, t2_idx, [])
 
-    for i in range(n_iterations):
-        # initialize abd_prime and com transformation
-        if i == 0:
-            if CoM:
-                com_transformation = transformation_to_map_to_com_frame(abd, t1=abd.t[t1_idx], t2=abd.t[t2_idx])
-            else:
-                com_transformation = {"space_translation": np.array([0.0]*3),
-                                      "boost_velocity": np.array([0.0]*3)
-                                  }
-
-        print("**************\n", "Iteration:", i, "\n**************\n")
-
-        first_bms_transformation = read_in_previous_bms_transformation(list(bms_transformations.keys()), json_file, read_transformations_thus_far=True)
-        if first_bms_transformation[0] == {}:
-            first_idx = 0
+    #if os.path.exists(json_file):
+    #    os.remove(json_file)
+    
+    # iterate over minimizer to find the best BMS transformation;
+    # this may not even be necessary and really only makes sense if we're using CoM = True
+    for itr in range(n_itr_max):
+        if os.path.exists(json_file):
+            prev_bms_transformation = read_bms_transformation(bms_transformation, json_file)
         else:
-            first_idx = len(first_bms_transformation[1])
-        for idx in range(first_idx, len(list(bms_transformations.keys())) - 2):
-            transformations = bms_transformations.copy()
-            free_transformation_keys = [transformation for transformation in list(bms_transformations.keys()) if bms_transformations[transformation] == None][:(idx + 1)]
-            for transformation in transformations.copy():
-                if not (transformation in free_transformation_keys or transformation == "space_translation" or transformation == "boost_velocity"):
-                    transformations.pop(transformation)
-
-            if debug:
-                print("Transformations:", list(transformations.keys()), "\n")
-
-            # read in the previous bms transformation for the current transformation keys (includes CoM)
-            previous_bms_transformation = read_in_previous_bms_transformation(list(transformations.keys()), json_file)
-            previous_bms_transformation["space_translation"] = com_transformation["space_translation"]
-            previous_bms_transformation["boost_velocity"] = com_transformation["boost_velocity"]
-
-            if debug:
-                print("Previous Map:", previous_bms_transformation, "\n")
-
-            # copy previous_bms_transformation and add the new transformation (0 for first iteration, previous transformation (with CoM) for iteration > 0)
-            initial_guess_bms_transformation = compute_initial_guess_for_transformation(previous_bms_transformation, free_transformation_keys[-1], abd, iteration=i)
-
-            if debug:
-                print("Initial Guess:", initial_guess_bms_transformation, "\n")
-            
-            # obtain minimizer initial guesses, bounds, and constraints (only looks at non-CoM transformations)
-            x0, x0_bounds, x0_constraints, frame_rotation_idx = convert_initial_guess_transformations_to_initial_guess_array(initial_guess_bms_transformation, bounds)
-
-            if debug:
-                print("Initial Guess Minimizer:", x0)
-                print("Bounds:", x0_bounds)
-                print("Constraints:", x0_constraints)
-
-            # remove the other functions to speed up minimization (?)
-            abd_prime = abd.copy()
-            abd_prime.psi0 = 0.0*abd_prime.psi0;
-            abd_prime.psi1 = 0.0*abd_prime.psi1;
-            abd_prime.psi2 = 0.0*abd_prime.psi2;
-            abd_prime.psi3 = 0.0*abd_prime.psi3;
-            abd_prime.psi4 = 0.0*abd_prime.psi4;
-
-            if not debug:
-                res = minimize(minimize_L2_norm, x0=x0,
-                               args=(abd_prime, h_target, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx),
-                               method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,\
-                               options={'ftol': ftol, 'disp': False})
-            else:
-                res = minimize(minimize_L2_norm, x0=x0,
-                               args=(abd_prime, h_target, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx),
-                               method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,\
-                               options={'ftol': ftol, 'disp': True})
-                # 'maxiter': 2})
-                
-            error2 = minimize_L2_norm(res.x, abd_prime, h_target, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx)
-                        
-            print("Final Error:", error2, "\n")
-
-            # this loops over all transformations and grabs com_transformation's transformations when necessary
-            resulting_bms_transformation = convert_initial_guess_array_to_transformations(res.x, list(transformations.keys()), com_transformation, to_constant_and_vector=True)
-
-            times = {
-                "t1": t1,
-                "t2": t2
-            }
-            errors = {
-                "error1": error1,
-                "error2": error2
-            }
-
-            if not idx == (len(list(bms_transformations.keys())) - 2) - 1:
-                write_bms_transformation(resulting_bms_transformation, times, errors, json_file, iteration=i)
-            else:
-                write_bms_transformation(resulting_bms_transformation, times, errors, json_file, iteration=i, complete=True)
-
-        print("Final Transformation:", resulting_bms_transformation, "\n")
-                
+            prev_bms_transformation = {}
+        for transformation in prev_bms_transformation:
+            if transformation == None:
+                bms_transformation.pop(transformation)
+        
         if CoM:
-            # obtain the com transformation on the new abd object (only used in the following iteration)
-            abd_bms_frame = transform_abd(abd, combine_transformations_to_supertranslation(resulting_bms_transformation))
-            
-            com_transformation = transformation_to_map_to_com_frame(abd_bms_frame, t1=abd_bms_frame.t[t1_idx], t2=abd_bms_frame.t[t2_idx])
-            
-            print("Found CoM Transformation:", com_transformation, "\n")
-            
-            com_transformation["space_translation"] += resulting_bms_transformation["space_translation"]
-            com_transformation["boost_velocity"] += resulting_bms_transformation["boost_velocity"]
-            
-            print("Future CoM Transformation:", com_transformation, "\n")
-        else:
-            com_transformation = {"space_translation": np.array([0.0]*3),
-                                  "boost_velocity": np.array([0.0]*3)
-                              }
-            
-    return resulting_bms_transformation
-
-def transformation_to_map_to_superrest_frame(self, json_file, bms_transformations=None, bounds=None, t1=None, t2=None, padding_time=100, ftol=1e-12, n_iterations=4, debug=True, CoM=True):
-    """Map an AsymptoticBondiData object to the BMS frame of another object
-
-    Parameters
-    ==========
-
-    Returns
-    -------
-
-    """
-
-    if bms_transformations == None:
-        bms_transformations = {
-            "supertranslation_ell_2": None,
-            "space_translation": [0.0]*3,
-            "boost_velocity": [0.0]*3,
-            "supertranslation_ell_3": None,
-            "supertranslation_ell_4": None
-        }
-
-    if t1 == None:
-        h_for_peak_time = modes_time_series_to_waveform_modes(2.0*self.sigma.bar, scri.h)
-        h_for_peak_time.data = h_for_peak_time.data[:,lm(2,-2,h_for_peak_time.ell_min):]
-        h_for_peak_time.ell_min = 2
-        peak_time = h_for_peak_time.t[np.argmax(h_for_peak_time.norm())]
-        t1 = h_for_peak_time.t[np.argmin(abs(h_for_peak_time.t - (peak_time + 150)))]
-    if t2 == None:
-        t2 = t1 + 200
-
-    if bounds == None:
-        bounds = bms_transformations.copy()
-        default_bounds = {
-            "space_translation": [(-10.0, 10.0)]*3,
-            "boost_velocity": [(-1e-1, 1e-1)]*3,
-            "supertranslation_ell_2": [(-1.0, 1.0)]*5,
-            "supertranslation_ell_3": [(-1.0, 1.0)]*7,
-            "supertranslation_ell_4": [(-1.0, 1.0)]*9
-        }
-        for transformation in bounds:
-            bounds[transformation] = default_bounds[transformation]
-
-    # interpolate to make things faster
-    abd = self.interpolate(self.t[np.argmin(abs(self.t - (t1 - padding_time))):np.argmin(abs(self.t - (t2 + padding_time)))])
-    
-    t1_idx = np.argmin(abs(abd.t - t1))
-    t2_idx = np.argmin(abs(abd.t - t2))
-
-    error1 = minimize_supermomentum_norm([], abd, t1_idx, t2_idx)
-    
-    print("\n", "Initial Error:", error1, "\n")
-
-    for i in range(n_iterations):
-        # initialize abd_prime and com transformation
-        if i == 0:
-            if CoM:
-                com_transformation = transformation_to_map_to_com_frame(abd, t1=abd.t[t1_idx], t2=abd.t[t2_idx])
+            if prev_bms_transformation != {}:
+                bms_transformation_params, _, _, _ = initial_guess_from_bms_transformation(prev_bms_transformation, bounds, list(prev_bms_transformation.keys()))
+                bms_transformation_to_apply = convert_parameters_to_transformation(bms_transformation_params, list(prev_bms_transformation.keys()))
+                abd_prime = abd.transform(supertranslation=bms_transformation_to_apply['supertranslation'],
+                                          frame_rotation=bms_transformation_to_apply['frame_rotation'],
+                                          boost_velocity=bms_transformation_to_apply['boost_velocity'])
             else:
-                com_transformation = {"space_translation": np.array([0.0]*3),
-                                      "boost_velocity": np.array([0.0]*3)
-                                  }
-
-        print("**************\n", "Iteration:", i, "\n**************\n")
-
-        first_bms_transformation = read_in_previous_bms_transformation(list(bms_transformations.keys()), json_file, read_transformations_thus_far=True)
-        if first_bms_transformation[0] == {}:
-            first_idx = 0
+                abd_prime = abd.copy()
+            CoM_transformation = abd_prime.transformation_to_map_to_CoM_frame(abd_prime.t[t1_idx], abd_prime.t[t2_idx])
+            for transformation in CoM_transformation:
+                if transformation in prev_bms_transformation:
+                    CoM_transformation[transformation] += prev_bms_transformation[transformation]
         else:
-            first_idx = len(first_bms_transformation[1])
-        for idx in range(first_idx, len(list(bms_transformations.keys())) - 2):
-            transformations = bms_transformations.copy()
-            free_transformation_keys = [transformation for transformation in list(bms_transformations.keys()) if bms_transformations[transformation] == None][:(idx + 1)]
-            for transformation in transformations.copy():
-                if not (transformation in free_transformation_keys or transformation == "space_translation" or transformation == "boost_velocity"):
-                    transformations.pop(transformation)
-
-            if debug:
-                print("Transformations:", list(transformations.keys()), "\n")
-
-            # read in the previous bms transformation for the current transformation keys (includes CoM)
-            previous_bms_transformation = read_in_previous_bms_transformation(list(transformations.keys()), json_file)
-            previous_bms_transformation["space_translation"] = com_transformation["space_translation"]
-            previous_bms_transformation["boost_velocity"] = com_transformation["boost_velocity"]
-
-            if debug:
-                print("Previous Map:", previous_bms_transformation, "\n")
-
-            # copy previous_bms_transformation and add the new transformation (0 for first iteration, previous transformation (with CoM) for iteration > 0)
-            initial_guess_bms_transformation = compute_initial_guess_for_transformation(previous_bms_transformation, free_transformation_keys[-1], abd, iteration=i)
-
-            if debug:
-                print("Initial Guess:", initial_guess_bms_transformation, "\n")
+            CoM_transformation = None
+        
+        # iterate over the BMS transformations that we want to apply
+        for transformation in bms_transformation:
+            bms_transformation = read_bms_transformation(bms_transformation, json_file, no_CoM=CoM)
             
-            # obtain minimizer initial guesses, bounds, and constraints (only looks at non-CoM transformations)
-            x0, x0_bounds, x0_constraints, frame_rotation_idx = convert_initial_guess_transformations_to_initial_guess_array(initial_guess_bms_transformation, bounds)
-
-            if debug:
-                print("Initial Guess Minimizer:", x0)
-                print("Bounds:", x0_bounds)
-                print("Constraints:", x0_constraints)
-
-            # remove the other functions to speed up minimization (?)
-            abd_prime = abd.copy()
-
-            if not debug:
-                res = minimize(minimize_supermomentum_norm, x0=x0,
-                               args=(abd_prime, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx),
-                               method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,\
-                               options={'ftol': ftol, 'disp': False})
-            else:
-                res = minimize(minimize_supermomentum_norm, x0=x0,
-                               args=(abd_prime, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx),
-                               method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,\
-                               options={'ftol': ftol, 'disp': True})
-                # 'maxiter': 2})
+            # this only happens if we are performing a restart
+            if itr == 0 and bms_transformation[transformation] != None:
+                continue
                 
-            error2 = minimize_supermomentum_norm(res.x, abd_prime, t1_idx, t2_idx, list(transformations.keys()), com_transformation, frame_rotation_idx)
+            transformation_names = list(bms_transformation.keys())[:list(bms_transformation.keys()).index(transformation) + 1]
                         
-            print("Final Error:", error2, "\n")
-
-            # this loops over all transformations and grabs com_transformation's transformations when necessary
-            resulting_bms_transformation = convert_initial_guess_array_to_transformations(res.x, list(transformations.keys()), com_transformation, to_constant_and_vector=True)
-
-            times = {
-                "t1": t1,
-                "t2": t2
-            }
-            errors = {
-                "error1": error1,
-                "error2": error2
-            }
-
-            if not idx == (len(list(bms_transformations.keys())) - 2) - 1:
-                write_bms_transformation(resulting_bms_transformation, times, errors, json_file, iteration=i)
+            x0, x0_bounds, x0_constraints, frame_rotation_idx, boost_velocity_idx = initial_guess_from_bms_transformation(bms_transformation, bounds, transformation_names)
+            
+            # run minimization
+            res = minimize(func_to_minimize, x0=x0,
+                           args=(abd, h_target.copy(), t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx),
+                           method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,
+                           options={'ftol': tol, 'disp': True})
+            
+            x0 = res.x
+            error2 = func_to_minimize(x0, abd, h_target.copy(), t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx)
+            
+            # convert x0 to transformations
+            resulting_bms_transformation = convert_parameters_to_transformation(x0, transformation_names, combine_translations=False)
+            
+            if CoM:
+                for transformation in CoM_transformation:
+                    resulting_bms_transformation[transformation] = CoM_transformation[transformation]
+            
+            # write transformations
+            if not (transformation == list(bms_transformation.keys())[-1] and itr == n_itr_max - 1):
+                write_bms_transformation(resulting_bms_transformation, json_file, {'t1': t1, 't2': t2}, {'error1': error1, 'error2': error2})
             else:
-                write_bms_transformation(resulting_bms_transformation, times, errors, json_file, iteration=i, complete=True)
-
-        print("Final Transformation:", resulting_bms_transformation, "\n")
+                write_bms_transformation(resulting_bms_transformation, json_file, {'t1': t1, 't2': t2}, {'error1': error1, 'error2': error2}, in_order=True)
                 
-        if CoM:
-            # obtain the com transformation on the new abd object (only used in the following iteration)
-            abd_bms_frame = transform_abd(abd, combine_transformations_to_supertranslation(resulting_bms_transformation))
-            
-            com_transformation = transformation_to_map_to_com_frame(abd_bms_frame, t1=abd_bms_frame.t[t1_idx], t2=abd_bms_frame.t[t2_idx])
-            
-            print("Found CoM Transformation:", com_transformation, "\n")
-            
-            com_transformation["space_translation"] += resulting_bms_transformation["space_translation"]
-            com_transformation["boost_velocity"] += resulting_bms_transformation["boost_velocity"]
-            
-            print("Future CoM Transformation:", com_transformation, "\n")
-        else:
-            com_transformation = {"space_translation": np.array([0.0]*3),
-                                  "boost_velocity": np.array([0.0]*3)
-                              }
-            
     return resulting_bms_transformation
-    
