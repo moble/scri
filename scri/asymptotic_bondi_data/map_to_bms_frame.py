@@ -122,9 +122,9 @@ def transformation_to_map_to_CoM_frame(self, t1, t2, tol=1e-10, n_itr_max=10, pa
         n_itr += 1
 
     if not n_itr < n_itr_max:
-        print(f"Maximum number of iterations reached; the max error was {max(rel_err)}.")
+        print(f"CoM: maximum number of iterations reached; the max error was {max(rel_err)}.")
     else:
-        print(f"Tolerance achieved in {n_itr} iterations!")
+        print(f"CoM: tolerance achieved in {n_itr} iterations!")
 
     return CoM_transformation
 
@@ -261,6 +261,7 @@ def initial_guess_transformations_to_x0(initial_guess_transformations, bounds):
     x0_constraints = []
 
     frame_rotation_idx = None
+    boost_velocity_idx = None
     for transformation in initial_guess_transformations:
         if initial_guess_transformations[transformation] == None:
             break
@@ -323,6 +324,7 @@ def func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_keys, CoM
         minimize_Moreschi_supermomentum = False
 
     if np.array(x0).size != 0:
+        # perform constraint checks because gradient evaluations do not respect constraints
         if frame_rotation_idx != None:
             if 1.0 - sum(n * n for n in x0[frame_rotation_idx:frame_rotation_idx + 3]) < 0:
                 return 1e6
@@ -342,7 +344,7 @@ def func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_keys, CoM
 
     if minimize_Moreschi_supermomentum:
         PsiM = modes_time_series_to_waveform_modes(abd_prime.supermomentum('Moreschi'), scri.psi2).interpolate(abd_prime.t[t1_idx:t2_idx])
-        return integrate(PsiM.norm(), PsiM.t)[-1 ]/ (abd_prime.t[t2_idx] - abd_prime.t[t1_idx])
+        return integrate(PsiM.norm(), PsiM.t)[-1] / (abd_prime.t[t2_idx] - abd_prime.t[t1_idx])
     else:
         h = modes_time_series_to_waveform_modes(2.0*abd_prime.sigma.bar)[t1_idx:t2_idx]
         h = h[:,:(h_target.ell_max + 1)]
@@ -392,6 +394,7 @@ def write_bms_transformation(bms_transformation, json_file, times, errors, in_or
         for transformation in bms_transformation:
             if 'supertranslation' in transformation:
                 transformation_and_minimize_information['transformations'][transformation] = str(np.array(bms_transformation[transformation]).tolist())
+    transformation_and_minimize_information['errors'] = errors
     
     with open(json_file, 'w') as f:
         json.dump(transformation_and_minimize_information, f, indent=2, separators=(",", ": "), ensure_ascii=True)
@@ -490,7 +493,7 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
     Returns
     -------
     transformations: dict
-        Dict whose keys are
+        Dictionary whose keys are
            * time_translation
            * space_translation
            * boost_velocity
@@ -499,8 +502,15 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
            * supertranslation_ell_3
            * supertranslation_ell_4
            ...
+
+    error1: float
+        Initial error.
+
+    error2: float
+        Final error.
     """
 
+    # Do some checks
     if not (t1 and t2):
         raise ValueError("The inputs t1 and t2 are both required.")
     elif t1 > t2:
@@ -519,7 +529,9 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
     if h_target == None and not CoM:
         print("Warning: it is recommended to use CoM = True if no h_target is provided.")
 
-    # check to make sure bms_transformations and bounds match
+    if h_target == None and ('time_translation' in bms_transformation or 'frame_rotation' in bms_transformation):
+        print("Warning: it does not make much sense to perform a time translation or frame rotation when minimizing the Moreschi supermomentum.")
+        
     if list(bms_transformation.keys()).sort() != list(bounds.keys()).sort():
         raise ValueError("The keys of bms_transformations and bounds do not match.")
 
@@ -553,12 +565,15 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
         # and then compose it with the previous CoM transformation. Otherwise, just find
         # the CoM transformation based on the input ABD object.
         if CoM:
+            CoM_transformation = {
+                'space_translation': np.zeros(3),
+                'boost_velocity': np.zeros(3)
+            }                  
             if prev_bms_transformation != {}:
-                CoM_transformation = {}
                 for transformation in ['space_translation','boost_velocity']:
                     CoM_transformation[transformation] = prev_bms_transformation[transformation]
                     prev_bms_transformation.pop(transformation, None)
-                bms_transformation_params, _, _, _ = initial_guess_from_bms_transformation(prev_bms_transformation, bounds, list(prev_bms_transformation.keys()))
+                bms_transformation_params, _, _, _, _ = initial_guess_from_bms_transformation(prev_bms_transformation, bounds, list(prev_bms_transformation.keys()))
                 bms_transformation_to_apply = convert_parameters_to_transformation(bms_transformation_params, list(prev_bms_transformation.keys()), CoM_transformation)
                 abd_prime = abd.transform(supertranslation=bms_transformation_to_apply['supertranslation'],
                                           frame_rotation=bms_transformation_to_apply['frame_rotation'],
@@ -567,7 +582,7 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
                 abd_prime = abd.copy()
 
             new_CoM_transformation = abd_prime.transformation_to_map_to_CoM_frame(abd_prime.t[t1_idx], abd_prime.t[t2_idx])
-            for transformation in CoM_transformation:
+            for transformation in new_CoM_transformation:
                 CoM_transformation[transformation] += new_CoM_transformation[transformation]
         else:
             CoM_transformation = None
@@ -589,7 +604,7 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
             res = minimize(func_to_minimize, x0=x0,
                            args=(abd, h_target, t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx),
                            method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,
-                           options={'ftol': tol, 'disp': True})
+                           options={'ftol': tol, 'disp': False})
             
             x0 = res.x
             error2 = func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx)
@@ -607,4 +622,4 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
             else:
                 write_bms_transformation(resulting_bms_transformation, json_file, {'t1': t1, 't2': t2}, {'error1': error1, 'error2': error2}, in_order=True)
                 
-    return resulting_bms_transformation
+    return resulting_bms_transformation, error1, error2
