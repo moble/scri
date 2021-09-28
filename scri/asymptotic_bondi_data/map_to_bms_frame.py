@@ -515,6 +515,9 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
         if t1 < peak_time and t2 > peak_time:
             print("Warning: it does not make much sense to have t1 < peak time and t2 > peak time.")
             print(f"t1 = {t1}, t2 = {t2}, peak_time = {peak_time}.")
+            
+    if h_target == None and not CoM:
+        print("Warning: it is recommended to use CoM = True if no h_target is provided.")
 
     # check to make sure bms_transformations and bounds match
     if list(bms_transformation.keys()).sort() != list(bounds.keys()).sort():
@@ -522,14 +525,18 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
 
     if ('space_translation' in bms_transformation or 'boost_velocity' in bms_transformation) and CoM:
         raise ValueError("If CoM is true, then the bms_transformation cannot include space_translation or boost_velocity.")
-            
+
+    # fix h_target to avoid interpolate bug
+    if h_target != None:
+        h_target = h_target.copy()
+    
     # interpolate to make things faster
     abd = self.interpolate(self.t[np.argmin(abs(self.t - (t1 - padding_time))):np.argmin(abs(self.t - (t2 + padding_time)))])
 
     t1_idx = np.argmin(abs(abd.t - t1))
     t2_idx = np.argmin(abs(abd.t - t2))
     
-    error1 = func_to_minimize([], abd, h_target.copy(), t1_idx, t2_idx, [])
+    error1 = func_to_minimize([], abd, h_target, t1_idx, t2_idx, [])
     
     # iterate over minimizer to find the best BMS transformation;
     # this may not even be necessary and really only makes sense if we're using CoM = True
@@ -580,12 +587,12 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
             
             # run minimization
             res = minimize(func_to_minimize, x0=x0,
-                           args=(abd, h_target.copy(), t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx),
+                           args=(abd, h_target, t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx),
                            method='SLSQP', bounds=x0_bounds, constraints=x0_constraints,
                            options={'ftol': tol, 'disp': True})
             
             x0 = res.x
-            error2 = func_to_minimize(x0, abd, h_target.copy(), t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx)
+            error2 = func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_names, CoM_transformation, frame_rotation_idx, boost_velocity_idx)
             
             # convert x0 to transformations
             resulting_bms_transformation = convert_parameters_to_transformation(x0, transformation_names, combine_translations=False)
