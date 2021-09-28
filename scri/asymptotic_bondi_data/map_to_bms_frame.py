@@ -530,9 +530,6 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
     t2_idx = np.argmin(abs(abd.t - t2))
     
     error1 = func_to_minimize([], abd, h_target.copy(), t1_idx, t2_idx, [])
-
-    #if os.path.exists(json_file):
-    #    os.remove(json_file)
     
     # iterate over minimizer to find the best BMS transformation;
     # this may not even be necessary and really only makes sense if we're using CoM = True
@@ -570,7 +567,8 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
         
         # iterate over the BMS transformations that we want to apply
         for transformation in bms_transformation:
-            bms_transformation = read_bms_transformation(bms_transformation, json_file, no_CoM=CoM)
+            if os.path.exists(json_file):
+                bms_transformation = read_bms_transformation(bms_transformation, json_file, no_CoM=CoM)
             
             # this only happens if we are performing a restart
             if itr == 0 and bms_transformation[transformation] != None:
