@@ -208,3 +208,7 @@ class AsymptoticBondiData:
         bondi_CoM_charge,
         supermomentum,
     )
+    from .map_to_bms_frame import (
+        transformation_to_map_to_CoM_frame,
+        transformation_to_map_to_BMS_frame,
+    )
