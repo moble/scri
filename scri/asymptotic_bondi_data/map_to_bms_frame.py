@@ -416,7 +416,7 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
                                            "supertranslation_ell_3": [(-1.0, 1.0)]*7,
                                            "supertranslation_ell_4": [(-1.0, 1.0)]*9
                                        },
-                                       tol=1e-12, n_itr_max=2, padding_time=100, h_target=None, CoM=False):
+                                       tol=1e-12, n_itr_max=1, padding_time=100, h_target=None, CoM=False):
     """Obtain the BMS transformation to map to a specified BMS frame. This may either
     be the BMS frame corresponding to minimizing the Moreschi supermomentum or
     the BMS frame of an input strain waveform, e.g., a PN waveform.
