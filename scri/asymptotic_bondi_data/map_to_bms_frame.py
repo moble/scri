@@ -470,8 +470,9 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
         Default is 1e-12.
 
     n_itr_max: int, optional
-        Maximum number of iterations to perform.
-        Default is 2.
+        Maximum number of iterations to perform. If CoM is True, then
+        this should be, at a minimum, more than 1.
+        Default is 1. 
 
     padding_time: float, optional
         The time by which to extend t1 and t2 when performing transformations.
@@ -543,20 +544,27 @@ def transformation_to_map_to_BMS_frame(self, json_file, t1, t2,
         for transformation in prev_bms_transformation:
             if transformation == None:
                 bms_transformation.pop(transformation)
-        
+
+        # if a previous bms transformation exists, apply it, find the new CoM transformation,
+        # and then compose it with the previous CoM transformation. Otherwise, just find
+        # the CoM transformation based on the input ABD object.
         if CoM:
             if prev_bms_transformation != {}:
+                CoM_transformation = {}
+                for transformation in ['space_translation','boost_velocity']:
+                    CoM_transformation[transformation] = prev_bms_transformation[transformation]
+                    prev_bms_transformation.pop(transformation, None)
                 bms_transformation_params, _, _, _ = initial_guess_from_bms_transformation(prev_bms_transformation, bounds, list(prev_bms_transformation.keys()))
-                bms_transformation_to_apply = convert_parameters_to_transformation(bms_transformation_params, list(prev_bms_transformation.keys()))
+                bms_transformation_to_apply = convert_parameters_to_transformation(bms_transformation_params, list(prev_bms_transformation.keys()), CoM_transformation)
                 abd_prime = abd.transform(supertranslation=bms_transformation_to_apply['supertranslation'],
                                           frame_rotation=bms_transformation_to_apply['frame_rotation'],
                                           boost_velocity=bms_transformation_to_apply['boost_velocity'])
             else:
                 abd_prime = abd.copy()
-            CoM_transformation = abd_prime.transformation_to_map_to_CoM_frame(abd_prime.t[t1_idx], abd_prime.t[t2_idx])
+
+            new_CoM_transformation = abd_prime.transformation_to_map_to_CoM_frame(abd_prime.t[t1_idx], abd_prime.t[t2_idx])
             for transformation in CoM_transformation:
-                if transformation in prev_bms_transformation:
-                    CoM_transformation[transformation] += prev_bms_transformation[transformation]
+                CoM_transformation[transformation] += new_CoM_transformation[transformation]
         else:
             CoM_transformation = None
         
