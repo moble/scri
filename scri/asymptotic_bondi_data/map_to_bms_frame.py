@@ -344,7 +344,7 @@ def func_to_minimize(x0, abd, h_target, t1_idx, t2_idx, transformation_keys, CoM
 
     if minimize_Moreschi_supermomentum:
         PsiM = modes_time_series_to_waveform_modes(abd_prime.supermomentum('Moreschi'), scri.psi2).interpolate(abd_prime.t[t1_idx:t2_idx])
-        PsiM.data = PsiM.data[:,LM(2, -2, PsiM.ell_min)]
+        PsiM.data = PsiM.data[:, LM(2, -2, PsiM.ell_min):]
         PsiM.ell_min = 2
         return integrate(PsiM.norm(), PsiM.t)[-1] / (abd_prime.t[t2_idx] - abd_prime.t[t1_idx])
     else:
