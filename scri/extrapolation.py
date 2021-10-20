@@ -180,8 +180,18 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
     return Valid
 
 
-def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
+def validate_group_of_waveforms(h5file, filename, WaveformNames):
     from re import compile as re_compile
+    import scri
+
+    DataType = datatype_from_filename(filename)
+    # Set the correct LModes based on the spin-weight
+    if DataType == scri.psi3 or DataType == scri.psi1:
+        LModes = range(1, 200)
+    elif DataType == scri.psi2:
+        LModes = range(0, 200)
+    else:
+        LModes = range(2, 200)
 
     ExpectedNTimes = h5file[WaveformNames[0] + "/ArealRadius.dat"].shape[0]
     ExpectedNModes = len(
@@ -370,7 +380,7 @@ def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
         
 def read_finite_radius_data(ChMass=0.0,
                             filename="rh_FiniteRadii_CodeUnits.h5",
-                            CoordRadii=[], LModes=range(2, 100)):
+                            CoordRadii=[]):
     """Read data at various radii, and offset by tortoise coordinate."""
 
     if ChMass == 0.0:
@@ -428,8 +438,7 @@ def read_finite_radius_data(ChMass=0.0,
         
         # Check input data for NRAR format
         if groupname is None:
-            if not validate_group_of_waveforms(f, filename,
-                                               WaveformNames, LModes):
+            if not validate_group_of_waveforms(f, filename, WaveformNames):
                 raise ValueError(f"Bad input waveforms in {filename}.")
             stdout.write(f"{filename} passed the data-integrity tests.\n")
             stdout.flush()
@@ -507,10 +516,6 @@ def extrapolate(**kwargs):
         `list(h5py.File(DataFile))` which *should* be the same as
         `h5ls`.  If the list is empty, all radii that can be found
         are used.
-
-      LModes : list of int, (Default: range(abs(s),100))
-        List of ell modes to extrapolate, is the spin-weight of the
-        waveform to be extrapolated.
 
       ExtrapolationOrders : list of int, (Default: [-1, 2, 3, 4, 5, 6])
         Negative numbers correspond to extracted data, counting down
@@ -593,7 +598,6 @@ def extrapolate(**kwargs):
     ChMass = kwargs.pop("ChMass", 0.0)
     HorizonsFile = kwargs.pop("HorizonsFile", "Horizons.h5")
     CoordRadii = kwargs.pop("CoordRadii", [])
-    LModes = kwargs.pop("LModes", range(-1, 100))
     ExtrapolationOrders = kwargs.pop("ExtrapolationOrders", [-1, 2, 3, 4, 5, 6])
     UseOmega = kwargs.pop("UseOmega", False)
     OutputFrame = kwargs.pop("OutputFrame", Inertial)
@@ -623,36 +627,6 @@ def extrapolate(**kwargs):
         print("WARNING: ChMass is being automatically determined from the data, " + "rather than metadata.txt.")
         ChMass = pick_Ch_mass(HorizonsFile)
 
-    DataType = basename(DataFile).partition("_")[0]
-    if "hdot" in DataType.lower():
-        DataType = scri.hdot
-    elif "h" in DataType.lower():
-        DataType = scri.h
-    elif "psi4" in DataType.lower():
-        DataType = scri.psi4
-    elif "psi3" in DataType.lower():
-        DataType = scri.psi3
-    elif "psi2" in DataType.lower():
-        DataType = scri.psi2
-    elif "psi1" in DataType.lower():
-        DataType = scri.psi1
-    elif "psi0" in DataType.lower():
-        DataType = scri.psi0
-    else:
-        DataType = scri.UnknownDataType
-        message = (
-            "The file '{0}' does not contain a recognizable description of "
-            + "the data type ('h', 'psi4', 'psi3', 'psi2', 'psi1', 'psi0')."
-        )
-        raise ValueError(message.format(DataFile))
-
-    # Set the correct default ell_min based on the spin-weight
-    if LModes[0] < 0:
-        if DataType == scri.psi3 or DataType == scri.psi1:
-            LModes = range(1, 100)
-        if DataType == scri.psi2:
-            LModes = range(0, 100)
-
     # AlignmentTime is reset properly once the data are read in, if necessary.
     # The reasonableness of ExtrapolationOrder is checked below.
 
@@ -674,8 +648,7 @@ def extrapolate(**kwargs):
     print(f"Reading Waveforms from {DataFile}...")
     stdout.flush()
     Ws, Radii, CoordRadii = read_finite_radius_data(
-        ChMass=ChMass, filename=DataFile, CoordRadii=CoordRadii, LModes=LModes
-    )
+        ChMass=ChMass, filename=DataFile, CoordRadii=CoordRadii)
 
     Radii_shape = (len(Radii), len(Radii[0]))
 
@@ -713,7 +686,6 @@ def extrapolate(**kwargs):
         D['ChMass'] = {ChMass}
         D['HorizonsFile'] = {HorizonsFile}
         D['CoordRadii'] = {CoordRadii}
-        D['LModes'] = {LModes}
         D['ExtrapolationOrders'] = {ExtrapolationOrders}
         D['UseOmega'] = {UseOmega}
         D['OutputFrame'] = {OutputFrame}
@@ -734,7 +706,6 @@ def extrapolate(**kwargs):
         ChMass=ChMass,
         HorizonsFile=HorizonsFile,
         CoordRadii=CoordRadii,
-        LModes=LModes,
         ExtrapolationOrders=ExtrapolationOrders,
         UseOmega=UseOmega,
         OutputFrame=OutputFrame,
