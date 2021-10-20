@@ -203,6 +203,36 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames, LModes):
         print("In '{}', the following waveforms are not valid:\n\t{}".format(filename, "\n\t".join(FailedWaveforms)))
     return Valid
 
+def datatype_from_filename(filename):
+    from os.path import basename
+    import scri
+
+    DataType = basename(filename).partition("_")[0]
+    if "hdot" in DataType.lower():
+        DataType = scri.hdot
+    elif "h" in DataType.lower():
+        DataType = scri.h
+    elif "psi4" in DataType.lower():
+        DataType = scri.psi4
+    elif "psi3" in DataType.lower():
+        DataType = scri.psi3
+    elif "psi2" in DataType.lower():
+        DataType = scri.psi2
+    elif "psi1" in DataType.lower():
+        DataType = scri.psi1
+    elif "psi0" in DataType.lower():
+        DataType = scri.psi0
+    else:
+        DataType = scri.UnknownDataType
+        message = (
+            "The file '{0}' does not contain a recognizable " +
+            "description "+
+            "of the data type ('h', 'psi4', 'psi3', 'psi2', "+
+            "'psi1', 'psi0')."
+        )
+        raise ValueError(message.format(filename))
+    return DataType
+
 def read_finite_radius_waveform_nrar(filename, WaveformName):
 
     from h5py import File
