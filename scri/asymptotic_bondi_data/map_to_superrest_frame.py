@@ -3,6 +3,7 @@ import copy
 import warnings
 import numpy as np
 
+import sxs
 import scri
 import spinsfast
 import spherical_functions as sf
