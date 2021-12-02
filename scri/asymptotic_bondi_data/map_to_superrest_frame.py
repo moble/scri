@@ -523,13 +523,13 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
                                            'space_translation': space_translation,\
                                            'supertranslation': alpha,\
                                            'frame_rotation': rotation,\
-                                           'boost_velocity': boost_velocity
+                                           'boost_velocity': CoM_transformation
                                           },
                        'rel_errs': {\
                                     'space_translation': space_rel_errs,\
                                     'supertranslation': alpha_rel_errs,\
                                     'frame_rotation': rot_rel_errs,\
-                                    'boost_velocity': boost_rel_errs
+                                    'boost_velocity': CoM_rel_errs
                                     }
                       }  
     
