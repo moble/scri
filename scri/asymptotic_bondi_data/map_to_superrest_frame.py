@@ -133,9 +133,9 @@ def compute_Moreschi_supermomentum(abd, alpha, ell_max):
     PsiM = abd.supermomentum('Moreschi')
     M_S2, K_S2 = compute_bondi_rest_mass_and_conformal_factor(np.array(PsiM), ell_max)
     
-    PsiM_S2 = PsiM.grid()
-    PsiM_S2_interp = sf.SWSH_grids.Grid(np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=complex), spin_weight=0)
-    K_S2_interp = sf.SWSH_grids.Grid(np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=complex), spin_weight=0)
+    PsiM_S2 = PsiM.grid().real
+    PsiM_S2_interp = sf.SWSH_grids.Grid(np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=float), spin_weight=0)
+    K_S2_interp = sf.SWSH_grids.Grid(np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=float), spin_weight=0)
 
     # interpolate these functions onto the new retarded time
     for i in range(2 * ell_max + 1):
@@ -185,7 +185,7 @@ def supertranslation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1
     
     """
     
-    alpha_S2 = np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=complex)
+    alpha_S2 = np.zeros((2 * ell_max + 1, 2 * ell_max + 1), dtype=float)
     
     itr = 0
     rel_err = np.inf
