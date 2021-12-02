@@ -37,7 +37,7 @@ def test_abd_kerr_superrest_frame():
                               frame_rotation=frame_rotation,\
                               boost_velocity=boost_velocity)
 
-    _, abd_recovered = abd.transformations_to_map_to_superrest_frame(padding_time=20)
+    _, abd_recovered = abd_prime.transformations_to_map_to_superrest_frame(padding_time=20)
     
     PsiM = abd_recovered.supermomentum('Moreschi')[np.argmin(abs(abd_recovered.t))]
     PsiM[0:4] = 0
@@ -54,4 +54,3 @@ def test_abd_kerr_superrest_frame():
     G = abd_recovered.bondi_CoM_charge()/abd_recovered.bondi_four_momentum()[:, 0, None]
     assert np.allclose(G[np.argmin(abs(abd_recovered.t))], 0., atol=tolerance, rtol=tolerance)
     assert np.allclose(derivative(G, abd_recovered.t)[np.argmin(abs(abd_recovered.t))], 0., atol=tolerance, rtol=tolerance)
-    
