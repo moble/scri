@@ -287,7 +287,7 @@ def com_transformation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol
         
         itr += 1
 
-    transformation = 'CoM'
+    transformation_name = 'CoM'
     if not space_translation:
         transformation_name = 'boost'
         transformation = CoM_transformation['boost_velocity']
@@ -384,7 +384,7 @@ def time_translation(abd, t_0=None):
     
     return abd_prime
 
-def transformations_to_map_to_superrest_frame(abd_input, t_0=None,\
+def transformations_to_map_to_superrest_frame(self, t_0=0,\
                                               N_itr_maxes={\
                                                            'supertranslation': 10,\
                                                            'com_transformation': 10,\
@@ -461,8 +461,7 @@ def transformations_to_map_to_superrest_frame(abd_input, t_0=None,\
 
     # apply a time translation so that we're mapping
     # to the superrest frame at u = 0
-    if t_0 != None:
-        abd = time_translation(abd_input, t_0)
+    abd = time_translation(self, t_0)
     
     if ell_max == None:
         ell_max = abd.ell_max
@@ -502,22 +501,21 @@ def transformations_to_map_to_superrest_frame(abd_input, t_0=None,\
     abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
                                      frame_rotation=rotation)
     
-    boost_velocity, boost_rel_errs = com_transformation_to_map_to_super_rest_frame(abd_prime,\
-                                                                                   N_itr_max=N_itr_maxes['com_transformation'],\
-                                                                                   rel_err_tol=rel_err_tols['com_transformation'],\
-                                                                                   ell_max=ell_max,\
-                                                                                   space_translation=False,\
-                                                                                   boost_velocity=True)
+    CoM_transformation, CoM_rel_errs = com_transformation_to_map_to_super_rest_frame(abd_prime,\
+                                                                                     N_itr_max=N_itr_maxes['com_transformation'],\
+                                                                                     rel_err_tol=rel_err_tols['com_transformation'],\
+                                                                                     ell_max=ell_max,\
+                                                                                     space_translation=True,\
+                                                                                     boost_velocity=True)
     
     # transform abd
-    abd_prime = abd.transform(space_translation=space_translation,\
-                              supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
-                              frame_rotation=rotation,\
-                              boost_velocity=boost_velocity)
+    abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
+                              frame_rotation=rotation)
+    abd_prime = abd_prime.transform(space_translation=CoM_transformation['space_translation'],\
+                                    boost_velocity=CoM_transformation['boost_velocity'])
 
     # undo the initial time translation
-    if t_0 != None:
-        abd_prime = time_translation(abd_prime, -t_0)
+    abd_prime = time_translation(abd_prime, -t_0)
         
     alpha[1:4] = 0
     transformations = {\
