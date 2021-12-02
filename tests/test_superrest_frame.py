@@ -1,5 +1,6 @@
 import scri
 import pytest
+import numpy as np
 import spherical_functions as sf
 
 from quaternion.calculus import derivative
