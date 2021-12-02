@@ -1,8 +1,8 @@
 import scri
 import pytest
 import numpy as np
+import spinsfast
 import spherical_functions as sf
-
 from quaternion.calculus import derivative
 
 ABD = scri.AsymptoticBondiData
@@ -42,7 +42,7 @@ def test_abd_kerr_superrest_frame():
     PsiM = abd_recovered.supermomentum('Moreschi')[np.argmin(abs(abd_recovered.t))]
     PsiM[0:4] = 0
     PsiM_S2 = spinsfast.salm2map(PsiM.view(np.ndarray), 0, ell_max, 2 * ell_max + 1, 2 * ell_max + 1)
-    PsiM_norm = spinsfast.map2salm((abs(PsiM_S2)**2).view(np.ndarray), 0, ell_max)[LM(0, 0, 0)] / np.sqrt(4 * np.pi)
+    PsiM_norm = spinsfast.map2salm((abs(PsiM_S2)**2).view(np.ndarray), 0, ell_max)[0] / np.sqrt(4 * np.pi)
     assert np.allclose(PsiM_norm, 0., atol=tolerance, rtol=tolerance)
     
     chi = abd_recovered.bondi_dimensionless_spin()[np.argmin(abs(abd_recovered.t))]
