@@ -40,6 +40,19 @@ def MT_to_WM(h_mts, sxs_version=False, dataType=scri.h):
                               spin_weight=h_mts.s)
         return h
 
+def WM_to_MT(h_wm):
+    h_mts = scri.ModesTimeSeries(
+        sf.SWSH_modes.Modes(
+            h_wm.data,
+            spin_weight=h_wm.spin_weight,
+            ell_min=h_wm.ell_min,
+            ell_max=h_wm.ell_max,
+            multiplication_truncator=max,
+        ),
+        time=h_wm.t,
+    )
+    return h_mts
+
 def 𝔇(h, ell_max):
     """Differential operator 𝔇 acting on spin-weight s=0 function.
 
@@ -169,6 +182,7 @@ def compute_alpha_perturbation(PsiM, M_S2, K_S2, ell_max):
     https://doi.org/10.1063/1.532646.
 
     """
+
     PsiM_S2 = spinsfast.salm2map(PsiM.view(np.ndarray), 0, ell_max, 2 * ell_max + 1, 2 * ell_max + 1)
     PsiM_plus_M_K3_S2 = PsiM_S2 + M_S2 * K_S2 ** 3
     PsiM_plus_M_K3 = spinsfast.map2salm(PsiM_plus_M_K3_S2.view(np.ndarray), 0, ell_max)
@@ -177,7 +191,7 @@ def compute_alpha_perturbation(PsiM, M_S2, K_S2, ell_max):
     
     return spinsfast.salm2map(alpha, 0, ell_max, 2 * ell_max + 1, 2 * ell_max + 1).real
 
-def supertranslation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None):
+def supertranslation_to_map_to_super_rest_frame(abd, target_PsiM, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
     """Determine the supertranslation needed to map an abd object to the superrest frame
     through an iterative solve; e.g., compute the supertranslation needed to minimize
     the Moreschi supermomentum according to Eq (10) of https://doi.org/10.1063/1.532646,
@@ -194,9 +208,20 @@ def supertranslation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1
         prev_alpha_S2 = sf.SWSH_grids.Grid(alpha_S2.copy(), spin_weight=0)
 
         PsiM = compute_Moreschi_supermomentum(abd, alpha_S2, ell_max)
-        
+
         M_S2, K_S2 = compute_bondi_rest_mass_and_conformal_factor(np.array(PsiM), ell_max)
         
+        if target_PsiM != None:
+            target_PsiM_S2 = WM_to_MT(target_PsiM).grid().real
+            target_PsiM_S2_interp = sf.SWSH_grids.Grid(np.zeros((2 * target_PsiM.ell_max + 1, 2 * target_PsiM.ell_max + 1), dtype=float), spin_weight=0)
+            for i in range(2 * target_PsiM.ell_max + 1):
+                for j in range(2 * target_PsiM.ell_max + 1):
+                    alpha_i_j = prev_alpha_S2[i, j]
+                    target_PsiM_S2_interp[i, j] = CubicSpline(
+                        target_PsiM.t, target_PsiM_S2[:, i, j]
+                    )(alpha_i_j)
+            M_S2 = -target_PsiM_S2_interp.view(np.ndarray)
+
         alpha_S2 += compute_alpha_perturbation(PsiM, M_S2, K_S2, ell_max)
         
         rel_err = (spinsfast.map2salm((abs(sf.SWSH_grids.Grid(alpha_S2.copy(), spin_weight=0) - prev_alpha_S2) /\
@@ -205,11 +230,12 @@ def supertranslation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1
         
         itr += 1
         
-    if not itr < N_itr_max:
-        print(f"supertranslation: maximum number of iterations reached; the min error was {min(np.array(rel_errs).flatten())}.")
-    else:
-        print(f"supertranslation: tolerance achieved in {itr} iterations!")
-        
+    if print_conv:
+        if not itr < N_itr_max:
+            print(f"supertranslation: maximum number of iterations reached; the min error was {min(np.array(rel_errs).flatten())}.")
+        else:
+            print(f"supertranslation: tolerance achieved in {itr} iterations!")
+            
     supertranslation = spinsfast.map2salm(alpha_S2.view(np.ndarray), 0, ell_max)
     supertranslation[0:4] = 0
         
@@ -231,7 +257,7 @@ def transformation_from_CoM_charge(G, t):
     
     return CoM_transformation
 
-def com_transformation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, space_translation=True, boost_velocity=True):
+def com_transformation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, space_translation=True, boost_velocity=True, print_conv=False):
     """Determine the space translation and boost needed to map an abd object to the superrest frame
     through an iterative solve; e.g., compute the transformations needed to minimize
     the center-of-mass charge, transform the abd object, and repeat until the transformations converge.
@@ -300,10 +326,11 @@ def com_transformation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol
         transformation = CoM_transformation
         rel_errs = np.array(rel_errs)
         
-    if not itr < N_itr_max:
-        print(f"{transformation_name}: maximum number of iterations reached; the min error was {min(rel_errs.flatten())}.")
-    else:
-        print(f"{transformation_name}: tolerance achieved in {itr} iterations!")
+    if print_conv:
+        if not itr < N_itr_max:
+            print(f"{transformation_name}: maximum number of iterations reached; the min error was {min(rel_errs.flatten())}.")
+        else:
+            print(f"{transformation_name}: tolerance achieved in {itr} iterations!")
    
     return transformation, rel_errs
 
@@ -325,7 +352,7 @@ def rotation_from_spin_charge(chi, t):
     
     return q / np.sqrt(q.norm())
 
-def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None):
+def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
     """Determine the rotation needed to map an abd object to the superrest frame
     through an iterative solve; e.g., compute the transformation needed to align
     the angular momentum charge with the z-axis, transform the abd object,
@@ -358,10 +385,11 @@ def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, el
         
         itr += 1
         
-    if not itr < N_itr_max:
-        print(f"rotation: maximum number of iterations reached; the min error was {min(np.array(rel_errs).flatten())}.")
-    else:
-        print(f"rotation: tolerance achieved in {itr} iterations!")
+    if print_conv:
+        if not itr < N_itr_max:
+            print(f"rotation: maximum number of iterations reached; the min error was {min(np.array(rel_errs).flatten())}.")
+        else:
+            print(f"rotation: tolerance achieved in {itr} iterations!")
         
     return rotation.components, rel_errs
 
@@ -384,7 +412,7 @@ def time_translation(abd, t_0=None):
     
     return abd_prime
 
-def transformations_to_map_to_superrest_frame(self, t_0=0,\
+def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=None,\
                                               N_itr_maxes={\
                                                            'supertranslation': 10,\
                                                            'com_transformation': 10,\
@@ -395,9 +423,10 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
                                                             'com_transformation': 1e-12,\
                                                             'rotation': 1e-12,\
                                                             },\
-                                              ell_max=None,
-                                              alpha_ell_max=None,
-                                              padding_time=100):
+                                              ell_max=None,\
+                                              alpha_ell_max=None,\
+                                              padding_time=100,\
+                                              print_conv=False):
     """
     Compute the transformations necessary to map to the superrest frame
     by iteratively minimizing various BMS charges at a certain time.
@@ -463,6 +492,9 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
     # to the superrest frame at u = 0
     abd = time_translation(self, t_0)
     
+    target_PsiM = target_PsiM_input.copy()
+    target_PsiM.t -= t_0
+
     if ell_max == None:
         ell_max = abd.ell_max
         
@@ -477,15 +509,17 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
                                                                                       rel_err_tol=rel_err_tols['com_transformation'],\
                                                                                       ell_max=ell_max,\
                                                                                       space_translation=True,\
-                                                                                      boost_velocity=False)
+                                                                                      boost_velocity=False,\
+                                                                                      print_conv=print_conv)
      
     # supertranslation
     abd_prime = abd_interp.transform(space_translation=space_translation)
     
-    alpha, alpha_rel_errs = supertranslation_to_map_to_super_rest_frame(abd_prime,\
+    alpha, alpha_rel_errs = supertranslation_to_map_to_super_rest_frame(abd_prime, target_PsiM,\
                                                                         N_itr_max=N_itr_maxes['supertranslation'],\
                                                                         rel_err_tol=rel_err_tols['supertranslation'],\
-                                                                        ell_max=ell_max)
+                                                                        ell_max=ell_max,\
+                                                                        print_conv=print_conv)
     
     alpha[1:4] = sf.vector_as_ell_1_modes(space_translation)
     
@@ -495,7 +529,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
     rotation, rot_rel_errs = rotation_to_map_to_super_rest_frame(abd_prime,\
                                                                  N_itr_max=N_itr_maxes['rotation'],\
                                                                  rel_err_tol=rel_err_tols['rotation'],\
-                                                                 ell_max=ell_max)
+                                                                 ell_max=ell_max,\
+                                                                 print_conv=print_conv)
     
     # com_transformation
     abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
@@ -506,7 +541,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0,\
                                                                                      rel_err_tol=rel_err_tols['com_transformation'],\
                                                                                      ell_max=ell_max,\
                                                                                      space_translation=True,\
-                                                                                     boost_velocity=True)
+                                                                                     boost_velocity=True,\
+                                                                                     print_conv=print_conv)
     
     # transform abd
     abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
