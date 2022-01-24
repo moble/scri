@@ -495,6 +495,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     if target_PsiM_input != None:
         target_PsiM = target_PsiM_input.copy()
         target_PsiM.t -= t_0
+    else:
+        target_PsiM = None
 
     if ell_max == None:
         ell_max = abd.ell_max
