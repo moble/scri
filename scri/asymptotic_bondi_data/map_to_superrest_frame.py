@@ -492,7 +492,7 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     # to the superrest frame at u = 0
     abd = time_translation(self, t_0)
 
-    if target_PsiM != None:
+    if target_PsiM_input != None:
         target_PsiM = target_PsiM_input.copy()
         target_PsiM.t -= t_0
 
