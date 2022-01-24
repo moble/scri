@@ -191,7 +191,7 @@ def compute_alpha_perturbation(PsiM, M_S2, K_S2, ell_max):
     
     return spinsfast.salm2map(alpha, 0, ell_max, 2 * ell_max + 1, 2 * ell_max + 1).real
 
-def supertranslation_to_map_to_super_rest_frame(abd, target_PsiM, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
+def supertranslation_to_map_to_super_rest_frame(abd, target_PsiM=None, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
     """Determine the supertranslation needed to map an abd object to the superrest frame
     through an iterative solve; e.g., compute the supertranslation needed to minimize
     the Moreschi supermomentum according to Eq (10) of https://doi.org/10.1063/1.532646,
@@ -491,9 +491,10 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     # apply a time translation so that we're mapping
     # to the superrest frame at u = 0
     abd = time_translation(self, t_0)
-    
-    target_PsiM = target_PsiM_input.copy()
-    target_PsiM.t -= t_0
+
+    if target_PsiM != None:
+        target_PsiM = target_PsiM_input.copy()
+        target_PsiM.t -= t_0
 
     if ell_max == None:
         ell_max = abd.ell_max
