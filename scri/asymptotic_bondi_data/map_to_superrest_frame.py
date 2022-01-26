@@ -393,7 +393,7 @@ def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, el
         
     return rotation.components, rel_errs
 
-def time_translation(abd, t_0=None):
+def time_translation(abd, t_0=0):
     """Time translate an abd object. This is necessary because creating a copy
     of an abd object and then changing it's time variable does not change
     the time variable of the waveform variables.
@@ -426,7 +426,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
                                               ell_max=None,\
                                               alpha_ell_max=None,\
                                               padding_time=100,\
-                                              print_conv=False):
+                                              print_conv=False,
+                                              perform_rotation=True):
     """
     Compute the transformations necessary to map to the superrest frame
     by iteratively minimizing various BMS charges at a certain time.
@@ -527,18 +528,22 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     alpha[1:4] = sf.vector_as_ell_1_modes(space_translation)
     
     # rotation
-    abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
-    
-    rotation, rot_rel_errs = rotation_to_map_to_super_rest_frame(abd_prime,\
-                                                                 N_itr_max=N_itr_maxes['rotation'],\
-                                                                 rel_err_tol=rel_err_tols['rotation'],\
-                                                                 ell_max=ell_max,\
-                                                                 print_conv=print_conv)
+    if perform_rotation:
+        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
+        
+        rotation, rot_rel_errs = rotation_to_map_to_super_rest_frame(abd_prime,\
+                                                                     N_itr_max=N_itr_maxes['rotation'],\
+                                                                     rel_err_tol=rel_err_tols['rotation'],\
+                                                                     ell_max=ell_max,\
+                                                                     print_conv=print_conv)
     
     # com_transformation
-    abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
-                                     frame_rotation=rotation)
-    
+    if perform_rotation:
+        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
+                                         frame_rotation=rotation)
+    else:
+        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
+        
     CoM_transformation, CoM_rel_errs = com_transformation_to_map_to_super_rest_frame(abd_prime,\
                                                                                      N_itr_max=N_itr_maxes['com_transformation'],\
                                                                                      rel_err_tol=rel_err_tols['com_transformation'],\
@@ -548,8 +553,11 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
                                                                                      print_conv=print_conv)
     
     # transform abd
-    abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
-                              frame_rotation=rotation)
+    if perform_rotation:
+        abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
+                                  frame_rotation=rotation)
+    else:
+        abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1]) #rotation
     abd_prime = abd_prime.transform(space_translation=CoM_transformation['space_translation'],\
                                     boost_velocity=CoM_transformation['boost_velocity'])
 
