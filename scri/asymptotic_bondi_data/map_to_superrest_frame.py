@@ -565,19 +565,33 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     abd_prime = time_translation(abd_prime, -t_0)
         
     alpha[1:4] = 0
-    transformations = {\
-                       'transformations': {\
-                                           'space_translation': space_translation,\
-                                           'supertranslation': alpha,\
-                                           'frame_rotation': rotation,\
-                                           'CoM_transformation': CoM_transformation
-                                          },
-                       'rel_errs': {\
-                                    'space_translation': space_rel_errs,\
-                                    'supertranslation': alpha_rel_errs,\
-                                    'frame_rotation': rot_rel_errs,\
-                                    'CoM_transformation': CoM_rel_errs
+    if perform_rotation:
+        transformations = {\
+                           'transformations': {\
+                                               'space_translation': space_translation,\
+                                               'supertranslation': alpha,\
+                                               'frame_rotation': rotation,\
+                                               'CoM_transformation': CoM_transformation
+                                           },
+                           'rel_errs': {\
+                                        'space_translation': space_rel_errs,\
+                                        'supertranslation': alpha_rel_errs,\
+                                        'frame_rotation': rot_rel_errs,\
+                                        'CoM_transformation': CoM_rel_errs
                                     }
-                      }  
-    
+                       }
+    else:
+        transformations = {\
+                           'transformations': {\
+                                               'space_translation': space_translation,\
+                                               'supertranslation': alpha,\
+                                               'CoM_transformation': CoM_transformation
+                                           },
+                           'rel_errs': {\
+                                        'space_translation': space_rel_errs,\
+                                        'supertranslation': alpha_rel_errs,\
+                                        'CoM_transformation': CoM_rel_errs
+                                    }
+                       }
+        
     return transformations, abd_prime
