@@ -427,13 +427,15 @@ def read_finite_radius_data(ChMass=0.0,
         else:
             # Pare down the WaveformNames list appropriately
             if type(CoordRadii[0]) == int:
-                CoordRadii = [WaveformNames[i] for i in CoordRadii]
-            WaveformNames = [
-                Name for Name in WaveformNames for Radius in CoordRadii for m in [re_compile(Radius).search(Name)] if m
-            ]
-            CoordRadii = [
-                m.group("r") for Name in CoordRadii for m in [re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m
-            ]
+                WaveformNames = [WaveformNames[i] for i in CoordRadii]
+                CoordRadii = [
+                    m.group("r") for Name in CoordRadii
+                    for m in
+                    [ re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m ]
+            else:
+                WaveformNames = [
+                    Name for Name in WaveformNames for Radius in
+                    CoordRadii for m in [re_compile(Radius).search(Name)] if m]
         NWaveforms = len(WaveformNames)
         
         # Check input data for NRAR format
