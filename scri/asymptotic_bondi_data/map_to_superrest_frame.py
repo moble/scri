@@ -352,7 +352,20 @@ def rotation_from_spin_charge(chi, t):
     
     return q / np.sqrt(q.norm())
 
-def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
+def angular_momentum_flux_unit_vector(h):
+    sigma = 0.5 * WM_to_MT(h).bar
+    J = 1j*(3 * sigma.bar * sigma.dot.ethbar - 3 * sigma.bar.dot * sigma.ethbar\
+            + sigma.dot * sigma.bar.ethbar - sigma * sigma.bar.dot.ethbar).eth
+    J_x = (np.array(J)[:,LM(1, -1, 0)] - np.array(J)[:,LM(1, 1, 0)]).real
+    J_y = (np.array(J)[:,LM(1, -1, 0)] + np.array(J)[:,LM(1, 1, 0)]).imag
+    J_z = np.array(J)[:,LM(1, 0, 0)].real
+    return (np.array([J_x, J_y, J_z])/np.linalg.norm([J_x, J_y, J_z], axis=0)).T
+
+def rotation_from_angular_momentum_flux_vectors(J, target_J):
+    q = np.quaternion(np.sqrt(np.linalg.norm(J)**2 * np.linalg.norm(target_J)**2) + np.dot(J, target_J), *np.cross(J, target_J)).inverse()
+    return q / np.sqrt(q.norm())
+
+def rotation_to_map_to_super_rest_frame(abd, target_h=None, N_itr_max=10, rel_err_tol=1e-12, ell_max=None, print_conv=False):
     """Determine the rotation needed to map an abd object to the superrest frame
     through an iterative solve; e.g., compute the transformation needed to align
     the angular momentum charge with the z-axis, transform the abd object,
@@ -361,9 +374,16 @@ def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, el
     Note that the angular momentum charge is aligned with either the
     positive or negative z-axis, depending on which it is initially closest to.
     
+    If target_h is not None, then instead find the rotation that aligns the
+    angular momentum flux of the abd object to the angular momentum flux
+    of the target_h input.
+    
     """
     
     rotation = quaternion.quaternion(1,0,0,0)
+
+    if target_h != None:
+        target_J = angular_momentum_flux_unit_vector(target_h)[np.argmin(abs(target_h.t))]
     
     itr = 0
     rel_err = np.inf
@@ -376,10 +396,15 @@ def rotation_to_map_to_super_rest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, el
         else:
             abd_prime = abd.transform(frame_rotation=rotation.components)
 
-        chi_prime = abd_prime.bondi_dimensionless_spin()
-        
-        rotation = rotation_from_spin_charge(chi_prime, abd_prime.t)*rotation
-        
+        if target_h == None:
+            chi_prime = abd_prime.bondi_dimensionless_spin()
+            
+            rotation = rotation_from_spin_charge(chi_prime, abd_prime.t) * rotation
+        else:
+            J = angular_momentum_flux_unit_vector(MT_to_WM(2.0*abd_prime.sigma.bar))[np.argmin(abs(abd_prime.t))]
+            
+            rotation = rotation_from_angular_momentum_flux_vectors(J, target_J) * rotation
+            
         rel_err = np.sqrt((rotation - prev_rotation).norm() / rotation.norm())
         rel_errs.append(rel_err)
         
@@ -412,7 +437,9 @@ def time_translation(abd, t_0=0):
     
     return abd_prime
 
-def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=None,\
+def transformations_to_map_to_superrest_frame(self, t_0=0,
+                                              target_h_input=None,\
+                                              target_PsiM_input=None,\
                                               N_itr_maxes={\
                                                            'supertranslation': 10,\
                                                            'com_transformation': 10,\
@@ -425,9 +452,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
                                                             },\
                                               ell_max=None,\
                                               alpha_ell_max=None,\
-                                              padding_time=100,\
-                                              print_conv=False,
-                                              perform_rotation=True):
+                                              padding_time=250,\
+                                              print_conv=False):
     """
     Compute the transformations necessary to map to the superrest frame
     by iteratively minimizing various BMS charges at a certain time.
@@ -439,6 +465,15 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     ==========
     t_0 : float, optional
         When to map to the superrest frame.
+        Default is 0.
+
+    target_h_input : WaveformModes, optional
+        Target strain used to constrain the rotation
+        freedom via the angular momentum flux.
+        Default is aligning to the z-axis.
+
+    target_PsiM_input : WaveformModes, optional
+        Target Moreschi supermomentum to map to.
         Default is 0.
     
     N_itr_maxes : dict, optional
@@ -493,6 +528,12 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     # to the superrest frame at u = 0
     abd = time_translation(self, t_0)
 
+    if target_h_input != None:
+        target_h = target_h_input.copy()
+        target_h.t -= t_0
+    else:
+        target_h = None
+    
     if target_PsiM_input != None:
         target_PsiM = target_PsiM_input.copy()
         target_PsiM.t -= t_0
@@ -519,7 +560,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     # supertranslation
     abd_prime = abd_interp.transform(space_translation=space_translation)
     
-    alpha, alpha_rel_errs = supertranslation_to_map_to_super_rest_frame(abd_prime, target_PsiM,\
+    alpha, alpha_rel_errs = supertranslation_to_map_to_super_rest_frame(abd_prime,\
+                                                                        target_PsiM,\
                                                                         N_itr_max=N_itr_maxes['supertranslation'],\
                                                                         rel_err_tol=rel_err_tols['supertranslation'],\
                                                                         ell_max=ell_max,\
@@ -528,22 +570,19 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     alpha[1:4] = sf.vector_as_ell_1_modes(space_translation)
     
     # rotation
-    if perform_rotation:
-        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
-        
-        rotation, rot_rel_errs = rotation_to_map_to_super_rest_frame(abd_prime,\
-                                                                     N_itr_max=N_itr_maxes['rotation'],\
-                                                                     rel_err_tol=rel_err_tols['rotation'],\
-                                                                     ell_max=ell_max,\
-                                                                     print_conv=print_conv)
+    abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
+    
+    rotation, rot_rel_errs = rotation_to_map_to_super_rest_frame(abd_prime,\
+                                                                 target_h,\
+                                                                 N_itr_max=N_itr_maxes['rotation'],\
+                                                                 rel_err_tol=rel_err_tols['rotation'],\
+                                                                 ell_max=ell_max,\
+                                                                 print_conv=print_conv)
     
     # com_transformation
-    if perform_rotation:
-        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
-                                         frame_rotation=rotation)
-    else:
-        abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1])
-        
+    abd_prime = abd_interp.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
+                                     frame_rotation=rotation)
+    
     CoM_transformation, CoM_rel_errs = com_transformation_to_map_to_super_rest_frame(abd_prime,\
                                                                                      N_itr_max=N_itr_maxes['com_transformation'],\
                                                                                      rel_err_tol=rel_err_tols['com_transformation'],\
@@ -553,11 +592,8 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
                                                                                      print_conv=print_conv)
     
     # transform abd
-    if perform_rotation:
-        abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
-                                  frame_rotation=rotation)
-    else:
-        abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1]) #rotation
+    abd_prime = abd.transform(supertranslation=alpha[:LM(alpha_ell_max, alpha_ell_max, 0) + 1],\
+                              frame_rotation=rotation)
     abd_prime = abd_prime.transform(space_translation=CoM_transformation['space_translation'],\
                                     boost_velocity=CoM_transformation['boost_velocity'])
 
@@ -565,33 +601,20 @@ def transformations_to_map_to_superrest_frame(self, t_0=0, target_PsiM_input=Non
     abd_prime = time_translation(abd_prime, -t_0)
         
     alpha[1:4] = 0
-    if perform_rotation:
-        transformations = {\
-                           'transformations': {\
-                                               'space_translation': space_translation,\
-                                               'supertranslation': alpha,\
-                                               'frame_rotation': rotation,\
-                                               'CoM_transformation': CoM_transformation
+    
+    transformations = {\
+                       'transformations': {\
+                                           'space_translation': space_translation,\
+                                           'supertranslation': alpha,\
+                                           'frame_rotation': rotation,\
+                                           'CoM_transformation': CoM_transformation
                                            },
-                           'rel_errs': {\
-                                        'space_translation': space_rel_errs,\
-                                        'supertranslation': alpha_rel_errs,\
-                                        'frame_rotation': rot_rel_errs,\
-                                        'CoM_transformation': CoM_rel_errs
+                       'rel_errs': {\
+                                    'space_translation': space_rel_errs,\
+                                    'supertranslation': alpha_rel_errs,\
+                                    'frame_rotation': rot_rel_errs,\
+                                    'CoM_transformation': CoM_rel_errs
                                     }
                        }
-    else:
-        transformations = {\
-                           'transformations': {\
-                                               'space_translation': space_translation,\
-                                               'supertranslation': alpha,\
-                                               'CoM_transformation': CoM_transformation
-                                           },
-                           'rel_errs': {\
-                                        'space_translation': space_rel_errs,\
-                                        'supertranslation': alpha_rel_errs,\
-                                        'CoM_transformation': CoM_rel_errs
-                                    }
-                       }
-        
+    
     return transformations, abd_prime
