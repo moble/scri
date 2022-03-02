@@ -21,10 +21,16 @@ WaveformInDetectorFT: (Complex) Fourier transform of a `WaveformInDetector`
 
 """
 
+try:
+    import importlib.metadata as importlib_metadata
+except ModuleNotFoundError:  # pragma: no cover
+    import importlib_metadata
+
 import sys
 import functools
 import numba
-from ._version import __version__
+
+__version__ = importlib_metadata.version(__name__)
 
 jit = functools.partial(numba.njit, cache=True)
 jitclass = numba.experimental.jitclass

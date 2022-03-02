@@ -70,3 +70,6 @@ tmp
 
 build_artifacts
 # conda smithy ci-skeleton end
+
+
+.envrc
