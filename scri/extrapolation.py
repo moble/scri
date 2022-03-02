@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.polynomial.polynomial import polyfit
 
 mode_regex = r"""Y_l(?P<L>[0-9]+)_m(?P<M>[-+0-9]+)\.dat"""
 
@@ -551,7 +552,7 @@ def extrapolate(**kwargs):
         know, if you're into that kind of thing, whatever.  Who am
         I to judge?
 
-      PlotFormat : str, (Default: 'pdf')
+      PlotFormat : str, (Default: '')
         The format of output plots.  This can be the empty string,
         in which case no plotting is done.  Or, these can be any of
         the formats supported by your installation of matplotlib.
@@ -606,7 +607,7 @@ def extrapolate(**kwargs):
     ExtrapolatedFiles = kwargs.pop("ExtrapolatedFiles", "Extrapolated_N{N}.h5")
     DifferenceFiles = kwargs.pop("DifferenceFiles", "ExtrapConvergence_N{N}-N{Nm1}.h5")
     UseStupidNRARFormat = kwargs.pop("UseStupidNRARFormat", False)
-    PlotFormat = kwargs.pop("PlotFormat", "pdf")
+    PlotFormat = kwargs.pop("PlotFormat", "")
     MinTimeStep = kwargs.pop("MinTimeStep", 0.005)
     EarliestTime = kwargs.pop("EarliestTime", -3.0e300)
     LatestTime = kwargs.pop("LatestTime", 3.0e300)
@@ -1196,6 +1197,7 @@ def RunExtrapolation(TopLevelInputDir, TopLevelOutputDir, Subdirectory, DataFile
 def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None, NoiseFloor=None):
     import numpy
     import scri
+    from tqdm import trange
 
     # Get the various dimensions, etc.
     MaxN = max(ExtrapolationOrders)
@@ -1205,7 +1207,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     NModes = FiniteRadiusWaveforms[0].n_modes
     NFiniteRadii = len(FiniteRadiusWaveforms)
     NExtrapolations = len(ExtrapolationOrders)
-    SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
+    #SVDTol = 1.0e-12  # Same as Numerical Recipes default in fitsvd.h
     DataType = FiniteRadiusWaveforms[NFiniteRadii - 1].dataType
     ExcludeInsignificantRadii = DataType in [scri.psi1, scri.psi0] and bool(NoiseFloor)
     if ExcludeInsignificantRadii:
@@ -1316,27 +1318,13 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
     MaxCoefficients = MaxN + 1
 
     # Loop over time
-    from sys import stdout
-
-    LengthProgressBar = 48  # characters, excluding ends
-    last_completed = 0
-    for i_t in range(NTimes):
-        if stdout.isatty():
-            completed = int(LengthProgressBar * i_t / float(NTimes - 1))
-            if completed > last_completed or i_t == 0:
-                print(
-                    "[{}{}]".format("#" * completed, "-" * (LengthProgressBar - completed)),
-                    end="\r",
-                )
-                stdout.flush()
-                last_completed = completed
+    for i_t in trange(NTimes):
 
         # Set up the radius data (if we are NOT using Omega)
         if not UseOmegas:
             OneOverRadii = [1.0 / Radii[i_W][i_t] for i_W in range(NFiniteRadii)]
 
-            Re = data[:, i_t, :, 0]
-            Im = data[:, i_t, :, 1]
+            data_t = data[:, i_t, :, 0] + 1j * data[:, i_t, :, 1]
 
             if ExcludeInsignificantRadii:
                 # For the sake of avoiding a poorly conditioned polynomial fit, we need to set an absolute minimum for the
@@ -1358,8 +1346,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
 
                 # Remove the outer radii
                 OneOverRadii = OneOverRadii[:MinimumNRadii]
-                Re = Re[:MinimumNRadii, :]
-                Im = Im[:MinimumNRadii, :]
+                data_t = data_t[:MinimumNRadii, :]
 
             # Loop over extrapolation orders
             for i_N in range(NExtrapolations):
@@ -1371,11 +1358,7 @@ def _Extrapolate(FiniteRadiusWaveforms, Radii, ExtrapolationOrders, Omegas=None,
                     continue
 
                 # Do the extrapolations
-                re = numpy.polyfit(OneOverRadii, Re, N)[-1, :]
-                im = numpy.polyfit(OneOverRadii, Im, N)[-1, :]
-
-                # Record the results
-                extrapolated_data[i_N, i_t, :] = re[:] + 1j * im[:]
+                extrapolated_data[i_N, i_t, :] = polyfit(OneOverRadii, data_t, N)[0, :]
 
         else:  # UseOmegas
 
