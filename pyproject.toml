@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "scri"
 description = "Time-dependent functions of spin-weighted spherical harmonics"
-version = "2021.10.27.16.34.33"
+version = "2021.10.28.0"
 readme = "README.md"
 license = "MIT"
 authors = ["Michael Boyle <michael.oliver.boyle@gmail.com>"]
