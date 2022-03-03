@@ -19,11 +19,7 @@ from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
-try:
-    sys.path.insert(0, os.path.abspath(".."))
-    import _version as scri_version
-except:
-    import scri.__version__ as scri_version
+from scri import __version__ as scri_version
 
 # -- Project information -----------------------------------------------------
 
