@@ -130,13 +130,6 @@ header or library for `fftw`.  See the documentation of my copy of `spinsfast`
 on solving that problem.  Of course, with `conda`, `fftw` is installed in the
 right place from my channel automatically.
 
-## Continuous Integration
-
-Tests are run automatically on [Azure Pipelines](https://dev.azure.com/moboyle/scri/_build/latest?definitionId=1).
-If changes need to be made to the requirements or anything else in `recipe/meta.yaml`, run
-
-    conda smithy rerender -c auto
-    git push
 
 ## Documentation
 
