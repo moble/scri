@@ -1,8 +1,9 @@
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/moble/scri/blob/master/LICENSE)
+[![Test and deploy](https://github.com/moble/scri/actions/workflows/build.yml/badge.svg)](https://github.com/moble/scri/actions/workflows/build.yml)
 [![Documentation Status](https://readthedocs.org/projects/scri/badge/?version=latest)](https://scri.readthedocs.io/en/latest/?badge=latest)
-![pytest](https://github.com/moble/scri/workflows/pytest/badge.svg)
-[![release](https://img.shields.io/badge/release-v1.2-informational)](https://github.com/moble/scri/releases/tag/v1.2)
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4041972.svg)](https://doi.org/10.5281/zenodo.4041972)
+[![PyPI Version](https://img.shields.io/pypi/v/scri?color=)](https://pypi.org/project/scri/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/scri.svg?color=)](https://anaconda.org/conda-forge/scri)
+[![MIT License](https://img.shields.io/github/license/moble/scri.svg)](https://github.com/moble/scri/blob/main/LICENSE)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4041971.svg)](https://doi.org/10.5281/zenodo.4041971)
 
 Scri
 ====
