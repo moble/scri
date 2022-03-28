@@ -137,6 +137,107 @@ class WaveformModes(WaveformBase):
             self.__LM = sf.LM_range(self.__ell_min, self.__ell_max)
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def from_sxs(cls, w_sxs, override_exception_from_invalidity=False):
+        """Construct this object from an `sxs.WaveformModes` object
+
+        Note that the resulting object will likely contain references to the same
+        underlying data contained in the original object; modifying one will modify the
+        other.  You can make a copy of the result — using code like
+        `WaveformModes.from_sxs(w_sxs).copy()` — to obtain separate data.
+
+        """
+        import quaternion
+        constructor_statement = (
+            f"WaveformModes.from_sxs({w_sxs}, "
+            f"override_exception_from_invalidity={override_exception_from_invalidity})"
+        )
+
+        try:
+            frameType = [n.lower() for n in FrameNames].index(w_sxs.frame_type.lower())
+        except ValueError:
+            frameType = 0
+
+        try:
+            dataType = [n.lower() for n in DataNames].index(w_sxs.data_type.lower())
+        except ValueError:
+            dataType = 0
+
+        kwargs = dict(
+            t=w_sxs.t,
+            #frame=,  # see below
+            data=w_sxs.data,
+            history=w_sxs._metadata.get("history", []),
+            version_hist=w_sxs._metadata.get("version_hist", []),
+            frameType=frameType,
+            dataType=dataType,
+            r_is_scaled_out=w_sxs._metadata.get("r_is_scaled_out", True),
+            m_is_scaled_out=w_sxs._metadata.get("m_is_scaled_out", True),
+            override_exception_from_invalidity=override_exception_from_invalidity,
+            constructor_statement=constructor_statement,
+            ell_min=w_sxs.ell_min,
+            ell_max=w_sxs.ell_max,
+        )
+
+        frame = w_sxs.frame.ndarray
+        if np.array_equal(frame, [[1.,0,0,0]]):
+            pass  # The default will handle itself
+        elif frame.shape[0] == 1:
+            kwargs["frame"] = quaternion.as_quat_array(frame[0, :])
+        elif frame.shape[0] == w_sxs.n_times:
+            kwargs["frame"] = quaternion.as_quat_array(frame)
+        else:
+            raise ValueError(
+                f"Frame size ({frame.size}) should be 1 or "
+                f"equal to the number of time steps ({self.n_times})"
+            )
+
+        return cls(**kwargs)
+
+    @property
+    def to_sxs(self):
+        """Convert this object to an `sxs.WaveformModes` object
+
+        Note that the resulting object will likely contain references to the same
+        underlying data contained in the original object; modifying one will modify the
+        other.  You can make a copy of this object *before* calling this function —
+        using code like `w.copy().to_sxs` — to obtain separate data.
+
+        """
+        import sxs
+        import quaternionic
+        import quaternion
+
+        kwargs = dict(
+            input_array=self.data,
+            time=self.t,
+            time_axis=0,
+            modes_axis=1,
+            #frame=,  # see below
+            spin_weight=self.spin_weight,
+            data_type=self.data_type_string.lower(),
+            frame_type=self.frame_type_string.lower(),
+            history=self.history,
+            version_hist=self.version_hist,
+            r_is_scaled_out=self.r_is_scaled_out,
+            m_is_scaled_out=self.m_is_scaled_out,
+            ell_min=self.ell_min,
+            ell_max=self.ell_max,
+        )
+
+        # If self.frame.size==0, we just don't pass any argument
+        if self.frame.size == 1:
+            kwargs["frame"] = quaternionic.array([quaternion.as_float_array(self.frame)])
+        elif self.frame.size == self.n_times:
+            kwargs["frame"] = quaternionic.array(quaternion.as_float_array(self.frame))
+        elif self.frame.size > 0:
+            raise ValueError(
+                f"Frame size ({self.frame.size}) should be 0, 1, or "
+                f"equal to the number of time steps ({self.n_times})"
+            )
+
+        return sxs.WaveformModes(**kwargs)
+
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
         """Try to ensure that the `WaveformModes` object is valid
