@@ -208,8 +208,9 @@ class WaveformModes(WaveformBase):
         import quaternionic
         import quaternion
 
+        # All of these will be stored in the `_metadata` member of the resulting WaveformModes
+        # object; most of these will also be accessible directly as attributes.
         kwargs = dict(
-            input_array=self.data,
             time=self.t,
             time_axis=0,
             modes_axis=1,
@@ -236,7 +237,7 @@ class WaveformModes(WaveformBase):
                 f"equal to the number of time steps ({self.n_times})"
             )
 
-        return sxs.WaveformModes(**kwargs)
+        return sxs.WaveformModes(self.data, **kwargs)
 
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
