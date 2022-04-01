@@ -638,14 +638,15 @@ class WaveformGrid(WaveformBase):
 
 
 # Now, we can assign WaveformModes objects new capabilities based on WaveformGrid functions
-WaveformModes.to_grid = lambda w_modes, **kwargs: WaveformGrid.from_modes(w_modes, **kwargs)
+WaveformModes.to_grid = WaveformGrid.from_modes
 WaveformModes.from_grid = classmethod(lambda cls, w_grid, ell_max: WaveformGrid.to_modes(w_grid, ell_max))
-WaveformModes.transform = lambda w_mode, **kwargs: WaveformGrid.transform(w_mode, **kwargs)
+#WaveformModes.transform = lambda w_mode, **kwargs: WaveformGrid.transform(w_mode, **kwargs)
+WaveformModes.transform = WaveformGrid.transform
 if sys.version_info[0] == 2:
-    WaveformModes.to_grid.__func__.__doc__ = WaveformGrid.from_modes.__doc__
+    # WaveformModes.to_grid.__func__.__doc__ = WaveformGrid.from_modes.__doc__
     WaveformModes.from_grid.__func__.__doc__ = WaveformGrid.to_modes.__doc__
-    WaveformModes.transform.__func__.__doc__ = WaveformGrid.transform.__doc__
+    # WaveformModes.transform.__func__.__doc__ = WaveformGrid.transform.__doc__
 else:
-    WaveformModes.to_grid.__doc__ = WaveformGrid.from_modes.__doc__
+    # WaveformModes.to_grid.__doc__ = WaveformGrid.from_modes.__doc__
     WaveformModes.from_grid.__func__.__doc__ = WaveformGrid.to_modes.__doc__
-    WaveformModes.transform.__doc__ = WaveformGrid.transform.__doc__
+    # WaveformModes.transform.__doc__ = WaveformGrid.transform.__doc__
