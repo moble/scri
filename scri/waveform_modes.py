@@ -237,7 +237,17 @@ class WaveformModes(WaveformBase):
                 f"equal to the number of time steps ({self.n_times})"
             )
 
-        return sxs.WaveformModes(self.data, **kwargs)
+        w = sxs.WaveformModes(self.data, **kwargs)
+
+        # Special case for the translation and boost
+        if hasattr(self, "space_translation") or hasattr(self, "boost_velocity"):
+            w.register_modification(
+                self.transform,
+                space_translation=list(getattr(self, "space_translation", [0., 0., 0.])),
+                boost_velocity=list(getattr(self, "boost_velocity", [0., 0., 0.])),
+            )
+
+        return w
 
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
