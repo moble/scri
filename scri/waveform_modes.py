@@ -690,6 +690,22 @@ class WaveformModes(WaveformBase):
                 self.data[..., i_minus] = np.conjugate(mode_plus - mode_minus) / np.sqrt(2)
         self._append_history(f"{self}.convert_from_conjugate_pairs()")
 
+    def transform(self, **kwargs):
+        """Transform modes by some BMS transformation
+
+        This simply applies the `WaveformGrid.from_modes` function, followed by the
+        `WaveformGrid.to_modes` function.  See their respective docstrings for more
+        details.
+
+        However, note that the `ell_max` parameter used in the second function call
+        defaults here to the `ell_max` value in the input waveform.  This is slightly
+        different from the usual default, because `WaveformGrid.from_modes` usually
+        increases the effective ell value by 1.
+
+        """
+        from . import WaveformGrid
+        return WaveformGrid.transform(w_mode, **kwargs)
+
     # Involutions
     @property
     @waveform_alterations
