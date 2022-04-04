@@ -704,7 +704,7 @@ class WaveformModes(WaveformBase):
 
         """
         from . import WaveformGrid
-        return WaveformGrid.transform(w_mode, **kwargs)
+        return WaveformGrid.transform(self, **kwargs)
 
     # Involutions
     @property
