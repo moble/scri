@@ -16,7 +16,7 @@ h5py = "^3"
 numpy-quaternion = ">=2022.4"
 spherical-functions = ">=2022.4"
 spinsfast = ">=2022.4"
-sxs = ">=2022.3"
+sxs = ">=2022.3.2"
 tqdm = ">=4.48.2, <4.61.2"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 mkdocs = {version = "^1.1.2", optional = true}

@@ -761,7 +761,7 @@ python-versions = "*"
 
 [[package]]
 name = "sxs"
-version = "2022.3.1"
+version = "2022.3.2"
 description = "Interface to data produced by the Simulating eXtreme Spacetimes collaboration"
 category = "main"
 optional = false
@@ -865,7 +865,7 @@ mktheapidocs = ["mktheapidocs"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "ac8bb866e49895b88ced3020c8a067ec9dad5100261fc44eb6d0663441833427"
+content-hash = "e5ee947e7af0b8bdf89c505b2aded0a38e83f2f91dd0459c247870fd26e68333"
 
 [metadata.files]
 alabaster = [
@@ -1412,8 +1412,8 @@ spinsfast = [
     {file = "spinsfast-2022.4.1.tar.gz", hash = "sha256:e9f5842a0ec2bf2796c9efe9f1d1c85f706a37890588272ce9cf079961c5e772"},
 ]
 sxs = [
-    {file = "sxs-2022.3.1-py3-none-any.whl", hash = "sha256:bc134663707820a25a4bd3b3ec22efb7e4905315a180b7cc7a8cd4f6defd0759"},
-    {file = "sxs-2022.3.1.tar.gz", hash = "sha256:9f902eb43095d8c78930081652a61623d71189c5bf3019ffd3719f7ade39b811"},
+    {file = "sxs-2022.3.2-py3-none-any.whl", hash = "sha256:bb95a8fbb1452ec8fa1ad9ea55f39679e4163aedad0e001ea003190ea60a6533"},
+    {file = "sxs-2022.3.2.tar.gz", hash = "sha256:54c3d9ac8b33193da990cd249d472b3a9787643cd7af22aaaf2af49dd9b7c9d4"},
 ]
 tomli = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
