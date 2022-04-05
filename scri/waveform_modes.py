@@ -208,8 +208,9 @@ class WaveformModes(WaveformBase):
         import quaternionic
         import quaternion
 
+        # All of these will be stored in the `_metadata` member of the resulting WaveformModes
+        # object; most of these will also be accessible directly as attributes.
         kwargs = dict(
-            input_array=self.data,
             time=self.t,
             time_axis=0,
             modes_axis=1,
@@ -236,7 +237,17 @@ class WaveformModes(WaveformBase):
                 f"equal to the number of time steps ({self.n_times})"
             )
 
-        return sxs.WaveformModes(**kwargs)
+        w = sxs.WaveformModes(self.data, **kwargs)
+
+        # Special case for the translation and boost
+        if hasattr(self, "space_translation") or hasattr(self, "boost_velocity"):
+            w.register_modification(
+                self.transform,
+                space_translation=list(getattr(self, "space_translation", [0., 0., 0.])),
+                boost_velocity=list(getattr(self, "boost_velocity", [0., 0., 0.])),
+            )
+
+        return w
 
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
@@ -678,6 +689,22 @@ class WaveformModes(WaveformBase):
                 self.data[..., i_plus] = (mode_plus + mode_minus) / np.sqrt(2)
                 self.data[..., i_minus] = np.conjugate(mode_plus - mode_minus) / np.sqrt(2)
         self._append_history(f"{self}.convert_from_conjugate_pairs()")
+
+    def transform(self, **kwargs):
+        """Transform modes by some BMS transformation
+
+        This simply applies the `WaveformGrid.from_modes` function, followed by the
+        `WaveformGrid.to_modes` function.  See their respective docstrings for more
+        details.
+
+        However, note that the `ell_max` parameter used in the second function call
+        defaults here to the `ell_max` value in the input waveform.  This is slightly
+        different from the usual default, because `WaveformGrid.from_modes` usually
+        increases the effective ell value by 1.
+
+        """
+        from . import WaveformGrid
+        return WaveformGrid.transform(self, **kwargs)
 
     # Involutions
     @property

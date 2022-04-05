@@ -428,10 +428,10 @@ def remove_avg_com_motion(
             file_write_mode=file_write_mode,
             attributes={"space_translation": x_0, "boost_velocity": v_0},
         )
-    elif file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
+    w_m.boost_velocity = v_0
+    w_m.space_translation = x_0
+    if file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
         path_to_new_waveform_h5 = path_to_waveform_h5.replace(".h5", "_CoM.h5", 1)
-        w_m.boost_velocity = v_0
-        w_m.space_translation = x_0
         rotating_paired_xor_multishuffle_bzip2.save(w_m, path_to_new_waveform_h5)
 
     # Finish by plotting the new data and save to PDF
