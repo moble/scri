@@ -262,6 +262,7 @@ def estimate_avg_com_motion(
 
 
 def remove_avg_com_motion(
+    w_m=None,
     path_to_waveform_h5="rhOverM_Asymptotic_GeometricUnits.h5/Extrapolated_N2.dir",
     path_to_horizons_h5=None,
     skip_beginning_fraction=0.01,
@@ -272,6 +273,7 @@ def remove_avg_com_motion(
     m_A=None,
     m_B=None,
     file_format="NRAR",
+    write_corrected_file=True,
 ):
     """Rewrite waveform data in center-of-mass frame
 
@@ -282,6 +284,10 @@ def remove_avg_com_motion(
 
     Additional parameters
     ---------------------
+    w_m : WaveformModes, optional
+        The original waveform to be corrected.  If this is not given, it will
+        be read from file.  Whether or not it is given, the Horizons and/or
+        Matter files must still be present.
     path_to_waveform_h5 : str, optional
         Absolute or relative path to SpEC waveform file, including the
         directory within the H5 file, if appropriate.  Default value is
@@ -306,6 +312,7 @@ def remove_avg_com_motion(
         The file format of the waveform data H5 file. The 'NRAR' format is the
         default file format found in the SXS Catalog. The 'RPXMB' format is data
         compressed with the rotating_paired_xor_multishuffle_bzip2 scheme.
+    write_corrected_file: bool [default is True]
 
     Returns
     -------
@@ -324,12 +331,16 @@ def remove_avg_com_motion(
     subdir = os.path.basename(path_to_waveform_h5.split(".h5", 1)[1])
 
     # Read the waveform data in
-    if file_format.lower() == "nrar":
+    if w_m is not None:
+        pass
+    elif file_format.lower() == "nrar":
         w_m = read_from_h5(path_to_waveform_h5)
     elif file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
         w_m = rotating_paired_xor_multishuffle_bzip2.load(path_to_waveform_h5)[0].to_inertial_frame()
     else:
         raise ValueError(f"File format {file_format} not recognized. Must be either 'NRAR' or 'RPXMB'.")
+    version_hist = getattr(w_m, "version_hist", None)
+    extrapolate_coord_radii = getattr(w_m, "extrapolate_coord_radii", None)
 
     if path_to_horizons_h5 is None:
         path_to_horizons_h5 = os.path.join(directory, "Horizons.h5")
@@ -415,7 +426,7 @@ def remove_avg_com_motion(
     w_m = w_m.transform(space_translation=x_0, boost_velocity=v_0, **aux_waveforms)
 
     # Write the data to the new file
-    if file_format.lower() == "nrar":
+    if write_corrected_file and file_format.lower() == "nrar":
         path_to_new_waveform_h5 = re.sub(
             w_m.descriptor_string + "_",
             "",  # Remove 'rhOverM_', 'rMPsi4_', or whatever
@@ -430,7 +441,11 @@ def remove_avg_com_motion(
         )
     w_m.boost_velocity = v_0
     w_m.space_translation = x_0
-    if file_format.lower() == "rpxmb" or file_format.lower() == "rpxm":
+    if version_hist is not None:
+        w_m.version_hist = version_hist
+    if extrapolate_coord_radii is not None:
+        w_m.extrapolate_coord_radii = extrapolate_coord_radii
+    if write_corrected_file and (file_format.lower() == "rpxmb" or file_format.lower() == "rpxm"):
         path_to_new_waveform_h5 = path_to_waveform_h5.replace(".h5", "_CoM.h5", 1)
         rotating_paired_xor_multishuffle_bzip2.save(w_m, path_to_new_waveform_h5)
 

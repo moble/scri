@@ -207,6 +207,7 @@ class WaveformModes(WaveformBase):
         import sxs
         import quaternionic
         import quaternion
+        from .extrapolation import extrapolate
 
         # All of these will be stored in the `_metadata` member of the resulting WaveformModes
         # object; most of these will also be accessible directly as attributes.
@@ -239,7 +240,12 @@ class WaveformModes(WaveformBase):
 
         w = sxs.WaveformModes(self.data, **kwargs)
 
-        # Special case for the translation and boost
+        # Special cases for extrapolate_coord_radii and translation/boost
+        if hasattr(self, "extrapolate_coord_radii"):
+            w.register_modification(
+                extrapolate,
+                CoordRadii=list(self.extrapolate_coord_radii),
+            )
         if hasattr(self, "space_translation") or hasattr(self, "boost_velocity"):
             w.register_modification(
                 self.transform,
