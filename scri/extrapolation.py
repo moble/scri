@@ -602,6 +602,7 @@ def extrapolate(**kwargs):
     DataFile = kwargs.pop("DataFile", "rh_FiniteRadii_CodeUnits.h5")
     ChMass = kwargs.pop("ChMass", 0.0)
     HorizonsFile = kwargs.pop("HorizonsFile", "Horizons.h5")
+    CoordRadiiKwarg = kwargs.get("CoordRadii", None)
     CoordRadii = kwargs.pop("CoordRadii", [])
     ExtrapolationOrders = kwargs.pop("ExtrapolationOrders", [-1, 2, 3, 4, 5, 6])
     UseOmega = kwargs.pop("UseOmega", False)
@@ -789,7 +790,7 @@ def extrapolate(**kwargs):
 
         # Append the relevant information to the history
         ExtrapolatedWaveforms[i]._append_history(str(InputArguments))
-        ExtrapolatedWaveforms[i].extrapolate_coord_radii = CoordRadii
+        ExtrapolatedWaveforms[i].extrapolate_coord_radii = CoordRadiiKwarg
 
         # Output the data
         if OutputDirectory:
