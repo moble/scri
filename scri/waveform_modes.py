@@ -36,6 +36,8 @@ class WaveformModes(WaveformBase):
         Mode values of the spin-weighted spherical-harmonic decomposition. The array is assumed to have a first
         dimension equal to the length of `t`, and a second dimension equal to the number of modes as deduced from the
         values of ell_min and ell_max below.  As noted above, a very particular order is assumed for the data.
+        Input is treated as a reference, so in-place transformations may modify your original array. To avoid this
+        behavior, pass a copy of your array.
     ell_min : int
         Smallest ell value present in `data`.
     ell_max : int
