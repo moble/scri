@@ -360,6 +360,11 @@ def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
     # from T but did not do the same for the waveform data. So we do that here.
     waveform.data = waveform.data[Indices,:]
 
+    # We also need to remove nonmonontonic times from the frame, if the
+    # frame has the appropriate shape.
+    if waveform.frame.shape[0] > 1:
+        waveform.frame = waveform.frame[Indices]
+
     # Rescale the times and the data
     RadiusRatio = (Radii / CoordRadius) ** RadiusRatioExp
     waveform.t = T/ChMass
