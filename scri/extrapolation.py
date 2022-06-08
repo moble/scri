@@ -356,12 +356,20 @@ def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
     else:
         raise ValueError(f'DataType "{waveform.dataType}" is unknown.')
 
+    # The read_finite_radius_waveform_* functions removed nonmonotonic times
+    # from T but did not do the same for the waveform data. So we do that here.
+    waveform.data = waveform.data[Indices,:]
+
+    # We also need to remove nonmonontonic times from the frame, if the
+    # frame has the appropriate shape.
+    if waveform.frame.shape[0] > 1:
+        waveform.frame = waveform.frame[Indices]
+
     # Rescale the times and the data
     RadiusRatio = (Radii / CoordRadius) ** RadiusRatioExp
     waveform.t = T/ChMass
     for m,_ in enumerate(waveform.LM):
-        waveform.data[:,m] = \
-            waveform.data[Indices,m] * RadiusRatio * UnitScaleFactor
+        waveform.data[:,m] *= RadiusRatio * UnitScaleFactor
     waveform.m_is_scaled_out = True
 
     # Add the history information
