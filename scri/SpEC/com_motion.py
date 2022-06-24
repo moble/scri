@@ -49,6 +49,7 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
     import h5py
 
     if path_to_matter_h5 is None:
+        # BBH
         with h5py.File(path_to_horizons_h5, "r") as horizons:
             t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
             m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
@@ -56,26 +57,70 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
             m_B = horizons["AhB.dir/ChristodoulouMass.dat"][:, 1]
             x_B = horizons["AhB.dir/CoordCenterInertial.dat"][:, 1:]
             m = m_A + m_B
-            CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
+            CoM = ((m_A[:, np.newaxis] * x_A) +
+                   (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
     else:
-        # NOTE: Currently only supports BHNS, not NSNS
-        with h5py.File(path_to_horizons_h5, "r") as horizons:
-            t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
-            if m_A is None:
-                m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
-            else:
-                m_A = np.atleast_1d(m_A)
-            x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
+        # BHNS or NSNS
         with h5py.File(path_to_matter_h5, "r") as matter:
-            if m_B is None:
-                m_B = matter["RestMass.dat"][:, 1]
-            else:
+            if ("InertialCenterOfMassNS1.dat" in matter and
+                "InertialCenterOfMassNS2.dat" in matter):
+                # This is an NSNS.
+                x_A = matter["InertialCenterOfMassNS1.dat"][:,1:]
+                t   = matter["InertialCenterOfMassNS1.dat"][:,0]
+                x_B = matter["InertialCenterOfMassNS2.dat"][:,1:]
+                t_check = matter["InertialCenterOfMassNS2.dat"][:,0]
+                if (t != t_check).any():
+                    raise ValueError("Two NSs do not have the same time: "
+                                     "diff = {}".format(t-t_check))
+                if m_A is None or m_B is None:
+                    raise ValueError("Cannot figure out masses of NSs: "
+                                     "{}, {}".format(m_A, m_B))
+                m_A = np.atleast_1d(m_A)
                 m_B = np.atleast_1d(m_B)
-            x_B = matter["InertialCenterOfMass.dat"][:, 1:]
+            elif "InertialCenterOfMassNS1.dat" in matter:
+                # This is a BHNS
+                with h5py.File(path_to_horizons_h5, "r") as horizons:
+                    t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
+                    x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
+                    if m_A is None:
+                        m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
+                    else:
+                        m_A = np.atleast_1d(m_A)
+                x_B = matter["InertialCenterOfMassNS1.dat"][:,1:]
+                t_check = matter["InertialCenterOfMassNS1.dat"][:,0]
+                if len(t) < len(t_check):
+                    raise ValueError("BH and NS time arrays have different "
+                                     "lengths: {} vs {}".format(len(t),
+                                                                len(t_check)))
+                elif len(t) > len(t_check):
+                    # We allow AhA.dir/CoordCenterInertial.dat to have
+                    # more timesteps than InertialCenterOfMassNS1.dat,
+                    # as long as the early timesteps agree and
+                    # AhA.dir/CoordCenterInertial.dat just has extra steps
+                    # at the end.
+                    length = len(t_check)
+                    if m_A.shape[0] == len(t):
+                        m_A = m_A[:length]
+                    t = t[:length]
+                    x_A = x_A[:length,:]
+                if (t != t_check).any():
+                    raise ValueError("BH and NS do not have the same time: "
+                                     "tsize={},tchecksize={},max diff = "
+                                     "{}".format(len(t),len(t_check),
+                                                 max(abs(t-t_check))))
+                if m_B is None:
+                    raise ValueError("Cannot figure out mass of NS: "
+                                     "{}",format(m_B))
+                m_B = np.atleast_1d(m_B)
+            else:
+                raise Exception("Cannot find expected keys in file. Found "
+                                "{}".format(matter.keys()))
         m = m_A + m_B
-        CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
-
-        # The waveform will be in units of the total mass, so we need to convert for compatibility
+        CoM = ((m_A[:, np.newaxis] * x_A) +
+               (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
+        # The input and output waveforms are in units of the total
+        # mass, but t and CoM are in units of solar masses.  Therefore we
+        # convert the time and CoM arrays here.
         t /= m
         CoM /= m[:, np.newaxis]
 
