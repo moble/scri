@@ -36,6 +36,8 @@ class WaveformModes(WaveformBase):
         Mode values of the spin-weighted spherical-harmonic decomposition. The array is assumed to have a first
         dimension equal to the length of `t`, and a second dimension equal to the number of modes as deduced from the
         values of ell_min and ell_max below.  As noted above, a very particular order is assumed for the data.
+        Input is treated as a reference, so in-place transformations may modify your original array. To avoid this
+        behavior, pass a copy of your array.
     ell_min : int
         Smallest ell value present in `data`.
     ell_max : int
@@ -136,6 +138,124 @@ class WaveformModes(WaveformBase):
             self.__ell_max = kwargs.pop("ell_max", -1)
             self.__LM = sf.LM_range(self.__ell_min, self.__ell_max)
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def from_sxs(cls, w_sxs, override_exception_from_invalidity=False):
+        """Construct this object from an `sxs.WaveformModes` object
+
+        Note that the resulting object will likely contain references to the same
+        underlying data contained in the original object; modifying one will modify the
+        other.  You can make a copy of the result — using code like
+        `WaveformModes.from_sxs(w_sxs).copy()` — to obtain separate data.
+
+        """
+        import quaternion
+        constructor_statement = (
+            f"WaveformModes.from_sxs({w_sxs}, "
+            f"override_exception_from_invalidity={override_exception_from_invalidity})"
+        )
+
+        try:
+            frameType = [n.lower() for n in FrameNames].index(w_sxs.frame_type.lower())
+        except ValueError:
+            frameType = 0
+
+        try:
+            dataType = [n.lower() for n in DataNames].index(w_sxs.data_type.lower())
+        except ValueError:
+            dataType = 0
+
+        kwargs = dict(
+            t=w_sxs.t,
+            #frame=,  # see below
+            data=w_sxs.data,
+            history=w_sxs._metadata.get("history", []),
+            version_hist=w_sxs._metadata.get("version_hist", []),
+            frameType=frameType,
+            dataType=dataType,
+            r_is_scaled_out=w_sxs._metadata.get("r_is_scaled_out", True),
+            m_is_scaled_out=w_sxs._metadata.get("m_is_scaled_out", True),
+            override_exception_from_invalidity=override_exception_from_invalidity,
+            constructor_statement=constructor_statement,
+            ell_min=w_sxs.ell_min,
+            ell_max=w_sxs.ell_max,
+        )
+
+        frame = w_sxs.frame.ndarray
+        if np.array_equal(frame, [[1.,0,0,0]]):
+            pass  # The default will handle itself
+        elif frame.shape[0] == 1:
+            kwargs["frame"] = quaternion.as_quat_array(frame[0, :])
+        elif frame.shape[0] == w_sxs.n_times:
+            kwargs["frame"] = quaternion.as_quat_array(frame)
+        else:
+            raise ValueError(
+                f"Frame size ({frame.size}) should be 1 or "
+                f"equal to the number of time steps ({self.n_times})"
+            )
+
+        return cls(**kwargs)
+
+    @property
+    def to_sxs(self):
+        """Convert this object to an `sxs.WaveformModes` object
+
+        Note that the resulting object will likely contain references to the same
+        underlying data contained in the original object; modifying one will modify the
+        other.  You can make a copy of this object *before* calling this function —
+        using code like `w.copy().to_sxs` — to obtain separate data.
+
+        """
+        import sxs
+        import quaternionic
+        import quaternion
+        from .extrapolation import extrapolate
+
+        # All of these will be stored in the `_metadata` member of the resulting WaveformModes
+        # object; most of these will also be accessible directly as attributes.
+        kwargs = dict(
+            time=self.t,
+            time_axis=0,
+            modes_axis=1,
+            #frame=,  # see below
+            spin_weight=self.spin_weight,
+            data_type=self.data_type_string.lower(),
+            frame_type=self.frame_type_string.lower(),
+            history=self.history,
+            version_hist=self.version_hist,
+            r_is_scaled_out=self.r_is_scaled_out,
+            m_is_scaled_out=self.m_is_scaled_out,
+            ell_min=self.ell_min,
+            ell_max=self.ell_max,
+        )
+
+        # If self.frame.size==0, we just don't pass any argument
+        if self.frame.size == 1:
+            kwargs["frame"] = quaternionic.array([quaternion.as_float_array(self.frame)])
+        elif self.frame.size == self.n_times:
+            kwargs["frame"] = quaternionic.array(quaternion.as_float_array(self.frame))
+        elif self.frame.size > 0:
+            raise ValueError(
+                f"Frame size ({self.frame.size}) should be 0, 1, or "
+                f"equal to the number of time steps ({self.n_times})"
+            )
+
+        w = sxs.WaveformModes(self.data, **kwargs)
+
+        # Special cases for extrapolate_coord_radii and translation/boost
+        if hasattr(self, "extrapolate_coord_radii"):
+            w.register_modification(
+                extrapolate,
+                CoordRadii=list(self.extrapolate_coord_radii),
+            )
+        if hasattr(self, "space_translation") or hasattr(self, "boost_velocity"):
+            w.register_modification(
+                self.transform,
+                space_translation=list(getattr(self, "space_translation", [0., 0., 0.])),
+                boost_velocity=list(getattr(self, "boost_velocity", [0., 0., 0.])),
+            )
+
+        return w
 
     @waveform_alterations
     def ensure_validity(self, alter=True, assertions=False):
@@ -577,6 +697,22 @@ class WaveformModes(WaveformBase):
                 self.data[..., i_plus] = (mode_plus + mode_minus) / np.sqrt(2)
                 self.data[..., i_minus] = np.conjugate(mode_plus - mode_minus) / np.sqrt(2)
         self._append_history(f"{self}.convert_from_conjugate_pairs()")
+
+    def transform(self, **kwargs):
+        """Transform modes by some BMS transformation
+
+        This simply applies the `WaveformGrid.from_modes` function, followed by the
+        `WaveformGrid.to_modes` function.  See their respective docstrings for more
+        details.
+
+        However, note that the `ell_max` parameter used in the second function call
+        defaults here to the `ell_max` value in the input waveform.  This is slightly
+        different from the usual default, because `WaveformGrid.from_modes` usually
+        increases the effective ell value by 1.
+
+        """
+        from . import WaveformGrid
+        return WaveformGrid.transform(self, **kwargs)
 
     # Involutions
     @property

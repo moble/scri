@@ -19,11 +19,7 @@ from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
-try:
-    sys.path.insert(0, os.path.abspath(".."))
-    import _version as scri_version
-except:
-    import scri._version as scri_version
+from scri import __version__ as scri_version
 
 # -- Project information -----------------------------------------------------
 
@@ -32,7 +28,7 @@ copyright = "2016, Michael Boyle"
 author = "Michael Boyle"
 
 # The short X.Y version
-version = scri_version.__version__
+version = scri_version
 # The full version, including alpha/beta/rc tags
 release = version
 

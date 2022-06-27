@@ -1,4 +1,4 @@
-cff-version: 1.2.0
+cff-version: 2022.0.0
 message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Boyle"
@@ -17,7 +17,7 @@ authors:
   given-names: "Hannes"
   orcid: "https://orcid.org/0000-0002-3442-5360"
 title: "scri"
-version: 1.2.0
-doi: 10.5281/zenodo.4041972
-date-released: 2020-09-21
+version: 2022.0.0
+doi: 10.5281/zenodo.4041971
+date-released: 2022-03-02
 url: "https://github.com/moble/scri"
