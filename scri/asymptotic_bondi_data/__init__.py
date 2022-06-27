@@ -209,4 +209,4 @@ class AsymptoticBondiData:
         supermomentum,
     )
 
-    from .map_to_superrest_frame import transformations_to_map_to_superrest_frame
+    from .map_to_superrest_frame import map_to_superrest_frame
