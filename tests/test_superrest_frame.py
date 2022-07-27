@@ -39,7 +39,7 @@ def test_abd_kerr_superrest_frame():
         supertranslation=supertranslation, frame_rotation=frame_rotation, boost_velocity=boost_velocity
     )
 
-    _, abd_recovered = abd_prime.transformations_to_map_to_superrest_frame(padding_time=20)
+    abd_recovered, _ = abd_prime.map_to_superrest_frame(padding_time=20)
 
     PsiM = abd_recovered.supermomentum("Moreschi")[np.argmin(abs(abd_recovered.t))]
     PsiM[0:4] = 0
