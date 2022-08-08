@@ -75,3 +75,5 @@ build_artifacts
 *.swp
 
 .envrc
+/notes
+/environment.yml
