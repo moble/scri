@@ -75,3 +75,4 @@ build_artifacts
 *.swp
 
 .envrc
+/notes
