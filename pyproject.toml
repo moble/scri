@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scri"
-version = "2022.7.1"
+version = "2022.8.0"
 description = "Time-dependent functions of spin-weighted spherical harmonics"
 readme = "README.md"
 license = "MIT"
