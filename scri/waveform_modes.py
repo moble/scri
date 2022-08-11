@@ -165,11 +165,15 @@ class WaveformModes(WaveformBase):
         except ValueError:
             dataType = 0
 
+        history = w_sxs._metadata.get("history", [])
+        if isinstance(history, str):
+            history = history.split("\n")
+
         kwargs = dict(
             t=w_sxs.t,
             #frame=,  # see below
             data=w_sxs.data,
-            history=w_sxs._metadata.get("history", []),
+            history=history,
             version_hist=w_sxs._metadata.get("version_hist", []),
             frameType=frameType,
             dataType=dataType,
