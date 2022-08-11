@@ -7,11 +7,12 @@ import quaternion
 import spherical_functions as sf
 from .waveform_base import waveform_alterations
 from .mode_calculations import corotating_frame, angular_velocity, LLDominantEigenvector
+from .utilities import transition_function
 from . import jit, Coprecessing, Coorbital, Corotating, Inertial
 
 
 @waveform_alterations
-def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=None):
+def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDirectionIndex=None, transition_times=None):
     """Transform waveform (in place) to a coprecessing frame
 
     Parameters
@@ -19,9 +20,15 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
     W: waveform
         Waveform object to be transformed in place.
     RoughDirection: 3-array [defaults to np.array([0.0, 0.0, 1.0])]
-        Vague guess about the preferred initial axis, to choose the sign of the eigenvectors.
+        Vague guess about the preferred initial axis, to choose the sign of the
+        eigenvectors.
     RoughDirectionIndex: int or None [defaults to None]
         Time index at which to apply RoughDirection guess.
+    transition_times : 2-tuple or None [defaults to None]
+        If a 2-tuple of floats is given, these will be interpreted as the
+        beginning and ending times (respectively) to transition from using the
+        coprecessing frame to stopping rotation altogether.  This can be helpful
+        for ensuring that the frame doesn't fluctuate wildly during ringdown.
 
     """
     if RoughDirectionIndex is None:
@@ -29,8 +36,14 @@ def to_coprecessing_frame(W, RoughDirection=np.array([0.0, 0.0, 1.0]), RoughDire
     dpa = LLDominantEigenvector(W, RoughDirection=RoughDirection, RoughDirectionIndex=RoughDirectionIndex)
     R = np.array([quaternion.quaternion.sqrt(-quaternion.quaternion(0, *q).normalized() * quaternion.z) for q in dpa])
     R = quaternion.minimal_rotation(R, W.t, iterations=3)
+    if transition_times is not None:
+        i0, i1 = np.argmin(np.abs(W.t-transition_times[0])), np.argmin(np.abs(W.t-transition_times[1]))
+        transition = transition_function(W.t[i0:], W.t[i0], W.t[i1], y0=1.0, y1=0.0)
+        omega = quaternion.angular_velocity(R[i0:], W.t[i0:]) * transition[:, np.newaxis]
+        _, slowingR = quaternion.integrate_angular_velocity((W.t[i0:], omega), t0=W.t[i0], t1=W.t[-1], R0=R[i0])
+        R = np.concatenate((R[:i0], slowingR))
     W.rotate_decomposition_basis(R)
-    W._append_history(f"{W}.to_coprecessing_frame({RoughDirection}, {RoughDirectionIndex})")
+    W._append_history(f"{W}.to_coprecessing_frame({RoughDirection}, {RoughDirectionIndex}, {transition_times})")
     W.frameType = Coprecessing
     return W
 
