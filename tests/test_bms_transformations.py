@@ -4,7 +4,7 @@ import numpy as np
 import scri
 import quaternion
 import spherical_functions as sf
-import bms_transformations
+from scri import bms_transformations
 
 ABD = scri.AsymptoticBondiData
 
