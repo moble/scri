@@ -166,6 +166,9 @@ from .asymptotic_bondi_data import AsymptoticBondiData
 from . import sample_waveforms, SpEC, LVC, utilities
 from .SpEC import rpxmb
 
+from .bms_transformations import Lorentz_transformation
+from .bms_transformations import BMS_transformation
+
 __all__ = [
     "WaveformModes",
     "WaveformGrid",
