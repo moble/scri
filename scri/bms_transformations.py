@@ -13,7 +13,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
     ell_max_supertranslation = 1  # For now; may be increased below
     if "supertranslation" in kwargs:
         supertranslation = np.array(kwargs.pop("supertranslation"), dtype=complex)
-        if supertranslation.dtype != "complex" and supertranslation.size > 0:
+        if not (supertranslation.dtype == "complex" and supertranslation.size > 0):
             # I don't actually think this can ever happen...
             raise TypeError(
                 "Input argument `supertranslation` should be a complex array with size>0.  "
@@ -21,7 +21,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
             )
         # Make sure the array has size at least 4, by padding with zeros
         if supertranslation.size <= 4:
-            supertranslation = np.lib.pad(
+            supertranslation = np.pad(
                 supertranslation, (0, 4 - supertranslation.size), "constant", constant_values=(0.0,)
             )
         # Check that the shape is a possible array of scalar modes with complete (ell,m) data
@@ -44,7 +44,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
                     raise ValueError(
                         f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
                         + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
-                        + "Will result in an imaginary supertranslation."
+                        + "Will result in a complex supertranslation."
                     )
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
@@ -116,37 +116,37 @@ def fourvec_to_spin_matrix(fourvec):
 
     return np.array([[a, b], [c, d]])
 
-def Lorentz_to_spin_matrix(Lorentz):
+def Lorentz_to_spin_matrix(lorentz):
     """Convert a Lorentz transformation to a spin matrix.
     
     Parameters
     ----------
-    Lorentz: Lorentz_transformation
+    lorentz: lorentz_transformation
     """
     
-    psi = 2 * np.arctan2(np.linalg.norm(Lorentz.rotation.components[1:]),
-                         Lorentz.rotation.components[0])
+    psi = 2 * np.arctan2(np.linalg.norm(lorentz.rotation.components[1:]),
+                         lorentz.rotation.components[0])
     if psi == 0:
         rotation_vec_hat = np.array([0, 0, 0])
     else:
-        rotation_vec_hat = Lorentz.rotation.components[1:] \
-            / np.linalg.norm(Lorentz.rotation.components[1:])
+        rotation_vec_hat = lorentz.rotation.components[1:] \
+            / np.linalg.norm(lorentz.rotation.components[1:])
 
-    chi = 1j * np.arctanh(np.linalg.norm(Lorentz.boost))
+    chi = 1j * np.arctanh(np.linalg.norm(lorentz.boost))
     if chi == 0:
         boost_vec_hat = np.array([0, 0, 0])
     else:
-        boost_vec_hat = Lorentz.boost \
-            / np.linalg.norm(Lorentz.boost)
+        boost_vec_hat = lorentz.boost \
+            / np.linalg.norm(lorentz.boost)
         
     # Compute product of Lorentz vector and Pauli matrices
     rotation_spin_matrix = fourvec_to_spin_matrix([psi, *rotation_vec_hat])
     boost_spin_matrix = fourvec_to_spin_matrix([chi, *boost_vec_hat])
 
-    if Lorentz.order.index('rotation') < Lorentz.order.index('boost'):
-        return np.linalg.multi_dot([boost_spin_matrix, rotation_spin_matrix])
+    if lorentz.order.index('rotation') < lorentz.order.index('boost'):
+        return np.matmul([boost_spin_matrix, rotation_spin_matrix])
     else:
-        return np.linalg.multi_dot([rotation_spin_matrix, boost_spin_matrix])
+        return np.matmul([rotation_spin_matrix, boost_spin_matrix])
     
 def pure_spin_matrix_to_Lorentz(A, is_rotation=None, tol=1e-14):
     """Convert a pure spin matrix to rotation or a boost.
@@ -229,44 +229,35 @@ def spin_matrix_to_Lorentz(A, output_order=['rotation','boost']):
         boost_idx = np.inf
         
     if rotation_idx < boost_idx:
-        rotation_matrix = np.linalg.multi_dot([u, vh])
+        rotation_matrix = np.matmul([u, vh])
         boost_matrix = np.linalg.multi_dot([u, np.diag(s), u.conj().T])
     else:
-        rotation_matrix = np.linalg.multi_dot([u, vh])
+        rotation_matrix = np.matmul([u, vh])
         boost_matrix = np.linalg.multi_dot([vh.conj().T, np.diag(s), vh])
     rotation = pure_spin_matrix_to_Lorentz(rotation_matrix, is_rotation=True)
     boost = pure_spin_matrix_to_Lorentz(boost_matrix, is_rotation=False)
     return Lorentz_transformation(rotation=rotation, boost=boost, order=output_order)
 
-def compute_conformal_factor(Lorentz, n_theta, n_phi):
+def compute_conformal_factor(lorentz, n_theta, n_phi):
     """Compute the conformal factor.
 
     Note that this is the inverse of Eq. (4.6) of 10.1063/1.1705135.
     """
     thetaprm_phiprm = sf.theta_phi(n_theta, n_phi)
 
-    [[a, b], [c, d]] = Lorentz_to_spin_matrix(Lorentz)
+    [[a, b], [c, d]] = Lorentz_to_spin_matrix(lorentz)
 
     conformal = np.zeros((n_theta, n_phi), dtype=complex)
     for j in range(n_theta):
         for k in range(n_phi):
             thetaprm_j, phiprm_k = thetaprm_phiprm[j, k]
             if thetaprm_j == 0:
-                z = np.inf
                 conformal[j, k] = 1/(np.abs(a)**2+np.abs(c)**2)
             else:
                 z = np.exp(1j*phiprm_k)/np.tan(thetaprm_j/2)
                 conformal[j, k] = (1+np.abs(z)**2)/(np.abs(a*z+b)**2+np.abs(c*z+d)**2)
             
     return conformal
-
-def nCr(n, r):
-    """n choose r.
-    """
-    if n >= 0 and r >= 0 and n - r >= 0:
-        return np.math.factorial(n)/(np.math.factorial(r)*np.math.factorial(n-r))
-    else:
-        return 0
 
 def A_matrix(L, M1, M2, N1, N2, spin_matrix):
     """Compute the matrix that transforms Eq. (4.11) of 10.1063/1.1705135
@@ -282,7 +273,7 @@ def A_matrix(L, M1, M2, N1, N2, spin_matrix):
                 for i4 in range(M2 + 1):
                     if not (i3 + i4) == N2:
                         continue
-                    A_value += nCr(L-M1,i1)*nCr(M1,i2)*nCr(L-M2,i3)*nCr(M2,i4)\
+                    A_value += scipy.special.binom(L-M1,i1)*scipy.special.binom(M1,i2)*scipy.special.binom(L-M2,i3)*scipy.special.binom(M2,i4)\
                         *a**(L-M1-i1)*np.conjugate(a)**(L-M2-i3)*b**(i1)*np.conjugate(b)**(i3)\
                         *c**(M1-i2)*np.conjugate(c)**(M2-i4)*d**(i2)*np.conjugate(d)**(i4)
     
@@ -297,26 +288,26 @@ def B_matrix(Lmax, L, M, M1, M2):
         ALM = (-1)**(L)*np.sqrt(np.math.factorial(L+M)*np.math.factorial(L-M)*(2*L+1)/(4*np.pi))
         sum_contribution = 0
         for p in range(min(Lmax-M1, L, L + M) + 1):
-            sum_contribution += (-1)**(p-M)*nCr(L,p)*nCr(L,p-M)*nCr(Lmax-L,Lmax-M1-p)
+            sum_contribution += (-1)**(p-M)*scipy.special.binom(L,p)*scipy.special.binom(L,p-M)*scipy.special.binom(Lmax-L,Lmax-M1-p)
         return ALM/np.sqrt(float(np.math.factorial(L)*np.math.factorial(L)))*sum_contribution
     
-def transform_Y_LM(Y_LM, Lorentz, ell_max=None):
+def transform_Y_LM(Y_LM, lorentz, ell_max=None):
     """Apply a Lorentz transformation to a spherical harmonic.
 
     Parameters
     ----------
-    f_LM: ndarray, dtype=complex
-        Ylms to be transformed.
-    Lorentz: Lorentz_transformation
+    Y_LM: tuple,
+        (L, M) of Ylm to be transformed.
+    lorentz: Lorentz_transformation
         Lorentz transformation to be used to transform the function.
     ell_max: int
         Maximum ell to use when expressing functions via coordinates on the two-sphere.
         Defaults to the ell_max of the Lorentz transformation.
     """
     if ell_max is None:
-        ell_max = Lorentz.ell_max
+        ell_max = lorentz.ell_max
     
-    spin_matrix = Lorentz_to_spin_matrix(Lorentz)
+    spin_matrix = Lorentz_to_spin_matrix(lorentz)
 
     from_zprime_to_z = []
     from_SH_expansion = []
@@ -341,13 +332,13 @@ def transform_Y_LM(Y_LM, Lorentz, ell_max=None):
     f_LM_padded = np.pad(f_LM, (0,(ell_max + 1)**2 - f_LM.size))
     f_LM_S2 = spinsfast.salm2map(f_LM_padded, 0, ell_max, n_theta, n_phi)
     
-    K_S2 = compute_conformal_factor(Lorentz, n_theta, n_phi)
+    K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
 
     result_S2 = K_S2**(Y_LM[0]) * f_LM_S2
     
     return spinsfast.map2salm(result_S2, 0, ell_max)
 
-def transform_function(f_LM, Lorentz, ell_max=None, tol=1e-15):
+def transform_function(f_LM, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a spin-weight 0 funtion, where the function
     is provided via it's spherical harmonic modes, the Ylms.
 
@@ -355,7 +346,7 @@ def transform_function(f_LM, Lorentz, ell_max=None, tol=1e-15):
     ----------
     f_LM: ndarray, dtype=complex
         Ylms to be transformed.
-    Lorentz: Lorentz_transformation
+    lorentz: Lorentz_transformation
         Lorentz transformation to be used to transform the function.
     ell_max: int
         Maximum ell to use when expressing functions via coordinates on the two-sphere.
@@ -365,18 +356,18 @@ def transform_function(f_LM, Lorentz, ell_max=None, tol=1e-15):
         in terms of the untransformed Ylms. Defaults to 1e-15.
     """
     if ell_max is None:
-        ell_max = Lorentz.ell_max
+        ell_max = lorentz.ell_max
 
     f_LM_prime = np.zeros((ell_max + 1)**2, dtype=complex)
     for L in range(0, int(np.sqrt(f_LM.size) - 1) + 1):
         for M in range(-L, L+1):
             if abs(f_LM[sf.LM_index(L, M, 0)]) < tol:
                 continue
-            f_LM_prime += f_LM[sf.LM_index(L, M, 0)] * transform_Y_LM((L, M), Lorentz, ell_max)
+            f_LM_prime += f_LM[sf.LM_index(L, M, 0)] * transform_Y_LM((L, M), lorentz, ell_max)
 
     return f_LM_prime
 
-def transform_supertranslation(S, Lorentz, ell_max=None, tol=1e-15):
+def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a supertranslation and multiply by
     one over the conformal factor. This produces the supertranslation the appears
     when commuting a supertranslation through a Lorentz transformation.
@@ -388,7 +379,7 @@ def transform_supertranslation(S, Lorentz, ell_max=None, tol=1e-15):
     ----------
     S: ndarray, dtype=complex
         supertranslation to be transformed.
-    Lorentz: Lorentz_transformation
+    lorentz: Lorentz_transformation
         Lorentz transformation to be used to transform the supertranslation.
     ell_max: int
         Maximum ell to use when expressing functions via coordinates on the two-sphere.
@@ -397,15 +388,15 @@ def transform_supertranslation(S, Lorentz, ell_max=None, tol=1e-15):
         in terms of the untransformed Ylms. Defaults to 1e-15.
     """
     if ell_max is None:
-        ell_max = Lorentz.ell_max
+        ell_max = lorentz.ell_max
     n_theta = 2 * ell_max + 1; n_phi = n_theta;
         
-    transformed_S = transform_function(S, Lorentz, ell_max, tol)
+    transformed_S = transform_function(S, lorentz, ell_max, tol)
     
     transformed_S_S2 = spinsfast.salm2map(transformed_S, 0, ell_max, n_theta, n_phi)
-    K_S2 = compute_conformal_factor(Lorentz, n_theta, n_phi)
+    K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
 
-    S_prime_S2 = K_S2**(-1)*transformed_S_S2
+    S_prime_S2 = transformed_S_S2 / K_S2
 
     return spinsfast.map2salm(S_prime_S2, 0, ell_max)
     
@@ -461,17 +452,17 @@ class Lorentz_transformation:
             raise ValueError('Not enough transformations')
         
         if self.order == output_order:
-            return self
+            return self.copy()
         else:
             L_spin_matrix = Lorentz_to_spin_matrix(self)
             L_reordered = spin_matrix_to_Lorentz(L_spin_matrix, output_order=output_order)
             return L_reordered
 
-    def is_identity(self, verbose=False):
+    def is_identity(self, rtol=1e-5, atol=1e-8, verbose=False):
         """Check if a BMS transformation is the identity element
         """
-        rotation_is_identity = np.allclose(self.rotation.components, [1,0,0,0])
-        boost_is_identity = np.allclose(self.boost, [0,0,0])
+        rotation_is_identity = np.allclose(self.rotation.components, [1,0,0,0], rtol, atol)
+        boost_is_identity = np.allclose(self.boost, [0,0,0], rtol, atol)
         if verbose:
             print(f"rotation is identity: {rotation_is_identity}")
             print(f"boost is identity: {boost_is_identity}")
@@ -495,6 +486,9 @@ class Lorentz_transformation:
             
     def compose(self, other, output_order=['rotation','boost']):
         """Compose two Lorentz transformations.
+
+        These are composed as other * self, when each is viewed as a (passive)
+        Lorentz transformation on the coordinates.
         
         Parameters
         ----------
@@ -506,7 +500,7 @@ class Lorentz_transformation:
         L1_spin_matrix = Lorentz_to_spin_matrix(self)
         L2_spin_matrix = Lorentz_to_spin_matrix(other)
         
-        Ls_spin_matrix = np.linalg.multi_dot([L2_spin_matrix, L1_spin_matrix])
+        Ls_spin_matrix = np.matmul([L2_spin_matrix, L1_spin_matrix])
     
         return spin_matrix_to_Lorentz(Ls_spin_matrix, output_order=output_order)
 
@@ -523,8 +517,8 @@ class Lorentz_transformation:
         L1_spin_matrix = Lorentz_to_spin_matrix(self)
         L2_spin_matrix = Lorentz_to_spin_matrix(other)
         
-        conjugate_spin_matrix = np.linalg.multi_dot([L2_spin_matrix, L1_spin_matrix])\
-            - np.linalg.multi_dot([L1_spin_matrix, L2_spin_matrix])
+        conjugate_spin_matrix = np.matmul([L2_spin_matrix, L1_spin_matrix])\
+            - np.matmul([L1_spin_matrix, L2_spin_matrix])
     
         return spin_matrix_to_Lorentz(conjugate_spin_matrix, output_order=output_order)
     
@@ -621,12 +615,12 @@ class BMS_transformation:
                                   ell_max=self.ell_max,
                                   order=output_order)        
 
-    def is_identity(self, verbose=False):
+    def is_identity(self, rtol=1e-5, atol=1e-8, verbose=False):
         """Check if a BMS transformation is the identity element.
         """
-        rotation_is_identity = np.allclose(self.rotation.components, [1,0,0,0])
-        boost_is_identity = np.allclose(self.boost, [0,0,0])
-        supertranslation_is_identity = np.allclose(self.supertranslation, np.zeros_like(self.supertranslation))
+        rotation_is_identity = np.allclose(self.rotation.components, [1,0,0,0], rtol, atol)
+        boost_is_identity = np.allclose(self.boost, [0,0,0], rtol, atol)
+        supertranslation_is_identity = np.allclose(self.supertranslation, np.zeros_like(self.supertranslation), rtol, atol)
         if verbose:
             print(f"rotation is identity: {rotation_is_identity}")
             print(f"boost is identity: {boost_is_identity}")
@@ -639,12 +633,12 @@ class BMS_transformation:
         if output_order is None:
             output_order = self.order[::-1]
             
-        BMS_normal_order = self.reorder(output_order=['supertranslation','rotation','boost'])
+        bms_normal_order = self.reorder(output_order=['supertranslation','rotation','boost'])
         
-        L_inverse = Lorentz_transformation(rotation=BMS_normal_order.rotation,
-                                           boost=BMS_normal_order.boost,
-                                           ell_max=BMS_normal_order.ell_max,
-                                           output_order=BMS_normal_order.order).inverse(output_order=['rotation','boost'][::-1])
+        L_inverse = Lorentz_transformation(rotation=bms_normal_order.rotation,
+                                           boost=bms_normal_order.boost,
+                                           ell_max=bms_normal_order.ell_max,
+                                           output_order=bms_normal_order.order).inverse(output_order=['rotation','boost'][::-1])
 
         n_theta = 2 * self.ell_max + 1; n_phi = n_theta;
 
@@ -652,22 +646,22 @@ class BMS_transformation:
         
         S_inverse = spinsfast.map2salm(
             sf.Grid(
-                -sf.Modes(BMS_normal_order.supertranslation, spin_weight=0).real.evaluate(identity_grid_rotors),
+                -sf.Modes(bms_normal_order.supertranslation, spin_weight=0).real.evaluate(identity_grid_rotors),
                 spin_weight=0
             ).real,
             0,
             self.ell_max)
 
-        BMS_inverse = BMS_transformation(rotation=L_inverse.rotation,
+        bms_inverse = BMS_transformation(rotation=L_inverse.rotation,
                                          boost=L_inverse.boost,
                                          supertranslation=S_inverse,
-                                         ell_max=BMS_normal_order.ell_max,
+                                         ell_max=bms_normal_order.ell_max,
                                          order=['supertranslation','rotation','boost'][::-1])
 
-        if BMS_inverse.order == output_order:
-            return BMS_inverse
+        if bms_inverse.order == output_order:
+            return bms_inverse
         else:
-            return BMS_inverse.reorder(output_order=output_order)
+            return bms_inverse.reorder(output_order=output_order)
 
     # Functions involving two BMS transformations
     
@@ -692,32 +686,32 @@ class BMS_transformation:
         """
         ell_max = max(self.ell_max, other.ell_max)
         
-        BMS1_normal_order = self.reorder(output_order=['supertranslation','rotation','boost'])
-        BMS2_normal_order = other.reorder(output_order=['supertranslation','rotation','boost'])
+        bms1_normal_order = self.reorder(output_order=['supertranslation','rotation','boost'])
+        bms2_normal_order = other.reorder(output_order=['supertranslation','rotation','boost'])
         
-        L1 = Lorentz_transformation(rotation=BMS1_normal_order.rotation,
-                                    boost=BMS1_normal_order.boost,
+        L1 = Lorentz_transformation(rotation=bms1_normal_order.rotation,
+                                    boost=bms1_normal_order.boost,
                                     ell_max=ell_max,
-                                    order=BMS1_normal_order.order)
-        L2 = Lorentz_transformation(rotation=BMS2_normal_order.rotation,
-                                    boost=BMS2_normal_order.boost,
+                                    order=bms1_normal_order.order)
+        L2 = Lorentz_transformation(rotation=bms2_normal_order.rotation,
+                                    boost=bms2_normal_order.boost,
                                     ell_max=ell_max,
-                                    order=BMS2_normal_order.order)
+                                    order=bms2_normal_order.order)
         L_composed = L1.compose(L2, output_order=['rotation','boost'])
         
-        S1 = np.pad(BMS1_normal_order.supertranslation,
-                    (0, (ell_max + 1)**2 - BMS1_normal_order.supertranslation.shape[0]))
-        S2 = np.pad(BMS2_normal_order.supertranslation,
-                    (0, (ell_max + 1)**2 - BMS2_normal_order.supertranslation.shape[0]))
+        S1 = np.pad(bms1_normal_order.supertranslation,
+                    (0, (ell_max + 1)**2 - bms1_normal_order.supertranslation.shape[0]))
+        S2 = np.pad(bms2_normal_order.supertranslation,
+                    (0, (ell_max + 1)**2 - bms2_normal_order.supertranslation.shape[0]))
 
         S_prime = transform_supertranslation(S2, L1)
         
         S_composed = S1 + S_prime
 
-        BMS_composed = BMS_transformation(rotation=L_composed.rotation,
+        bms_composed = BMS_transformation(rotation=L_composed.rotation,
                                           boost=L_composed.boost,
                                           supertranslation=S_composed,
                                           ell_max=ell_max,
                                           order=['supertranslation','rotation','boost'])
         
-        return BMS_composed.reorder(output_order=output_order)
+        return bms_composed.reorder(output_order=output_order)
