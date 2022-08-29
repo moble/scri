@@ -144,9 +144,9 @@ def Lorentz_to_spin_matrix(lorentz):
     boost_spin_matrix = fourvec_to_spin_matrix([chi, *boost_vec_hat])
 
     if lorentz.order.index('rotation') < lorentz.order.index('boost'):
-        return np.matmul([boost_spin_matrix, rotation_spin_matrix])
+        return np.matmul(boost_spin_matrix, rotation_spin_matrix)
     else:
-        return np.matmul([rotation_spin_matrix, boost_spin_matrix])
+        return np.matmul(rotation_spin_matrix, boost_spin_matrix)
     
 def pure_spin_matrix_to_Lorentz(A, is_rotation=None, tol=1e-14):
     """Convert a pure spin matrix to rotation or a boost.
@@ -229,10 +229,10 @@ def spin_matrix_to_Lorentz(A, output_order=['rotation','boost']):
         boost_idx = np.inf
         
     if rotation_idx < boost_idx:
-        rotation_matrix = np.matmul([u, vh])
+        rotation_matrix = np.matmul(u, vh)
         boost_matrix = np.linalg.multi_dot([u, np.diag(s), u.conj().T])
     else:
-        rotation_matrix = np.matmul([u, vh])
+        rotation_matrix = np.matmul(u, vh)
         boost_matrix = np.linalg.multi_dot([vh.conj().T, np.diag(s), vh])
     rotation = pure_spin_matrix_to_Lorentz(rotation_matrix, is_rotation=True)
     boost = pure_spin_matrix_to_Lorentz(boost_matrix, is_rotation=False)
@@ -500,7 +500,7 @@ class Lorentz_transformation:
         L1_spin_matrix = Lorentz_to_spin_matrix(self)
         L2_spin_matrix = Lorentz_to_spin_matrix(other)
         
-        Ls_spin_matrix = np.matmul([L2_spin_matrix, L1_spin_matrix])
+        Ls_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)
     
         return spin_matrix_to_Lorentz(Ls_spin_matrix, output_order=output_order)
 
@@ -517,8 +517,8 @@ class Lorentz_transformation:
         L1_spin_matrix = Lorentz_to_spin_matrix(self)
         L2_spin_matrix = Lorentz_to_spin_matrix(other)
         
-        conjugate_spin_matrix = np.matmul([L2_spin_matrix, L1_spin_matrix])\
-            - np.matmul([L1_spin_matrix, L2_spin_matrix])
+        conjugate_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)\
+            - np.matmul(L1_spin_matrix, L2_spin_matrix)
     
         return spin_matrix_to_Lorentz(conjugate_spin_matrix, output_order=output_order)
     
@@ -578,19 +578,38 @@ class BMS_transformation:
                 'boost' in output_order):
             raise ValueError('Not enough transformations')
 
+        L_prime = Lorentz_transformation(rotation=self.rotation,
+                                         boost=self.boost,
+                                         order=self.order)
+        L_prime = L_prime.reorder(output_order)
+        
         d_S_index = output_order.index('supertranslation') - self.order.index('supertranslation')
         if abs(d_S_index) == 1:
-            transformation = output_order[output_order.index('supertranslation') - d_S_index]
-            if transformation == 'rotation':
-                L_transform = Lorentz_transformation(rotation=self.rotation,
-                                                     boost=np.zeros(3),
-                                                     ell_max=self.ell_max,
-                                                     order=self.order)
+            if self.order.index('supertranslation') == 1:
+                transformation = self.order[self.order.index('supertranslation') + d_S_index]
+                if transformation == 'rotation':
+                    L_transform = Lorentz_transformation(rotation=self.rotation,
+                                                         boost=np.zeros(3),
+                                                         ell_max=self.ell_max,
+                                                         order=self.order)
+                else:
+                    L_transform = Lorentz_transformation(rotation=np.quaternion(1, 0, 0, 0),
+                                                         boost=self.boost,
+                                                         ell_max=self.ell_max,
+                                                         order=self.order)
             else:
-                L_transform = Lorentz_transformation(rotation=np.quaternion(1, 0, 0, 0),
-                                                     boost=self.boost,
-                                                     ell_max=self.ell_max,
-                                                     order=self.order)
+                transformation = output_order[output_order.index('supertranslation') - d_S_index]
+                if transformation == 'rotation':
+                    L_transform = Lorentz_transformation(rotation=L_prime.rotation,
+                                                         boost=np.zeros(3),
+                                                         ell_max=L_prime.ell_max,
+                                                         order=L_prime.order)
+                else:
+                    L_transform = Lorentz_transformation(rotation=np.quaternion(1, 0, 0, 0),
+                                                         boost=L_prime.boost,
+                                                         ell_max=L_prime.ell_max,
+                                                         order=L_prime.order)
+            
         elif abs(d_S_index) == 2:
             L_transform = Lorentz_transformation(rotation=self.rotation,
                                                  boost=self.boost,
@@ -604,16 +623,161 @@ class BMS_transformation:
             S_prime = transform_supertranslation(self.supertranslation,
                                                  L_transform)
 
-        L_prime = Lorentz_transformation(rotation=self.rotation,
-                                         boost=self.boost,
-                                         order=self.order)
-        L_prime = L_prime.reorder(output_order)
-
         return BMS_transformation(rotation=L_prime.rotation,
                                   boost=L_prime.boost,
                                   supertranslation=S_prime,
                                   ell_max=self.ell_max,
-                                  order=output_order)        
+                                  order=output_order)
+    def reorder_prev(self, output_order):
+         """Reorder a BMS transformation.
+         """
+         if not ('supertranslation' in output_order and\
+                 'rotation' in output_order and\
+                 'boost' in output_order):
+             raise ValueError('Not enough transformations')
+
+         # There's probably a better way to do this, e.g., using the indexes
+         # to figure out what transformations are moved through others.
+         # But this is easy enough and a resonable first draft.
+
+         # Map to normal order
+         normal_order = ['supertranslation','rotation','boost']
+         if self.order == normal_order:
+             BMS_normal_order = self.copy()
+         elif self.order == ['rotation','supertranslation','boost']:
+             S_prime = transform_supertranslation(self.supertranslation,
+                                                  Lorentz_transformation(rotation=self.rotation,
+                                                                         ell_max=self.ell_max,
+                                                                         order=self.order))
+
+             BMS_normal_order = BMS_transformation(rotation=self.rotation,
+                                                   boost=self.boost,
+                                                   supertranslation=S_prime,
+                                                   ell_max=self.ell_max,
+                                                   order=normal_order)
+         elif self.order == ['rotation','boost','supertranslation']:
+             S_prime = transform_supertranslation(self.supertranslation,
+                                                  Lorentz_transformation(rotation=self.rotation,
+                                                                         boost=self.boost,
+                                                                         ell_max=self.ell_max,
+                                                                         order=self.order))
+
+             BMS_normal_order = BMS_transformation(rotation=self.rotation,
+                                                   boost=self.boost,
+                                                   supertranslation=S_prime,
+                                                   ell_max=self.ell_max,
+                                                   order=normal_order)
+         elif self.order == ['supertranslation','boost','rotation']:
+             L_prime = Lorentz_transformation(rotation=self.rotation,
+                                              boost=self.boost,
+                                              ell_max=self.ell_max,
+                                              order=self.order).reorder(normal_order)
+
+             BMS_normal_order = BMS_transformation(rotation=L_prime.rotation,
+                                                   boost=L_prime.boost,
+                                                   supertranslation=self.supertranslation,
+                                                   ell_max=self.ell_max,
+                                                   order=normal_order)
+         elif self.order == ['boost','supertranslation','rotation']:
+             L_prime = Lorentz_transformation(rotation=self.rotation,
+                                              boost=self.boost,
+                                              ell_max=self.ell_max,
+                                              order=self.order).reorder(normal_order)
+
+             S_prime = transform_supertranslation(self.supertranslation,
+                                                  Lorentz_transformation(boost=self.boost,
+                                                                         ell_max=self.ell_max,
+                                                                         order=self.order))
+             
+             BMS_normal_order = BMS_transformation(rotation=L_prime.rotation,
+                                                   boost=L_prime.boost,
+                                                   supertranslation=S_prime,
+                                                   ell_max=self.ell_max,
+                                                   order=normal_order)
+         elif self.order == ['boost','rotation','supertranslation']:
+             L_prime = Lorentz_transformation(rotation=self.rotation,
+                                              boost=self.boost,
+                                              ell_max=self.ell_max,
+                                              order=self.order).reorder(normal_order)
+
+             S_prime = transform_supertranslation(self.supertranslation,
+                                                  L_prime)
+
+             BMS_normal_order = BMS_transformation(rotation=L_prime.rotation,
+                                                   boost=L_prime.boost,
+                                                   supertranslation=S_prime,
+                                                   ell_max=self.ell_max,
+                                                   order=normal_order)
+
+         # Map to output order
+         if output_order == normal_order:
+             BMS_reordered = BMS_normal_order.copy()
+         elif output_order == ['rotation','supertranslation','boost']:
+             S_prime = transform_supertranslation(BMS_normal_order.supertranslation,
+                                                  Lorentz_transformation(rotation=BMS_normal_order.rotation,
+                                                                         ell_max=BMS_normal_order.ell_max,
+                                                                         order=BMS_normal_order.order).inverse())
+
+             BMS_reordered = BMS_transformation(rotation=BMS_normal_order.rotation,
+                                                boost=BMS_normal_order.boost,
+                                                supertranslation=S_prime,
+                                                ell_max=BMS_normal_order.ell_max,
+                                                order=output_order)
+         elif output_order == ['rotation','boost','supertranslation']:
+             S_prime = transform_supertranslation(BMS_normal_order.supertranslation,
+                                                  Lorentz_transformation(rotation=BMS_normal_order.rotation,
+                                                                         boost=BMS_normal_order.boost,
+                                                                         ell_max=BMS_normal_order.ell_max,
+                                                                         order=BMS_normal_order.order).inverse())
+
+             BMS_reordered = BMS_transformation(rotation=BMS_normal_order.rotation,
+                                                boost=BMS_normal_order.boost,
+                                                supertranslation=S_prime,
+                                                ell_max=BMS_normal_order.ell_max,
+                                                order=output_order)
+         elif output_order == ['supertranslation','boost','rotation']:
+             L_prime = Lorentz_transformation(rotation=BMS_normal_order.rotation,
+                                              boost=BMS_normal_order.boost,
+                                              ell_max=BMS_normal_order.ell_max,
+                                              order=BMS_normal_order.order).reorder(output_order)
+
+             BMS_reordered = BMS_transformation(rotation=L_prime.rotation,
+                                                boost=L_prime.boost,
+                                                supertranslation=BMS_normal_order.supertranslation,
+                                                ell_max=BMS_normal_order.ell_max,
+                                                order=output_order)
+         elif output_order == ['boost','supertranslation','rotation']:
+             L_prime = Lorentz_transformation(rotation=BMS_normal_order.rotation,
+                                              boost=BMS_normal_order.boost,
+                                              ell_max=BMS_normal_order.ell_max,
+                                              order=BMS_normal_order.order).reorder(output_order)
+
+             S_prime = transform_supertranslation(BMS_normal_order.supertranslation,
+                                                  Lorentz_transformation(boost=L_prime.boost,
+                                                                         ell_max=L_prime.ell_max,
+                                                                         order=L_prime.order).inverse())
+
+             BMS_reordered = BMS_transformation(rotation=L_prime.rotation,
+                                                boost=L_prime.boost,
+                                                supertranslation=S_prime,
+                                                ell_max=BMS_normal_order.ell_max,
+                                                order=output_order)
+         elif output_order == ['boost','rotation','supertranslation']:
+             L_prime = Lorentz_transformation(rotation=BMS_normal_order.rotation,
+                                              boost=BMS_normal_order.boost,
+                                              ell_max=BMS_normal_order.ell_max,
+                                              order=BMS_normal_order.order).reorder(output_order)
+
+             S_prime = transform_supertranslation(BMS_normal_order.supertranslation,
+                                                  L_prime.inverse())
+
+             BMS_reordered = BMS_transformation(rotation=L_prime.rotation,
+                                                boost=L_prime.boost,
+                                                supertranslation=S_prime,
+                                                ell_max=BMS_normal_order.ell_max,
+                                                order=output_order)
+
+         return BMS_reordered
 
     def is_identity(self, rtol=1e-5, atol=1e-8, verbose=False):
         """Check if a BMS transformation is the identity element.
