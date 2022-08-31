@@ -506,24 +506,6 @@ class Lorentz_transformation:
         Ls_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)
     
         return spin_matrix_to_Lorentz(Ls_spin_matrix, output_order=output_order)
-
-    def conjugate(self, other, output_order=['rotation','boost']):
-        """Compute the conjugate of two Lorentz transformations.
-        
-        Parameters
-        ----------
-        other: Lorentz_transformation
-            2nd Lorentz transformation to be applied.
-        output_order: list
-            Order in which rotation and boost should be applied.
-        """
-        L1_spin_matrix = Lorentz_to_spin_matrix(self)
-        L2_spin_matrix = Lorentz_to_spin_matrix(other)
-        
-        conjugate_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)\
-            - np.matmul(L1_spin_matrix, L2_spin_matrix)
-    
-        return spin_matrix_to_Lorentz(conjugate_spin_matrix, output_order=output_order)
     
 class BMS_transformation:
     def __init__(self, **kwargs):
