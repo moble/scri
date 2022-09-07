@@ -291,7 +291,7 @@ def B_matrix(Lmax, L, M, M1, M2):
             sum_contribution += (-1)**(p-M)*scipy.special.binom(L,p)*scipy.special.binom(L,p-M)*scipy.special.binom(Lmax-L,Lmax-M1-p)
         return ALM/np.sqrt(float(np.math.factorial(L)*np.math.factorial(L)))*sum_contribution
     
-def transform_Y_LM_w_o_conformal_factor(Y_LM, lorentz, ell_max=None):
+def transform_Y_LM(Y_LM, lorentz, ell_max=None):
     """Apply a Lorentz transformation to a spherical harmonic.
 
     Parameters
@@ -326,10 +326,17 @@ def transform_Y_LM_w_o_conformal_factor(Y_LM, lorentz, ell_max=None):
                     factors.append(B_matrix(Y_LM[0], L, M, N1, N2))
             from_SH_expansion.append(factors)
             
+    n_theta = 2 * ell_max + 1; n_phi = n_theta;
+            
     f_LM = np.matmul(np.linalg.inv(np.array(from_SH_expansion)),np.array(from_zprime_to_z))
     f_LM_padded = np.pad(f_LM, (0,(ell_max + 1)**2 - f_LM.size))
+    f_LM_S2 = spinsfast.salm2map(f_LM_padded, 0, ell_max, n_theta, n_phi)
+    
+    K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
 
-    return f_LM_padded
+    result_S2 = K_S2**(Y_LM[0]) * f_LM_S2
+    
+    return spinsfast.map2salm(result_S2, 0, ell_max)
 
 def transform_function(f_LM, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a spin-weight 0 funtion, where the function
@@ -351,24 +358,14 @@ def transform_function(f_LM, lorentz, ell_max=None, tol=1e-15):
     if ell_max is None:
         ell_max = lorentz.ell_max
 
-    f_LM_ell_max = int(np.sqrt(f_LM.size) - 1)
-
     f_LM_prime = np.zeros((ell_max + 1)**2, dtype=complex)
-    for L in range(0, f_LM_ell_max + 1):
+    for L in range(0, int(np.sqrt(f_LM.size) - 1) + 1):
         for M in range(-L, L+1):
             if abs(f_LM[sf.LM_index(L, M, 0)]) < tol:
                 continue
-            f_LM_prime += f_LM[sf.LM_index(L, M, 0)] * transform_Y_LM_w_o_conformal_factor((L, M), lorentz, ell_max)
+            f_LM_prime += f_LM[sf.LM_index(L, M, 0)] * transform_Y_LM((L, M), lorentz, ell_max)
 
-    n_theta = 2 * ell_max + 1; n_phi = n_theta;
-            
-    f_LM_prime_S2 = spinsfast.salm2map(f_LM_prime, 0, ell_max, n_theta, n_phi)
-    
-    K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
-
-    result_S2 = K_S2**f_LM_ell_max * f_LM_prime_S2
-            
-    return spinsfast.map2salm(result_S2, 0, ell_max)
+    return f_LM_prime
 
 def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a supertranslation and multiply by
@@ -506,6 +503,24 @@ class Lorentz_transformation:
         Ls_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)
     
         return spin_matrix_to_Lorentz(Ls_spin_matrix, output_order=output_order)
+
+    def conjugate(self, other, output_order=['rotation','boost']):
+        """Compute the conjugate of two Lorentz transformations.
+        
+        Parameters
+        ----------
+        other: Lorentz_transformation
+            2nd Lorentz transformation to be applied.
+        output_order: list
+            Order in which rotation and boost should be applied.
+        """
+        L1_spin_matrix = Lorentz_to_spin_matrix(self)
+        L2_spin_matrix = Lorentz_to_spin_matrix(other)
+        
+        conjugate_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)\
+            - np.matmul(L1_spin_matrix, L2_spin_matrix)
+    
+        return spin_matrix_to_Lorentz(conjugate_spin_matrix, output_order=output_order)
     
 class BMS_transformation:
     def __init__(self, **kwargs):
@@ -643,13 +658,7 @@ class BMS_transformation:
 
         identity_grid_rotors = boosted_grid(np.quaternion(1, 0, 0, 0), [0, 0, 0], n_theta, n_phi)
         
-        S_inverse = spinsfast.map2salm(
-            sf.Grid(
-                -sf.Modes(bms_normal_order.supertranslation, spin_weight=0).real.evaluate(identity_grid_rotors),
-                spin_weight=0
-            ).real,
-            0,
-            self.ell_max)
+        S_inverse = -bms_normal_order.supertranslation
 
         bms_inverse = BMS_transformation(rotation=L_inverse.rotation,
                                          boost=L_inverse.boost,
