@@ -147,6 +147,11 @@ def Lorentz_to_spin_matrix(lorentz):
         return np.matmul(boost_spin_matrix, rotation_spin_matrix)
     else:
         return np.matmul(rotation_spin_matrix, boost_spin_matrix)
+
+def Lorentz_to_quaternion(lorentz):
+    a, b, c, d = Lorentz_to_spin_matrix(lorentz).flatten()
+    print((a + d)/2, (b + c)/(2j), (-b + c)/2, (a - d)/(2j))
+    return np.quaternion((a + d)/2, (b + c)/(2j), (-b + c)/2, (a - d)/(2j))
     
 def pure_spin_matrix_to_Lorentz(A, is_rotation=None, tol=1e-14):
     """Convert a pure spin matrix to rotation or a boost.
@@ -245,7 +250,7 @@ def compute_conformal_factor(lorentz, n_theta, n_phi):
     """
     thetaprm_phiprm = sf.theta_phi(n_theta, n_phi)
 
-    [[a, b], [c, d]] = Lorentz_to_spin_matrix(lorentz)
+    a, b, c, d = Lorentz_to_spin_matrix(lorentz).flatten()
 
     conformal = np.zeros((n_theta, n_phi), dtype=complex)
     for j in range(n_theta):
@@ -259,45 +264,67 @@ def compute_conformal_factor(lorentz, n_theta, n_phi):
             
     return conformal
 
-def A_matrix(L, M1, M2, N1, N2, spin_matrix):
+def compute_spin_phase(lorentz, n_theta, n_phi):
+    """Compute the spin_phase.
+    """
+    thetaprm_phiprm = sf.theta_phi(n_theta, n_phi)
+
+    a, b, c, d = Lorentz_to_spin_matrix(lorentz).flatten()
+
+    spin_phase = np.zeros((n_theta, n_phi), dtype=complex)
+    for j in range(n_theta):
+        for k in range(n_phi):
+            thetaprm_j, phiprm_k = thetaprm_phiprm[j, k]
+            if thetaprm_j == 0:
+                if c == 0:
+                    spin_phase[j, k] = d/np.conjugate(d)
+                else:
+                    spin_phase[j, k] = c/np.conjugate(c)
+            else:
+                z = np.exp(1j*phiprm_k)/np.tan(thetaprm_j/2)
+                spin_phase[j, k] = (c*z+d)/np.conjugate(c*z+d)
+            
+    return spin_phase
+
+def A_matrix(L, S, M1, M2, N1, N2, spin_matrix):
     """Compute the matrix that transforms Eq. (4.11) of 10.1063/1.1705135
     to a Lorentz transformed frame.
     """
     A_value = 0
-    [[a, b], [c, d]] = spin_matrix
-    for i1 in range(L - M1 + 1):
+    a, b, c, d = spin_matrix.flatten()
+    for i1 in range(L - S - M1 + 1):
         for i2 in range(M1 + 1):
             if not (i1 + i2) == N1:
                 continue
-            for i3 in range(L - M2 + 1):
+            for i3 in range(L + S - M2 + 1):
                 for i4 in range(M2 + 1):
                     if not (i3 + i4) == N2:
                         continue
-                    A_value += scipy.special.binom(L-M1,i1)*scipy.special.binom(M1,i2)*scipy.special.binom(L-M2,i3)*scipy.special.binom(M2,i4)\
-                        *a**(L-M1-i1)*np.conjugate(a)**(L-M2-i3)*b**(i1)*np.conjugate(b)**(i3)\
+                    A_value += scipy.special.binom(L-S-M1,i1)*scipy.special.binom(M1,i2)*scipy.special.binom(L+S-M2,i3)*scipy.special.binom(M2,i4)\
+                        *a**(L-S-M1-i1)*np.conjugate(a)**(L+S-M2-i3)*b**(i1)*np.conjugate(b)**(i3)\
                         *c**(M1-i2)*np.conjugate(c)**(M2-i4)*d**(i2)*np.conjugate(d)**(i4)
     
     return A_value
     
-def B_matrix(Lmax, L, M, M1, M2):
+def B_matrix(Lmax, S, L, M, M1, M2):
     """Compute Eq. (4.14) of 10.1063/1.1705135.
     """
-    if M1 + M != M2:
+    if M1 + S + M != M2:
         return 0
     else:
         ALM = (-1)**(L)*np.sqrt(np.math.factorial(L+M)*np.math.factorial(L-M)*(2*L+1)/(4*np.pi))
         sum_contribution = 0
-        for p in range(min(Lmax-M1, L, L + M) + 1):
-            sum_contribution += (-1)**(p-M)*scipy.special.binom(L,p)*scipy.special.binom(L,p-M)*scipy.special.binom(Lmax-L,Lmax-M1-p)
-        return ALM/np.sqrt(float(np.math.factorial(L)*np.math.factorial(L)))*sum_contribution
+        for p in range(min(Lmax-S-M1, L-S, L + M) + 1):
+            sum_contribution += (-1)**(p+S-M)*scipy.special.binom(L-S,p)*scipy.special.binom(L+S,p+S-M)*scipy.special.binom(Lmax-L,Lmax-S-M1-p)
+        return ALM/np.sqrt(float(np.math.factorial(L-S)*np.math.factorial(L+S)))*sum_contribution
     
-def transform_Y_LM(Y_LM, lorentz, ell_max=None):
+def transform_S_Y_LM(S_Y_LM, lorentz, ell_max=None):
     """Apply a Lorentz transformation to a spherical harmonic.
 
     Parameters
     ----------
-    Y_LM: tuple,
-        (L, M) of Ylm to be transformed.
+    S_Y_LM: tuple,
+        (S, L, M) of sYlm to be transformed.
     lorentz: Lorentz_transformation
         Lorentz transformation to be used to transform the function.
     ell_max: int
@@ -311,41 +338,44 @@ def transform_Y_LM(Y_LM, lorentz, ell_max=None):
 
     from_zprime_to_z = []
     from_SH_expansion = []
-    for N1 in range(Y_LM[0] + 1):
-        for N2 in range(Y_LM[0] + 1):
+    for N1 in range(S_Y_LM[1] - S_Y_LM[0]+ 1):
+        for N2 in range(S_Y_LM[1] + S_Y_LM[0] + 1):
             factor = 0
-            for M1 in range(Y_LM[0] + 1):
-                for M2 in range(Y_LM[0] + 1):
-                    factor += A_matrix(Y_LM[0], M1, M2, N1, N2, spin_matrix)\
-                        *B_matrix(Y_LM[0], Y_LM[0], Y_LM[1], M1, M2)
+            for M1 in range(S_Y_LM[1] - S_Y_LM[0] + 1):
+                for M2 in range(S_Y_LM[1] + S_Y_LM[0]+ 1):
+                    factor += A_matrix(S_Y_LM[1], S_Y_LM[0], M1, M2, N1, N2, spin_matrix)\
+                        *B_matrix(S_Y_LM[1], S_Y_LM[0], S_Y_LM[1], S_Y_LM[2], M1, M2)
             from_zprime_to_z.append(factor)
 
             factors = []
-            for L in range(0, Y_LM[0] + 1):
+            for L in range(abs(S_Y_LM[0]), S_Y_LM[1] + 1):
                 for M in range(-L, L + 1):
-                    factors.append(B_matrix(Y_LM[0], L, M, N1, N2))
+                    factors.append(B_matrix(S_Y_LM[1], S_Y_LM[0], L, M, N1, N2))
             from_SH_expansion.append(factors)
             
     n_theta = 2 * ell_max + 1; n_phi = n_theta;
             
-    f_LM = np.matmul(np.linalg.inv(np.array(from_SH_expansion)),np.array(from_zprime_to_z))
-    f_LM_padded = np.pad(f_LM, (0,(ell_max + 1)**2 - f_LM.size))
-    f_LM_S2 = spinsfast.salm2map(f_LM_padded, 0, ell_max, n_theta, n_phi)
+    S_f_LM = np.append(np.zeros(abs(S_Y_LM[0]) ** 2), np.matmul(np.linalg.inv(np.array(from_SH_expansion)), np.array(from_zprime_to_z)))
+    S_f_LM_padded = np.pad(S_f_LM, (0, (ell_max + 1)**2 - S_f_LM.size))
+    S_f_LM_S2 = spinsfast.salm2map(S_f_LM_padded, S_Y_LM[0], ell_max, n_theta, n_phi)
     
     K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
+    exp_i_lambda_S2 = compute_spin_phase(lorentz, n_theta, n_phi)
 
-    result_S2 = K_S2**(Y_LM[0]) * f_LM_S2
+    result_S2 = exp_i_lambda_S2**(S_Y_LM[0]) * K_S2**(S_Y_LM[1]) * S_f_LM_S2
     
-    return spinsfast.map2salm(result_S2, 0, ell_max)
+    return spinsfast.map2salm(result_S2, S_Y_LM[0], ell_max)
 
-def transform_function(f_LM, lorentz, ell_max=None, tol=1e-15):
+def transform_function(S_f_LM, S, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a spin-weight 0 funtion, where the function
     is provided via it's spherical harmonic modes, the Ylms.
 
     Parameters
     ----------
-    f_LM: ndarray, dtype=complex
-        Ylms to be transformed.
+    S_f_LM: ndarray, dtype=complex
+        coefficients of the sYlm's to be transformed.
+    S: int
+        spin-weight of the sYlm's.
     lorentz: Lorentz_transformation
         Lorentz transformation to be used to transform the function.
     ell_max: int
@@ -358,14 +388,14 @@ def transform_function(f_LM, lorentz, ell_max=None, tol=1e-15):
     if ell_max is None:
         ell_max = lorentz.ell_max
 
-    f_LM_prime = np.zeros((ell_max + 1)**2, dtype=complex)
-    for L in range(0, int(np.sqrt(f_LM.size) - 1) + 1):
+    S_f_LM_prime = np.zeros((ell_max + 1)**2, dtype=complex)
+    for L in range(abs(S), int(np.sqrt(S_f_LM.size) - 1) + 1):
         for M in range(-L, L+1):
-            if abs(f_LM[sf.LM_index(L, M, 0)]) < tol:
+            if abs(S_f_LM[sf.LM_index(L, M, 0)]) < tol:
                 continue
-            f_LM_prime += f_LM[sf.LM_index(L, M, 0)] * transform_Y_LM((L, M), lorentz, ell_max)
+            S_f_LM_prime += S_f_LM[sf.LM_index(L, M, 0)] * transform_S_Y_LM((S, L, M), lorentz, ell_max)
 
-    return f_LM_prime
+    return S_f_LM_prime
 
 def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a supertranslation and multiply by
@@ -391,7 +421,7 @@ def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
         ell_max = lorentz.ell_max
     n_theta = 2 * ell_max + 1; n_phi = n_theta;
         
-    transformed_S = transform_function(S, lorentz, ell_max, tol)
+    transformed_S = transform_function(S, 0, lorentz, ell_max, tol)
     
     transformed_S_S2 = spinsfast.salm2map(transformed_S, 0, ell_max, n_theta, n_phi)
     K_S2 = compute_conformal_factor(lorentz, n_theta, n_phi)
@@ -503,24 +533,6 @@ class Lorentz_transformation:
         Ls_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)
     
         return spin_matrix_to_Lorentz(Ls_spin_matrix, output_order=output_order)
-
-    def conjugate(self, other, output_order=['rotation','boost']):
-        """Compute the conjugate of two Lorentz transformations.
-        
-        Parameters
-        ----------
-        other: Lorentz_transformation
-            2nd Lorentz transformation to be applied.
-        output_order: list
-            Order in which rotation and boost should be applied.
-        """
-        L1_spin_matrix = Lorentz_to_spin_matrix(self)
-        L2_spin_matrix = Lorentz_to_spin_matrix(other)
-        
-        conjugate_spin_matrix = np.matmul(L2_spin_matrix, L1_spin_matrix)\
-            - np.matmul(L1_spin_matrix, L2_spin_matrix)
-    
-        return spin_matrix_to_Lorentz(conjugate_spin_matrix, output_order=output_order)
     
 class BMS_transformation:
     def __init__(self, **kwargs):
