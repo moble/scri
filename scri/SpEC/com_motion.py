@@ -49,6 +49,7 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
     import h5py
 
     if path_to_matter_h5 is None:
+        # BBH
         with h5py.File(path_to_horizons_h5, "r") as horizons:
             t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
             m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
@@ -58,24 +59,61 @@ def com_motion(path_to_horizons_h5, path_to_matter_h5=None, m_A=None, m_B=None):
             m = m_A + m_B
             CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
     else:
-        # NOTE: Currently only supports BHNS, not NSNS
-        with h5py.File(path_to_horizons_h5, "r") as horizons:
-            t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
-            if m_A is None:
-                m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
-            else:
-                m_A = np.atleast_1d(m_A)
-            x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
+        # BHNS or NSNS
         with h5py.File(path_to_matter_h5, "r") as matter:
-            if m_B is None:
-                m_B = matter["RestMass.dat"][:, 1]
-            else:
+            if "InertialCenterOfMassNS1.dat" in matter and "InertialCenterOfMassNS2.dat" in matter:
+                # This is an NSNS.
+                x_A = matter["InertialCenterOfMassNS1.dat"][:, 1:]
+                t = matter["InertialCenterOfMassNS1.dat"][:, 0]
+                x_B = matter["InertialCenterOfMassNS2.dat"][:, 1:]
+                t_check = matter["InertialCenterOfMassNS2.dat"][:, 0]
+                if (t != t_check).any():
+                    raise ValueError(f"Two NSs do not have the same time: diff = {t-t_check}")
+                if m_A is None or m_B is None:
+                    raise ValueError(f"Cannot figure out masses of NSs: {m_A}, {m_B}")
+                m_A = np.atleast_1d(m_A)
                 m_B = np.atleast_1d(m_B)
-            x_B = matter["InertialCenterOfMass.dat"][:, 1:]
+            elif "InertialCenterOfMassNS1.dat" in matter:
+                # This is a BHNS
+                with h5py.File(path_to_horizons_h5, "r") as horizons:
+                    t = horizons["AhA.dir/ChristodoulouMass.dat"][:, 0]
+                    x_A = horizons["AhA.dir/CoordCenterInertial.dat"][:, 1:]
+                    if m_A is None:
+                        m_A = horizons["AhA.dir/ChristodoulouMass.dat"][:, 1]
+                    else:
+                        m_A = np.atleast_1d(m_A)
+                x_B = matter["InertialCenterOfMassNS1.dat"][:, 1:]
+                t_check = matter["InertialCenterOfMassNS1.dat"][:, 0]
+                if len(t) < len(t_check):
+                    raise ValueError(
+                        f"BH and NS time arrays have different lengths: {len(t)} vs {len(t_check)}"
+                    )
+                elif len(t) > len(t_check):
+                    # We allow AhA.dir/CoordCenterInertial.dat to have
+                    # more timesteps than InertialCenterOfMassNS1.dat,
+                    # as long as the early timesteps agree and
+                    # AhA.dir/CoordCenterInertial.dat just has extra steps
+                    # at the end.
+                    length = len(t_check)
+                    if m_A.shape[0] == len(t):
+                        m_A = m_A[:length]
+                    t = t[:length]
+                    x_A = x_A[:length, :]
+                if (t != t_check).any():
+                    raise ValueError(
+                        "BH and NS do not have the same time: "
+                        f"tsize={len(t)}, tchecksize={len(t_check)}, max diff = {max(abs(t-t_check))}"
+                    )
+                if m_B is None:
+                    raise ValueError(f"Cannot figure out mass of NS: {m_B}")
+                m_B = np.atleast_1d(m_B)
+            else:
+                raise Exception(f"Cannot find expected keys in file.  Found {matter.keys()}")
         m = m_A + m_B
         CoM = ((m_A[:, np.newaxis] * x_A) + (m_B[:, np.newaxis] * x_B)) / m[:, np.newaxis]
-
-        # The waveform will be in units of the total mass, so we need to convert for compatibility
+        # The input and output waveforms are in units of the total
+        # mass, but t and CoM are in units of solar masses.  Therefore we
+        # convert the time and CoM arrays here.
         t /= m
         CoM /= m[:, np.newaxis]
 
@@ -173,28 +211,28 @@ def estimate_avg_com_motion(
             3
             * (
                 CoM_0
-                * (3 * t_f ** 4 + 12 * t_f ** 3 * t_i + 30 * t_f ** 2 * t_i ** 2 + 12 * t_f * t_i ** 3 + 3 * t_i ** 4)
-                - 12 * CoM_1 * (t_f + t_i) * (t_f ** 2 + 3 * t_f * t_i + t_i ** 2)
-                + CoM_2 * (10 * t_f ** 2 + 40 * t_f * t_i + 10 * t_i ** 2)
+                * (3 * t_f**4 + 12 * t_f**3 * t_i + 30 * t_f**2 * t_i**2 + 12 * t_f * t_i**3 + 3 * t_i**4)
+                - 12 * CoM_1 * (t_f + t_i) * (t_f**2 + 3 * t_f * t_i + t_i**2)
+                + CoM_2 * (10 * t_f**2 + 40 * t_f * t_i + 10 * t_i**2)
             )
             / (t_f - t_i) ** 5
         )
         v_i = (
             12
             * (
-                -3 * CoM_0 * (t_f + t_i) * (t_f ** 2 + 3 * t_f * t_i + t_i ** 2)
-                + CoM_1 * (16 * t_f ** 2 + 28 * t_f * t_i + 16 * t_i ** 2)
+                -3 * CoM_0 * (t_f + t_i) * (t_f**2 + 3 * t_f * t_i + t_i**2)
+                + CoM_1 * (16 * t_f**2 + 28 * t_f * t_i + 16 * t_i**2)
                 + CoM_2 * (-15 * t_f - 15 * t_i)
             )
             / (t_f - t_i) ** 5
         )
         a_i = (
             60
-            * (CoM_0 * (t_f ** 2 + 4 * t_f * t_i + t_i ** 2) + CoM_1 * (-6 * t_f - 6 * t_i) + 6 * CoM_2)
+            * (CoM_0 * (t_f**2 + 4 * t_f * t_i + t_i**2) + CoM_1 * (-6 * t_f - 6 * t_i) + 6 * CoM_2)
             / (t_f - t_i) ** 5
         )
     else:
-        x_i = 2 * (CoM_0 * (2 * t_f ** 3 - 2 * t_i ** 3) + CoM_1 * (-3 * t_f ** 2 + 3 * t_i ** 2)) / (t_f - t_i) ** 4
+        x_i = 2 * (CoM_0 * (2 * t_f**3 - 2 * t_i**3) + CoM_1 * (-3 * t_f**2 + 3 * t_i**2)) / (t_f - t_i) ** 4
         v_i = 6 * (CoM_0 * (-t_f - t_i) + 2 * CoM_1) / (t_f - t_i) ** 3
         a_i = 0.0
 
@@ -216,7 +254,7 @@ def estimate_avg_com_motion(
                 SXS_BBH = "\n" + SXS_BBH.strip()
         except:
             SXS_BBH = ""
-        delta_x = np.array([x_i + v_i * t_j + 0.5 * a_i * t_j ** 2 for t_j in t])
+        delta_x = np.array([x_i + v_i * t_j + 0.5 * a_i * t_j**2 for t_j in t])
         comprm = com - delta_x
         max_displacement = np.linalg.norm(delta_x, axis=1).max()
         max_d_color = min(1.0, 10 * max_displacement)
@@ -388,10 +426,10 @@ def remove_avg_com_motion(
         max_d_color = min(1.0, 9 * max_displacement)
         LM_indices1 = [[2, 2], [2, 1], [3, 3], [3, 1], [4, 3]]
         LM_indices1 = [[ell, m] for ell, m in LM_indices1 if [ell, m] in w_m.LM.tolist()]
-        indices1 = [(ell * (ell + 1) - 2 ** 2 + m) for ell, m in LM_indices1]
+        indices1 = [(ell * (ell + 1) - 2**2 + m) for ell, m in LM_indices1]
         LM_indices2 = [[2, 2], [3, 2], [4, 4], [4, 2]]
         LM_indices2 = [[ell, m] for ell, m in LM_indices2 if [ell, m] in w_m.LM.tolist()]
-        indices2 = [(ell * (ell + 1) - 2 ** 2 + m) for ell, m in LM_indices2]
+        indices2 = [(ell * (ell + 1) - 2**2 + m) for ell, m in LM_indices2]
         fig1 = plt.figure(1, figsize=(10, 7))
         plt.gca().set_xscale("merger_zoom", t_merger=t_merger, t_ringdown=t_ringdown, t_final=t_final)
         lines1 = plt.semilogy(w_m.t, abs(w_m.data[:, indices1]), alpha=0.35, lw=1.5)
