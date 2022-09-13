@@ -40,7 +40,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
                 i_neg = sf.LM_index(ell, -m, 0)
                 a = supertranslation[i_pos]
                 b = supertranslation[i_neg]
-                if abs(a - (-1.0) ** m * b.conjugate()) > 3e-15 + 1e-14 * abs(b):
+                if abs(a - (-1.0) ** m * b.conjugate()) > 3e-16 + 1e-15 * abs(b):
                     raise ValueError(
                         f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
                         + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
