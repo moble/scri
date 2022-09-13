@@ -291,6 +291,49 @@ def transformed_grid(frame_rotation, boost_velocity, n_theta, n_phi):
 
     return R_j_k
 
+def conformal_factors(boost_velocity, distorted_grid_rotors):
+    """Compute various combinations of the conformal factor
+    This is primarily a utility function for use in the `transform` function, pulled out so that it
+    can be tested separately.
+    Parameters
+    ==========
+    boost_velocity: array of 3 floats
+        Three-velocity of the new frame relative to the old frame
+    distorted_grid_rotors: 2-d array of quaternions
+        Unit quaternions giving the rotation of the (x, y, z) basis onto the basis vectors with
+        respect to which the output spin-weighted fields are evaluated
+    Returns
+    =======
+    k: spherical_functions.Grid
+    ðk_over_k: spherical_functions.Grid
+    one_over_k: spherical_functions.Grid
+    one_over_k_cubed: spherical_functions.Grid
+        These all have the same shape as `distorted_grid_rotors` except for an additional dimension
+        of size 1 at the beginning, so that they can broadcast against the time dimension.
+    """
+    from quaternion import rotate_vectors
+
+    β = np.linalg.norm(boost_velocity)
+    γ = 1 / math.sqrt(1 - β ** 2)
+
+    # Note that ðk / k = ð(v·r) / (1 - v·r), but evaluating ð(v·r) is slightly delicate.  As modes
+    # in the undistorted frame, we have ð(v·r) ~ (v·r), but the right hand side is now an s=1 field,
+    # so it has to be evaluated as such.
+    v_dot_r = sf.Grid(np.dot(rotate_vectors(distorted_grid_rotors, quaternion.z.vec), boost_velocity), spin_weight=0)[
+        np.newaxis, :, :
+    ]
+    ðv_dot_r = sf.Grid(
+        sf.Modes(np.insert(sf.vector_as_ell_1_modes(boost_velocity), 0, 0.0), spin_weight=1).evaluate(
+            distorted_grid_rotors
+        ),
+        spin_weight=1,
+    )[np.newaxis, :, :]
+    one_over_k = γ * (1 - v_dot_r)
+    k = 1.0 / one_over_k
+    ðk_over_k = ðv_dot_r / (1 - v_dot_r)
+    one_over_k_cubed = one_over_k ** 3
+    return k, ðk_over_k, one_over_k, one_over_k_cubed
+
 def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
     """Apply a Lorentz transformation to a supertranslation and multiply by
     one over the conformal factor. This produces the supertranslation the appears
@@ -319,7 +362,9 @@ def transform_supertranslation(S, lorentz, ell_max=None, tol=1e-15):
     lorentz_inv = lorentz.inverse(output_order=['rotation','boost'])
     
     distorted_grid_rotors = transformed_grid(lorentz_inv.rotation, lorentz_inv.boost, n_theta, n_phi)
-    return spinsfast.map2salm(sf.Modes(S, spin_weight=0).evaluate(distorted_grid_rotors).real, 0, ell_max)
+    k, ðk_over_k, one_over_k, one_over_k_cubed = conformal_factors(lorentz_inv.boost, distorted_grid_rotors)
+        
+    return spinsfast.map2salm((k[0] * sf.Grid(sf.Modes(S, spin_weight=0).evaluate(distorted_grid_rotors), spin_weight=0)).real, 0, ell_max)
     
 class Lorentz_transformation:
     def __init__(self, **kwargs):
@@ -705,9 +750,9 @@ class BMS_transformation:
         S2 = np.pad(bms2_normal_order.supertranslation,
                     (0, (ell_max + 1)**2 - bms2_normal_order.supertranslation.shape[0]))
 
-        S_prime = transform_supertranslation(S2, L1)
+        S_prime = transform_supertranslation(S1, L2)
         
-        S_composed = S1 + S_prime
+        S_composed = S_prime + S2
 
         bms_composed = BMS_transformation(rotation=L_composed.rotation,
                                           boost=L_composed.boost,

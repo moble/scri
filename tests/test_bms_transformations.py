@@ -283,38 +283,6 @@ def test_BMS_inverse_composition_consistency():
     assert BMS.compose(BMS_inv).is_identity()
     assert BMS_inv.compose(BMS).is_identity()
 
-def test_BMS_abd_inverse_no_boost():
-    mass = 2.0
-    spin = 0.456
-    ell_max = 8
-    u = np.linspace(-100, 100, num=500)
-    psi2, psi1, psi0 = kerr_schild(mass, spin, ell_max)
-    abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2, psi1=psi1)
-
-    S = np.array([1, 2 + 4j, 3, -2 + 4j, 7 - 5j, -3 - 2j, 4, 3 - 2j, 7 + 5j]) * 1e-3
-    q = np.quaternion(1, 2, 3, 4).normalized()
-    v = np.zeros(3)
-
-    BMS = bms_transformations.BMS_transformation(supertranslation=S,
-                                                 rotation=q,
-                                                 boost=v,
-                                                 order=['supertranslation','rotation','boost'])
-
-    BMS_inv = BMS.inverse(output_order=['supertranslation','rotation','boost'])
-
-    abd_prime = abd.transform(supertranslation=BMS.supertranslation,
-                              frame_rotation=BMS.rotation.components,
-                              boost_velocity=BMS.boost)
-
-    abd_check = abd_prime.transform(supertranslation=BMS_inv.supertranslation,
-                                    frame_rotation=BMS_inv.rotation.components,
-                                    boost_velocity=BMS_inv.boost)
-
-    abd_interp = abd.interpolate(abd_check.t)
-    
-    assert np.allclose(np.array([abd_interp.sigma, abd_interp.psi4, abd_interp.psi3, abd_interp.psi2, abd_interp.psi1, abd_interp.psi0]),
-                       np.array([abd_check.sigma, abd_check.psi4, abd_check.psi3, abd_check.psi2, abd_check.psi1, abd_check.psi0]))
-
 def test_BMS_abd_inverse():
     mass = 2.0
     spin = 0.456
@@ -344,58 +312,8 @@ def test_BMS_abd_inverse():
 
     abd_interp = abd.interpolate(abd_check.t)
     
-    #assert np.allclose(np.array([abd_interp.sigma, abd_interp.psi4, abd_interp.psi3, abd_interp.psi2, abd_interp.psi1, abd_interp.psi0]),
-    #                   np.array([abd_check.sigma, abd_check.psi4, abd_check.psi3, abd_check.psi2, abd_check.psi1, abd_check.psi0]))
-
-def test_BMS_abd_composition_no_boost():
-    mass = 2.0
-    spin = 0.456
-    ell_max = 8
-    u = np.linspace(-100, 100, num=500)
-    psi2, psi1, psi0 = kerr_schild(mass, spin, ell_max)
-    abd = ABD.from_initial_values(u, ell_max=ell_max, psi2=psi2, psi1=psi1)
-
-    S1 = np.array([1, 2 + 4j, 3, -2 + 4j, 7 - 5j, -3 - 2j, 4, 3 - 2j, 7 + 5j]) * 1e-3
-    q1 = np.quaternion(1, 2, 3, 4).normalized()
-    v1 = np.zeros(3)
-
-    S2 = np.array([-3, 1 - 2j, 5, -1 - 2j, -6 - 4j, 0 + 1j, 3, 0 + 1j, -6 + 4j]) * 1e-3
-    q2 = np.quaternion(5, -6, 7, -8).normalized()
-    v2 = np.zeros(3)
-
-    BMS1 = bms_transformations.BMS_transformation(supertranslation=S1,
-                                                  rotation=q1,
-                                                  boost=v1,
-                                                  order=['supertranslation','rotation','boost'])
-
-    BMS2 = bms_transformations.BMS_transformation(supertranslation=S2,
-                                                  rotation=q2,
-                                                  boost=v2,
-                                                  order=['supertranslation','rotation','boost'])
-
-    BMS_composed = BMS2.compose(BMS1)
-
-    abd1 = abd.transform(supertranslation=BMS1.supertranslation,
-                         frame_rotation=BMS1.rotation.components,
-                         boost_velocity=BMS1.boost)
-
-    abd2 = abd1.transform(supertranslation=BMS2.supertranslation,
-                          frame_rotation=BMS2.rotation.components,
-                          boost_velocity=BMS2.boost)
-
-    abd_composed = abd.transform(supertranslation=BMS_composed.supertranslation,
-                                 frame_rotation=BMS_composed.rotation.components,
-                                 boost_velocity=BMS_composed.boost)
-    
-    abd2_interp = abd2.interpolate(abd.t[np.argmin(abs(abd.t - max(abd2.t[0], abd_composed.t[0]))):\
-                                         np.argmin(abs(abd.t - min(abd2.t[-1], abd_composed.t[-1]))) + 1])
-    abd_composed_interp = abd_composed.interpolate(abd.t[np.argmin(abs(abd.t - max(abd2.t[0], abd_composed.t[0]))):\
-                                                         np.argmin(abs(abd.t - min(abd2.t[-1], abd_composed.t[-1]))) + 1])
-    
-    #assert np.allclose(np.array([abd2_interp.sigma, abd2_interp.psi4, abd2_interp.psi3,
-    #                             abd2_interp.psi2, abd2_interp.psi1, abd2_interp.psi0]),
-    #                   np.array([abd_composed_interp.sigma, abd_composed_interp.psi4, abd_composed_interp.psi3,
-    #                             abd_composed_interp.psi2, abd_composed_interp.psi1, abd_composed_interp.psi0]))
+    assert np.allclose(np.array([abd_interp.sigma, abd_interp.psi4, abd_interp.psi3, abd_interp.psi2, abd_interp.psi1, abd_interp.psi0]),
+                       np.array([abd_check.sigma, abd_check.psi4, abd_check.psi3, abd_check.psi2, abd_check.psi1, abd_check.psi0]))
     
 def test_BMS_abd_composition():
     mass = 2.0
@@ -442,9 +360,9 @@ def test_BMS_abd_composition():
     abd_composed_interp = abd_composed.interpolate(abd.t[np.argmin(abs(abd.t - max(abd2.t[0], abd_composed.t[0]))):\
                                                          np.argmin(abs(abd.t - min(abd2.t[-1], abd_composed.t[-1]))) + 1])
     
-    #assert np.allclose(np.array([abd2_interp.sigma, abd2_interp.psi4, abd2_interp.psi3,
-    #                             abd2_interp.psi2, abd2_interp.psi1, abd2_interp.psi0]),
-    #                   np.array([abd_composed_interp.sigma, abd_composed_interp.psi4, abd_composed_interp.psi3,
-    #                             abd_composed_interp.psi2, abd_composed_interp.psi1, abd_composed_interp.psi0]))
+    assert np.allclose(np.array([abd2_interp.sigma, abd2_interp.psi4, abd2_interp.psi3,
+                                 abd2_interp.psi2, abd2_interp.psi1, abd2_interp.psi0]),
+                       np.array([abd_composed_interp.sigma, abd_composed_interp.psi4, abd_composed_interp.psi3,
+                                 abd_composed_interp.psi2, abd_composed_interp.psi1, abd_composed_interp.psi0]))
 
     
