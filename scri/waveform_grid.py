@@ -123,7 +123,7 @@ def process_transformation_kwargs(ell_max, **kwargs):
             "Input boost_velocity=`{}` should be a 3-vector with "
             "magnitude strictly less than 1.0.".format(boost_velocity)
         )
-    gamma = 1 / math.sqrt(1 - beta ** 2)
+    gamma = 1 / math.sqrt(1 - beta**2)
     varphi = math.atanh(beta)
 
     # These are the angles in the transformed system at which we need to know the function values
@@ -170,9 +170,8 @@ def process_transformation_kwargs(ell_max, **kwargs):
     for j in range(thetaprm_j_phiprm_k.shape[0]):
         for k in range(thetaprm_j_phiprm_k.shape[1]):
             thetaprm_j, phiprm_k = thetaprm_j_phiprm_k[j, k]
-            R_j_k[j, k] = (
-                Bprm_j_k(thetaprm_j, phiprm_k) * frame_rotation * quaternion.from_spherical_coords(thetaprm_j, phiprm_k)
-            )
+            rotated_coord_quaternion = frame_rotation * quaternion.from_spherical_coords(thetaprm_j, phiprm_k)
+            R_j_k[j, k] = Bprm_j_k(*quaternion.as_spherical_coords(rotated_coord_quaternion)) * rotated_coord_quaternion
 
     return (
         supertranslation,
@@ -515,12 +514,12 @@ class WaveformGrid(WaveformBase):
                     1 / np.sqrt(2) * v_dot_rhat, sf.SWSH_grid(R_j_k, 1, 1), axes=([0], [2])
                 )
                 eth_uprm_over_kconformal_i_j_k = (
-                    (w_modes.t[:, np.newaxis, np.newaxis] - alphasupertranslation_j_k[np.newaxis, :, :])
-                    * gamma
-                    * kconformal_j_k[np.newaxis, :, :]
-                    * eth_v_dot_rhat_j_k[np.newaxis, :, :]
-                    - eth_alphasupertranslation_j_k[np.newaxis, :, :]
-                )
+                    w_modes.t[:, np.newaxis, np.newaxis] - alphasupertranslation_j_k[np.newaxis, :, :]
+                ) * gamma * kconformal_j_k[np.newaxis, :, :] * eth_v_dot_rhat_j_k[
+                    np.newaxis, :, :
+                ] - eth_alphasupertranslation_j_k[
+                    np.newaxis, :, :
+                ]
                 # Loop over the Weyl scalars of higher index than w_modes, and sum
                 # them with appropriate prefactors.
                 for DT in range(w_modes.dataType + 1, psi4 + 1):
@@ -557,7 +556,7 @@ class WaveformGrid(WaveformBase):
                 )
                 warnings.warn(warning)
 
-        fprm_i_j_k *= (kconformal_j_k ** w_modes.conformal_weight)[np.newaxis, :, :]
+        fprm_i_j_k *= (kconformal_j_k**w_modes.conformal_weight)[np.newaxis, :, :]
 
         # Determine the new time slices.  The set u' is chosen so that on each slice of constant u'_i, the average value
         # of u is precisely u_i.  But then, we have to narrow that set down, so that every physical point on all the
@@ -640,7 +639,7 @@ class WaveformGrid(WaveformBase):
 # Now, we can assign WaveformModes objects new capabilities based on WaveformGrid functions
 WaveformModes.to_grid = lambda w_modes, **kwargs: WaveformGrid.from_modes(w_modes, **kwargs)
 WaveformModes.from_grid = classmethod(lambda cls, w_grid, ell_max: WaveformGrid.to_modes(w_grid, ell_max))
-#WaveformModes.transform = lambda w_mode, **kwargs: WaveformGrid.transform(w_mode, **kwargs)  # Move to WaveformModes class
+# WaveformModes.transform = lambda w_mode, **kwargs: WaveformGrid.transform(w_mode, **kwargs)  # Move to WaveformModes class
 if sys.version_info[0] == 2:
     WaveformModes.to_grid.__func__.__doc__ = WaveformGrid.from_modes.__doc__
     WaveformModes.from_grid.__func__.__doc__ = WaveformGrid.to_modes.__doc__

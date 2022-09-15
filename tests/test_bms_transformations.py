@@ -2,24 +2,12 @@ import pytest
 import numpy as np
 
 import scri
-import quaternion
 import spherical_functions as sf
 from scri import bms_transformations
 
+from conftest import kerr_schild
+
 ABD = scri.AsymptoticBondiData
-
-
-def kerr_schild(mass, spin, ell_max=8):
-    psi2 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
-    psi1 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
-    psi0 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
-
-    # In the Moreschi-Boyle convention
-    psi2[0] = -sf.constant_as_ell_0_mode(mass)
-    psi1[2] = -np.sqrt(2) * (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
-    psi0[6] = 2 * (3 * spin**2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
-
-    return psi2, psi1, psi0
 
 
 def rotation_matrix(q):
@@ -65,84 +53,94 @@ def boost_matrix(v):
 def test_Lorentz_reorder_consistency():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-2
-    L = bms_transformations.Lorentz_transformation(rotation=q.components, boost=v, order=["rotation", "boost"])
+    L = bms_transformations.LorentzTransformation(
+        frame_rotation=q.components, boost_velocity=v, order=["frame_rotation", "boost_velocity"]
+    )
 
     L_reordered = L.reorder(output_order=L.order[::-1])
 
-    assert L == L_reordered.reorder(output_order=L.order)
+    assert L.is_close_to(L_reordered.reorder(output_order=L.order))
 
 
 def test_Lorentz_reorder():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-2
-    L = bms_transformations.Lorentz_transformation(rotation=q.components, boost=v, order=["rotation", "boost"])
+    L = bms_transformations.LorentzTransformation(
+        frame_rotation=q.components, boost_velocity=v, order=["frame_rotation", "boost_velocity"]
+    )
 
     L_reordered = L.reorder(output_order=L.order[::-1])
 
     vq = np.linalg.multi_dot([boost_matrix(v), rotation_matrix(q)])
 
-    L_reordered_matrix = np.linalg.multi_dot([rotation_matrix(L_reordered.rotation), boost_matrix(L_reordered.boost)])
+    L_reordered_matrix = np.linalg.multi_dot(
+        [rotation_matrix(L_reordered.frame_rotation), boost_matrix(L_reordered.boost_velocity)]
+    )
 
     assert np.allclose(vq, L_reordered_matrix)
 
 
-def test_rotation_inverse():
+def test_frame_rotation_inverse():
     q = np.quaternion(1, 2, 3, 4).normalized()
-    L = bms_transformations.Lorentz_transformation(rotation=q.components)
+    L = bms_transformations.LorentzTransformation(frame_rotation=q.components)
 
-    assert np.allclose(q.inverse().components, L.inverse().rotation.components)
+    assert np.allclose(q.inverse().components, L.inverse().frame_rotation.components)
 
 
-def test_boost_inverse():
+def test_boost_velocity_inverse():
     v = np.array([1, 2, 3]) * 1e-2
-    L = bms_transformations.Lorentz_transformation(boost=v)
+    L = bms_transformations.LorentzTransformation(boost_velocity=v)
 
-    assert np.allclose(-v, L.inverse().boost)
+    assert np.allclose(-v, L.inverse().boost_velocity)
 
 
 def test_Lorentz_inverse_composition_consistency():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-2
-    L = bms_transformations.Lorentz_transformation(rotation=q.components, boost=v, order=["rotation", "boost"])
+    L = bms_transformations.LorentzTransformation(
+        frame_rotation=q.components, boost_velocity=v, order=["frame_rotation", "boost_velocity"]
+    )
     L_inv = L.inverse()
 
-    assert L.compose(L_inv).is_identity()
-    assert L_inv.compose(L).is_identity()
+    assert (L * L_inv).is_close_to(bms_transformations.LorentzTransformation())
+    assert (L_inv * L).is_close_to(bms_transformations.LorentzTransformation())
 
 
 def test_Lorentz_inverse():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-2
-    L = bms_transformations.Lorentz_transformation(rotation=q.components, boost=v, order=["rotation", "boost"])
-    L_inv = bms_transformations.Lorentz_transformation(
-        rotation=q.inverse().components, boost=-v, order=["boost", "rotation"]
+    L = bms_transformations.LorentzTransformation(
+        frame_rotation=q.components, boost_velocity=v, order=["frame_rotation", "boost_velocity"]
+    )
+    L_inv = bms_transformations.LorentzTransformation(
+        frame_rotation=q.inverse().components, boost_velocity=-v, order=["boost_velocity", "frame_rotation"]
     )
 
-    assert L_inv == L.inverse(output_order=["boost", "rotation"])
+    assert L_inv.is_close_to(L.inverse(output_order=["boost_velocity", "frame_rotation"]))
 
 
-def test_rotation_composition():
+def test_frame_rotation_composition():
     q1 = np.quaternion(1, 2, 3, 4).normalized()
     q2 = np.quaternion(5, -6, 7, -8).normalized()
-    L1 = bms_transformations.Lorentz_transformation(rotation=q1.components)
-    L2 = bms_transformations.Lorentz_transformation(rotation=q2.components)
+    L1 = bms_transformations.LorentzTransformation(frame_rotation=q1.components)
+    L2 = bms_transformations.LorentzTransformation(frame_rotation=q2.components)
 
     q1q2 = q2 * q1
     q2q1 = q1 * q2
 
-    L1L2 = L1.compose(L2)
-    L2L1 = L2.compose(L1)
+    L1L2 = L1 * L2
+    L2L1 = L2 * L1
 
-    assert np.allclose(q1q2.components, L1L2.rotation.components)
-    assert np.allclose(q2q1.components, L2L1.rotation.components)
+    assert np.allclose(q1q2.components, L1L2.frame_rotation.components)
+    assert np.allclose(q2q1.components, L2L1.frame_rotation.components)
 
 
-def test_boost_composition():
+def test_boost_velocity_composition():
     v1 = np.array([1, 2, 3]) * 1e-2
     v2 = np.array([-4, 5, -6]) * 1e-2
 
-    L1 = bms_transformations.Lorentz_transformation(boost=v1)
-    L2 = bms_transformations.Lorentz_transformation(boost=v2)
+    L1 = bms_transformations.LorentzTransformation(boost_velocity=v1)
+    L2 = bms_transformations.LorentzTransformation(boost_velocity=v2)
 
     # the following Wigner rotation calculation
     # is from Eqs. (65) - (70) of arXiv:1102.2001
@@ -160,13 +158,13 @@ def test_boost_composition():
         np.cos(theta / 2), *(np.cross(v2, v1) / np.linalg.norm(np.cross(v2, v1)) * np.sin(theta / 2))
     )
 
-    L1L2 = L1.compose(L2)
-    L2L1 = L2.compose(L1)
+    L1L2 = L1 * L2
+    L2L1 = L2 * L1
 
-    assert np.allclose(v1v2, L1L2.boost)
-    assert np.allclose(v1v2_q.components, L1L2.rotation.components)
-    assert np.allclose(v2v1, L2L1.boost)
-    assert np.allclose(v2v1_q.components, L2L1.rotation.components)
+    assert np.allclose(v1v2, L1L2.boost_velocity)
+    assert np.allclose(v1v2_q.components, L1L2.frame_rotation.components)
+    assert np.allclose(v2v1, L2L1.boost_velocity)
+    assert np.allclose(v2v1_q.components, L2L1.frame_rotation.components)
 
 
 def test_Lorentz_composition():
@@ -175,17 +173,17 @@ def test_Lorentz_composition():
     q2 = np.quaternion(5, -6, 7, -8).normalized()
     v2 = np.array([-4, 5, -6]) * 1e-2
 
-    L1 = bms_transformations.Lorentz_transformation(rotation=q1.components, boost=v1)
-    L2 = bms_transformations.Lorentz_transformation(rotation=q2.components, boost=v2)
+    L1 = bms_transformations.LorentzTransformation(frame_rotation=q1.components, boost_velocity=v1)
+    L2 = bms_transformations.LorentzTransformation(frame_rotation=q2.components, boost_velocity=v2)
 
     q1v1q2v2 = np.linalg.multi_dot([boost_matrix(v2), rotation_matrix(q2), boost_matrix(v1), rotation_matrix(q1)])
     q2v2q1v1 = np.linalg.multi_dot([boost_matrix(v1), rotation_matrix(q1), boost_matrix(v2), rotation_matrix(q2)])
 
-    L1L2 = L1.compose(L2)
-    L1L2_matrix = np.linalg.multi_dot([boost_matrix(L1L2.boost), rotation_matrix(L1L2.rotation)])
+    L1L2 = L1 * L2
+    L1L2_matrix = np.linalg.multi_dot([boost_matrix(L1L2.boost_velocity), rotation_matrix(L1L2.frame_rotation)])
 
-    L2L1 = L2.compose(L1)
-    L2L1_matrix = np.linalg.multi_dot([boost_matrix(L2L1.boost), rotation_matrix(L2L1.rotation)])
+    L2L1 = L2 * L1
+    L2L1_matrix = np.linalg.multi_dot([boost_matrix(L2L1.boost_velocity), rotation_matrix(L2L1.frame_rotation)])
 
     assert np.allclose(q1v1q2v2, L1L2_matrix)
     assert np.allclose(q2v2q1v1, L2L1_matrix)
@@ -202,13 +200,17 @@ def test_Lorentz_abd_inverse():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-4
 
-    Lorentz = bms_transformations.Lorentz_transformation(rotation=q, boost=v, order=["rotation", "boost"])
+    Lorentz = bms_transformations.LorentzTransformation(
+        frame_rotation=q.components, boost_velocity=v, order=["frame_rotation", "boost_velocity"]
+    )
 
-    Lorentz_inv = Lorentz.inverse(output_order=["rotation", "boost"])
+    Lorentz_inv = Lorentz.inverse(output_order=["frame_rotation", "boost_velocity"])
 
-    abd_prime = abd.transform(frame_rotation=Lorentz.rotation.components, boost_velocity=Lorentz.boost)
+    abd_prime = abd.transform(frame_rotation=Lorentz.frame_rotation.components, boost_velocity=Lorentz.boost_velocity)
 
-    abd_check = abd_prime.transform(frame_rotation=Lorentz_inv.rotation.components, boost_velocity=Lorentz_inv.boost)
+    abd_check = abd_prime.transform(
+        frame_rotation=Lorentz_inv.frame_rotation.components, boost_velocity=Lorentz_inv.boost_velocity
+    )
 
     abd_interp = abd.interpolate(abd_check.t)
 
@@ -233,18 +235,22 @@ def test_Lorentz_abd_composition():
     q2 = np.quaternion(5, -6, 7, -8).normalized()
     v2 = np.array([-4, 5, -6]) * 1e-4
 
-    Lorentz1 = bms_transformations.Lorentz_transformation(rotation=q1, boost=v1, order=["rotation", "boost"])
+    Lorentz1 = bms_transformations.LorentzTransformation(
+        frame_rotation=q1.components, boost_velocity=v1, order=["frame_rotation", "boost_velocity"]
+    )
 
-    Lorentz2 = bms_transformations.Lorentz_transformation(rotation=q2, boost=v2, order=["rotation", "boost"])
+    Lorentz2 = bms_transformations.LorentzTransformation(
+        frame_rotation=q2.components, boost_velocity=v2, order=["frame_rotation", "boost_velocity"]
+    )
 
-    Lorentz_composed = Lorentz2.compose(Lorentz1)
+    Lorentz_composed = Lorentz2 * Lorentz1
 
-    abd1 = abd.transform(frame_rotation=Lorentz1.rotation.components, boost_velocity=Lorentz1.boost)
+    abd1 = abd.transform(frame_rotation=Lorentz1.frame_rotation.components, boost_velocity=Lorentz1.boost_velocity)
 
-    abd2 = abd1.transform(frame_rotation=Lorentz2.rotation.components, boost_velocity=Lorentz2.boost)
+    abd2 = abd1.transform(frame_rotation=Lorentz2.frame_rotation.components, boost_velocity=Lorentz2.boost_velocity)
 
     abd_composed = abd.transform(
-        frame_rotation=Lorentz_composed.rotation.components, boost_velocity=Lorentz_composed.boost
+        frame_rotation=Lorentz_composed.frame_rotation.components, boost_velocity=Lorentz_composed.boost_velocity
     )
 
     abd2_interp = abd2.interpolate(
@@ -293,21 +299,22 @@ def test_BMS_reorder_consistency():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-4
 
-    BMS = bms_transformations.BMS_transformation(supertranslation=S, rotation=q, boost=v)
+    BMS = bms_transformations.BMSTransformation(supertranslation=S, frame_rotation=q.components, boost_velocity=v)
 
-    check1 = BMS == BMS.reorder(["supertranslation", "rotation", "boost"]).reorder(BMS.order)
-    check2 = BMS == BMS.reorder(["rotation", "supertranslation", "boost"]).reorder(BMS.order)
-    check3 = BMS == BMS.reorder(["rotation", "boost", "supertranslation"]).reorder(BMS.order)
-    check4 = BMS == BMS.reorder(["supertranslation", "boost", "rotation"]).reorder(BMS.order)
-    check5 = BMS == BMS.reorder(["boost", "supertranslation", "rotation"]).reorder(BMS.order)
-    check6 = BMS == BMS.reorder(["boost", "rotation", "supertranslation"]).reorder(BMS.order)
+    check1 = BMS.is_close_to(BMS.reorder(["supertranslation", "frame_rotation", "boost_velocity"]).reorder(BMS.order))
+    check2 = BMS.is_close_to(BMS.reorder(["frame_rotation", "supertranslation", "boost_velocity"]).reorder(BMS.order))
+    check3 = BMS.is_close_to(BMS.reorder(["frame_rotation", "boost_velocity", "supertranslation"]).reorder(BMS.order))
+    check4 = BMS.is_close_to(BMS.reorder(["supertranslation", "boost_velocity", "frame_rotation"]).reorder(BMS.order))
+    check5 = BMS.is_close_to(BMS.reorder(["boost_velocity", "supertranslation", "frame_rotation"]).reorder(BMS.order))
+    check6 = BMS.is_close_to(BMS.reorder(["boost_velocity", "frame_rotation", "supertranslation"]).reorder(BMS.order))
 
-    check_final = BMS == BMS.reorder(["rotation", "supertranslation", "boost"]).reorder(
-        ["supertranslation", "boost", "rotation"]
-    ).reorder(["boost", "supertranslation", "rotation"]).reorder(["rotation", "boost", "supertranslation"]).reorder(
-        ["boost", "rotation", "supertranslation"]
-    ).reorder(
-        BMS.order
+    check_final = BMS.is_close_to(
+        BMS.reorder(["frame_rotation", "supertranslation", "boost_velocity"])
+        .reorder(["supertranslation", "boost_velocity", "frame_rotation"])
+        .reorder(["boost_velocity", "supertranslation", "frame_rotation"])
+        .reorder(["frame_rotation", "boost_velocity", "supertranslation"])
+        .reorder(["boost_velocity", "frame_rotation", "supertranslation"])
+        .reorder(BMS.order)
     )
 
     assert check1
@@ -324,11 +331,11 @@ def test_BMS_inverse_composition_consistency():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-4
 
-    BMS = bms_transformations.BMS_transformation(supertranslation=S, rotation=q, boost=v)
+    BMS = bms_transformations.BMSTransformation(supertranslation=S, frame_rotation=q.components, boost_velocity=v)
     BMS_inv = BMS.inverse()
 
-    assert BMS.compose(BMS_inv).is_identity()
-    assert BMS_inv.compose(BMS).is_identity()
+    assert (BMS * BMS_inv).is_close_to(bms_transformations.BMSTransformation())
+    assert (BMS_inv * BMS).is_close_to(bms_transformations.BMSTransformation())
 
 
 def test_BMS_abd_inverse():
@@ -343,20 +350,25 @@ def test_BMS_abd_inverse():
     q = np.quaternion(1, 2, 3, 4).normalized()
     v = np.array([1, 2, 3]) * 1e-4
 
-    BMS = bms_transformations.BMS_transformation(
-        supertranslation=S, rotation=q, boost=v, order=["supertranslation", "rotation", "boost"]
+    BMS = bms_transformations.BMSTransformation(
+        supertranslation=S,
+        frame_rotation=q.components,
+        boost_velocity=v,
+        order=["supertranslation", "frame_rotation", "boost_velocity"],
     )
 
-    BMS_inv = BMS.inverse(output_order=["supertranslation", "rotation", "boost"])
+    BMS_inv = BMS.inverse(output_order=["supertranslation", "frame_rotation", "boost_velocity"])
 
     abd_prime = abd.transform(
-        supertranslation=BMS.supertranslation, frame_rotation=BMS.rotation.components, boost_velocity=BMS.boost
+        supertranslation=BMS.supertranslation,
+        frame_rotation=BMS.frame_rotation.components,
+        boost_velocity=BMS.boost_velocity,
     )
 
     abd_check = abd_prime.transform(
         supertranslation=BMS_inv.supertranslation,
-        frame_rotation=BMS_inv.rotation.components,
-        boost_velocity=BMS_inv.boost,
+        frame_rotation=BMS_inv.frame_rotation.components,
+        boost_velocity=BMS_inv.boost_velocity,
     )
 
     abd_interp = abd.interpolate(abd_check.t)
@@ -385,28 +397,38 @@ def test_BMS_abd_composition():
     q2 = np.quaternion(5, -6, 7, -8).normalized()
     v2 = np.array([-4, 5, -6]) * 1e-4
 
-    BMS1 = bms_transformations.BMS_transformation(
-        supertranslation=S1, rotation=q1, boost=v1, order=["supertranslation", "rotation", "boost"]
+    BMS1 = bms_transformations.BMSTransformation(
+        supertranslation=S1,
+        frame_rotation=q1.components,
+        boost_velocity=v1,
+        order=["supertranslation", "frame_rotation", "boost_velocity"],
     )
 
-    BMS2 = bms_transformations.BMS_transformation(
-        supertranslation=S2, rotation=q2, boost=v2, order=["supertranslation", "rotation", "boost"]
+    BMS2 = bms_transformations.BMSTransformation(
+        supertranslation=S2,
+        frame_rotation=q2.components,
+        boost_velocity=v2,
+        order=["supertranslation", "frame_rotation", "boost_velocity"],
     )
 
-    BMS_composed = BMS2.compose(BMS1)
+    BMS_composed = BMS2 * BMS1
 
     abd1 = abd.transform(
-        supertranslation=BMS1.supertranslation, frame_rotation=BMS1.rotation.components, boost_velocity=BMS1.boost
+        supertranslation=BMS1.supertranslation,
+        frame_rotation=BMS1.frame_rotation.components,
+        boost_velocity=BMS1.boost_velocity,
     )
 
     abd2 = abd1.transform(
-        supertranslation=BMS2.supertranslation, frame_rotation=BMS2.rotation.components, boost_velocity=BMS2.boost
+        supertranslation=BMS2.supertranslation,
+        frame_rotation=BMS2.frame_rotation.components,
+        boost_velocity=BMS2.boost_velocity,
     )
 
     abd_composed = abd.transform(
         supertranslation=BMS_composed.supertranslation,
-        frame_rotation=BMS_composed.rotation.components,
-        boost_velocity=BMS_composed.boost,
+        frame_rotation=BMS_composed.frame_rotation.components,
+        boost_velocity=BMS_composed.boost_velocity,
     )
 
     abd2_interp = abd2.interpolate(

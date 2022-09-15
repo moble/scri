@@ -34,6 +34,24 @@ def pytest_runtest_setup(item):
         pytest.skip("Need `--run_slow_tests` command-line argument to run")
 
 
+def kerr_schild(mass, spin, ell_max=8):
+    psi2 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
+    psi1 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
+    psi0 = np.zeros(sf.LM_total_size(0, ell_max), dtype=complex)
+
+    # In the Moreschi-Boyle convention
+    psi2[0] = -sf.constant_as_ell_0_mode(mass)
+    psi1[2] = -np.sqrt(2) * (3j * spin / 2) * (np.sqrt((8 / 3) * np.pi))
+    psi0[6] = 2 * (3 * spin**2 / mass / 2) * (np.sqrt((32 / 15) * np.pi))
+
+    return psi2, psi1, psi0
+
+
+@pytest.fixture(name="kerr_schild")
+def kerr_schild_fixture():
+    return kerr_schild()
+
+
 def constant_waveform(begin=-10.0, end=100.0, n_times=1000, ell_min=2, ell_max=8):
     t = np.linspace(begin, end, num=n_times)
     frame = np.array([quaternion.x for t_i in t])
@@ -98,7 +116,7 @@ def random_waveform(begin=-10.0, end=100.0, n_times=1000, ell_min=None, ell_max=
     spin_weight = scri.SpinWeights[scri.DataType.index(dataType)]
     if ell_min is None:
         ell_min = abs(spin_weight)
-    n_modes = ell_max * (ell_max + 2) - ell_min ** 2 + 1
+    n_modes = ell_max * (ell_max + 2) - ell_min**2 + 1
     t = np.sort(np.random.uniform(begin, end, size=n_times))
     frame = np.array([np.quaternion(*np.random.uniform(-1, 1, 4)).normalized() for t_i in t])
     data = np.random.normal(size=(n_times, n_modes, 2)).view(complex)[:, :, 0]
@@ -124,7 +142,7 @@ def random_waveform_fixture():
 
 def delta_waveform(ell, m, begin=-10.0, end=100.0, n_times=1000, ell_min=2, ell_max=8):
     """WaveformModes with 1 in selected slot and 0 elsewhere"""
-    n_modes = ell_max * (ell_max + 2) - ell_min ** 2 + 1
+    n_modes = ell_max * (ell_max + 2) - ell_min**2 + 1
     t = np.linspace(begin, end, num=n_times)
     data = np.zeros((n_times, n_modes), dtype=complex)
     data[:, sf.LM_index(ell, m, ell_min)] = 1.0 + 0.0j
