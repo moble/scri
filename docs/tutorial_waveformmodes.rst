@@ -264,3 +264,8 @@ The quaternion or array of quaternions that define the frame can be accessed by:
 .. code-block:: python
 
   >>> h.frame
+
+These components of a BMS transformation can also all be stored in the
+:meth:`scri.bms_transformations.BMSTransformation` class, which allows for things like
+reording the components of the BMS transformation, inverting BMS transformations, and
+composing BMS transformations. For more, see :ref:`bms_transformations`.

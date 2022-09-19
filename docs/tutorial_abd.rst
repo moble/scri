@@ -260,9 +260,9 @@ quantity. For example:
 BMS Transformations
 ===================
 
-Boosts, spacetime translations, supertranslations, and a simple frame rotation can
-all be performed with the :meth:`scri.asymptotic_bondi_data.AsymptoticBondiData.transform`
-function. See the documentation of the function for details. All the quantities in
+Spacetime translations, supertranslations, frame rotations, and boosts can all be performed
+with the :meth:`scri.asymptotic_bondi_data.AsymptoticBondiData.transform` function.
+See the documentation of the function for details. All the quantities in
 the ABD object will be transformed together. The transformation is not performed
 in place, so it will return a new ABD with the transformed data:
 
@@ -272,3 +272,8 @@ in place, so it will return a new ABD with the transformed data:
   ...     space_translation=[-1., 4., 0.2],
   ...     boost_velocity=[0., 0., 1e-2],
   ... )
+
+These components of a BMS transformation can also all be stored in the
+:meth:`scri.bms_transformations.BMSTransformation` class, which allows for things like
+reording the components of the BMS transformation, inverting BMS transformations, and
+composing BMS transformations. For more, see :ref:`bms_transformations`. 
