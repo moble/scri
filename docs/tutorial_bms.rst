@@ -172,12 +172,14 @@ $g=\\hat{s}\\circ l$.
 With this, consider taking the composition of $g_{1},g_{2}\\in\\mathfrak{B}$,
 
 $$g=g_2 \\circ g_1$$
+
 $$g=l_2 \\circ s_2\\circ l_1\\circ s_1.$$
 
 As before, since $s_2$ is in the normal subgroup, we can write it as
 conjugate to another pure supertranslation, namely
 
 $$s_2=l_1\\circ s'\\circ l_1^{-1}$$,
+
 $$l_1^{-1}\\circ s_2\\circ l_1 = s'.$$
 
 Combining and adding parentheses we get
