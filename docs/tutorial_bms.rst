@@ -178,7 +178,7 @@ $$g=l_2 \\circ s_2\\circ l_1\\circ s_1.$$
 As before, since $s_2$ is in the normal subgroup, we can write it as
 conjugate to another pure supertranslation, namely
 
-$$s_2=l_1\\circ s'\\circ l_1^{-1}$$,
+$$s_2=l_1\\circ s'\\circ l_1^{-1},$$
 
 $$l_1^{-1}\\circ s_2\\circ l_1 = s'.$$
 
