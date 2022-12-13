@@ -446,7 +446,7 @@ def rotation_from_spin_charge(chi, t):
         Time array corresponding to the size of the spin vector.
     """
     chi_f = quaternion.quaternion(*chi[np.argmin(abs(t))]).normalized()
-    return (1 - chi_f * quaternion.z).normalized()
+    return (1 - np.sign(chi_f.components[3]) * chi_f * quaternion.z).normalized()
 
 
 def rotation_from_omega_vectors(omega, target_omega, t=None):
