@@ -247,6 +247,7 @@ def map_to_abd_frame(
         "supertranslation": 10,
     },
     rel_err_tols={"CoM_transformation": 1e-12, "rotation": 1e-12, "supertranslation": 1e-12},
+    order=["rotation", "CoM_transformation", "supertranslation"],
     ell_max=None,
     alpha_ell_max=None,
     fix_time_phase_freedom=True,
@@ -291,6 +292,9 @@ def map_to_abd_frame(
             'rotation':           1e-12,
             'supertranslation':   1e-12
         }.
+    order : list, optional
+        Order in which to solve for the BMS transformations.
+        Default is ["rotation", "CoM_transformation", "supertranslation"].
     ell_max : int, optional
         Maximum ell to use for SWSH/Grid transformations.
         Default is self.ell_max.
@@ -317,14 +321,18 @@ def map_to_abd_frame(
     """
     abd = self.copy()
 
+    target_strain = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+        2.0 * target_abd.sigma.bar, dataType=scri.h
+    )
+
     time_translation = scri.bms_transformations.BMSTransformation()
     if fix_time_phase_freedom:
         # ensure that they are reasonable close
         time_translation = scri.bms_transformations.BMSTransformation(
             supertranslation=[
                 sf.constant_as_ell_0_mode(
-                    abd.t[np.argmax(abd.bondi_four_momentum()[:, 0])]
-                    - target_abd.t[np.argmax(target_abd.bondi_four_momentum()[:, 0])]
+                    abd.t[np.argmax(abd.bondi_four_momentum()[np.argmin(abs(abd.t - t_0)), 0])]
+                    - target_abd.t[np.argmax(target_abd.bondi_four_momentum()[np.argmin(abs(target_abd.t - t_0)), 0])]
                 )
             ]
         )
@@ -340,7 +348,18 @@ def map_to_abd_frame(
     )
 
     target_abd_superrest, transformation2, rel_err2 = target_abd.map_to_superrest_frame(
-        t_0=t_0, padding_time=padding_time
+        t_0=t_0,
+        padding_time=padding_time,
+        N_itr_maxes=N_itr_maxes,
+        rel_err_tols=rel_err_tols,
+        ell_max=ell_max,
+        alpha_ell_max=alpha_ell_max,
+        print_conv=print_conv,
+        order=order,
+    )
+
+    target_strain_superrest = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+        2.0 * target_abd_superrest.sigma.bar, dataType=scri.h
     )
 
     itr = 0
@@ -356,13 +375,44 @@ def map_to_abd_frame(
 
         # find the transformations that map to the superrest frame
         abd_interp_superrest, transformation1, rel_err1 = abd_interp_prime.map_to_superrest_frame(
-            t_0=t_0, padding_time=padding_time
+            t_0=t_0,
+            padding_time=padding_time,
+            N_itr_maxes=N_itr_maxes,
+            rel_err_tols=rel_err_tols,
+            ell_max=ell_max,
+            alpha_ell_max=alpha_ell_max,
+            print_conv=print_conv,
+            order=order,
         )
 
+        if fix_time_phase_freedom:
+            # 2d align now that we're in the superrest frame
+            strain_interp_superrest = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+                2.0 * abd_interp_superrest.sigma.bar, dataType=scri.h
+            )
+
+            _, rel_err, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
+                strain_interp_superrest,
+                target_strain_superrest,
+                t_0 - padding_time,
+                t_0 + padding_time,
+                n_brute_force_δt=None,
+                n_brute_force_δϕ=None,
+                include_modes=None,
+                nprocs=nprocs,
+            )
+
+            time_phase_transformation = scri.bms_transformations.BMSTransformation(
+                supertranslation=[sf.constant_as_ell_0_mode(res.x[0])],
+                frame_rotation=quaternion.from_rotation_vector(res.x[1] * np.array([0, 0, 1])).components,
+            )
+        else:
+            time_phase_transformation = scri.bms_transformations.BMSTransformation()
+
         # compose these transformations in the right order
-        BMS_transformation = (transformation2.inverse() * transformation1 * BMS_transformation).reorder(
-            ["supertranslation", "frame_rotation", "boost_velocity"]
-        )
+        BMS_transformation = (
+            transformation2.inverse() * (time_phase_transformation * (transformation1 * BMS_transformation))
+        ).reorder(["supertranslation", "frame_rotation", "boost_velocity"])
 
         # obtain the transformed abd object
         abd_interp_prime = abd_interp.transform(
@@ -373,16 +423,13 @@ def map_to_abd_frame(
 
         if fix_time_phase_freedom:
             # find the time/phase transformations
-            news_interp_prime = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+            strain_interp_prime = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
                 2.0 * abd_interp_prime.sigma.bar, dataType=scri.h
-            )
-            target_news = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
-                2.0 * target_abd.sigma.bar, dataType=scri.h
             )
 
             _, rel_err, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
-                news_interp_prime,
-                target_news,
+                strain_interp_prime,
+                target_strain,
                 t_0 - padding_time,
                 t_0 + padding_time,
                 n_brute_force_δt=None,
@@ -417,7 +464,7 @@ def map_to_abd_frame(
         itr += 1
 
     if print_conv:
-        if not itr < N_itr_max:
+        if not itr < N_itr_maxes["abd"]:
             print(f"BMS: maximum number of iterations reached; the min error was {best_rel_err}.")
         else:
             print(f"BMS: tolerance achieved in {itr} iterations!")

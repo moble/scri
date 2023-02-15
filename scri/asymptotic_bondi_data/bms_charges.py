@@ -108,7 +108,7 @@ def CWWY_angular_momentum(self):
 
     """
     ell_max = 1  # Compute only the parts we need, ell<=1
-    supertranslation_potential_data = scri.asymptotic_bondi_data.map_to_bms_frame.𝔇inverse(
+    supertranslation_potential_data = scri.asymptotic_bondi_data.map_to_superrest_frame.𝔇inverse(
         np.array(self.sigma.ethbar_GHP.ethbar_GHP + self.sigma.bar.eth_GHP.eth_GHP), self.ell_max
     )
     supertranslation_potential = scri.ModesTimeSeries(

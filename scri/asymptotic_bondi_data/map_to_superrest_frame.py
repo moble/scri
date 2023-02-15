@@ -85,7 +85,7 @@ def 𝔇(h, ell_max):
             value = 0
         else:
             value = ((ell + 2) * (ell + 1) * (ell) * (ell - 1)) / 4.0
-        h_with_operator[LM_index(ell, -ell, 0) : LM_index(ell, ell, 0) + 1] *= value
+        h_with_operator[..., LM_index(ell, -ell, 0) : LM_index(ell, ell, 0) + 1] *= value
 
     return h_with_operator
 
@@ -299,7 +299,7 @@ def supertranslation_to_map_to_superrest_frame(
 
         if rel_err < min(rel_errs):
             best_alpha_Grid = alpha_Grid.copy()
-            rel_errs.append(rel_err)
+        rel_errs.append(rel_err)
 
         itr += 1
 
@@ -400,6 +400,21 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
             print(f"CoM: tolerance achieved in {itr} iterations!")
 
     return best_CoM_transformation, rel_errs
+
+
+def rotation_from_spin_charge(chi, t):
+    """Obtain the rotation from the remnant BH's spin vector.
+    This finds the rotation that aligns the z-component of the spin vector with the z-axis.
+    Parameters
+    ----------
+    chi: ndarray, real, shape (..., 3)
+        Remnant BH's spin vector.
+    t: ndarray, real
+        Time array corresponding to the size of the spin vector.
+    """
+    chi_f = quaternion.quaternion(*chi[np.argmin(abs(t))]).normalized()
+    q = (1 - chi_f * quaternion.z).normalized().components
+    return scri.bms_transformations.BMSTransformation(frame_rotation=q)
 
 
 def rotation_from_vectors(vector, target_vector, t=None):
@@ -517,7 +532,7 @@ def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, re
                 chi_prime = chi_prime / np.linalg.norm(chi_prime, axis=-1)[:, None]
 
             rotation_transformation = (
-                rotation_from_vectors(chi_prime, [[0, 0, 1]] * abd_prime.t.size, abd_prime.t) * rotation_transformation
+                rotation_from_spin_charge(chi_prime, abd_prime.t) * rotation_transformation
             ).reorder(["supertranslation", "frame_rotation", "boost_velocity"])
             # remove supertranslation and CoM components
             rotation_transformation.supertranslation *= 0
@@ -663,8 +678,10 @@ def map_to_superrest_frame(
         "supertranslation": 10,
     },
     rel_err_tols={"CoM_transformation": 1e-12, "rotation": 1e-12, "supertranslation": 1e-12},
+    order=["rotation", "CoM_transformation", "supertranslation"],
     ell_max=None,
     alpha_ell_max=None,
+    fix_time_phase_freedom=False,
     print_conv=False,
 ):
     """Transform an abd object to the superrest frame.
@@ -716,12 +733,18 @@ def map_to_superrest_frame(
             'rotation':           1e-12,
             'supertranslation':   1e-12
         }.
+    order : list, optional
+        Order in which to solve for the BMS transformations.
+        Default is ["rotation", "CoM_transformation", "supertranslation"].
     ell_max : int, optional
         Maximum ell to use for SWSH/Grid transformations.
         Default is self.ell_max.
     alpha_ell_max : int, optional
         Maximum ell of the supertranslation to use.
         Default is self.ell_max.
+    fix_time_phase_freedom : bool, optional
+        Whether or not to fix the time and phase freedom using a 2d minimization scheme.
+        Default is True.
     print_conv: bool, defaults to False
         Whether or not to print the termination criterion. Default is False.
 
@@ -781,62 +804,62 @@ def map_to_superrest_frame(
                 boost_velocity=BMS_transformation.boost_velocity,
             )
 
-        # CoM transformation
-        CoM_transformation, CoM_rel_errs = com_transformation_to_map_to_superrest_frame(
-            abd_interp_prime,
-            N_itr_max=N_itr_maxes["CoM_transformation"],
-            rel_err_tol=rel_err_tols["CoM_transformation"],
-            print_conv=print_conv,
-        )
+        for transformation in order:
+            if transformation == "supertranslation":
+                new_transformation, supertranslation_rel_errs = supertranslation_to_map_to_superrest_frame(
+                    abd_interp_prime,
+                    target_PsiM,
+                    N_itr_max=N_itr_maxes["supertranslation"],
+                    rel_err_tol=rel_err_tols["supertranslation"],
+                    ell_max=ell_max,
+                    print_conv=print_conv,
+                )
+            elif transformation == "rotation":
+                new_transformation, rot_rel_errs = rotation_to_map_to_superrest_frame(
+                    abd_interp_prime,
+                    target_strain=target_strain,
+                    N_itr_max=N_itr_maxes["rotation"],
+                    rel_err_tol=rel_err_tols["rotation"],
+                    print_conv=print_conv,
+                )
+            elif transformation == "CoM_transformation":
+                new_transformation, CoM_rel_errs = com_transformation_to_map_to_superrest_frame(
+                    abd_interp_prime,
+                    N_itr_max=N_itr_maxes["CoM_transformation"],
+                    rel_err_tol=rel_err_tols["CoM_transformation"],
+                    print_conv=print_conv,
+                )
+            elif transformation == "time_phase":
+                if target_strain is not None:
+                    strain_interp_prime = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+                        2.0 * abd_interp_prime.sigma.bar, dataType=scri.h
+                    )
 
-        BMS_transformation = (CoM_transformation * BMS_transformation).reorder(
-            ["supertranslation", "frame_rotation", "boost_velocity"]
-        )
+                    _, rel_err, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
+                        strain_interp_prime,
+                        target_strain,
+                        t_0 - padding_time,
+                        t_0 + padding_time,
+                        n_brute_force_δt=None,
+                        n_brute_force_δϕ=None,
+                        include_modes=None,
+                        nprocs=nprocs,
+                    )
 
-        abd_interp_prime = abd_interp.transform(
-            supertranslation=BMS_transformation.supertranslation,
-            frame_rotation=BMS_transformation.frame_rotation.components,
-            boost_velocity=BMS_transformation.boost_velocity,
-        )
+                    new_transformation = scri.bms_transformations.BMSTransformation(
+                        supertranslation=[sf.constant_as_ell_0_mode(res.x[0])],
+                        frame_rotation=quaternion.from_rotation_vector(res.x[1] * np.array([0, 0, 1])).components,
+                    )
 
-        # rotation
-        rotation, rot_rel_errs = rotation_to_map_to_superrest_frame(
-            abd_interp_prime,
-            target_strain=target_strain,
-            N_itr_max=N_itr_maxes["rotation"],
-            rel_err_tol=rel_err_tols["rotation"],
-            print_conv=print_conv,
-        )
+            BMS_transformation = (new_transformation * BMS_transformation).reorder(
+                ["supertranslation", "frame_rotation", "boost_velocity"]
+            )
 
-        BMS_transformation = (rotation * BMS_transformation).reorder(
-            ["supertranslation", "frame_rotation", "boost_velocity"]
-        )
-
-        abd_interp_prime = abd_interp.transform(
-            supertranslation=BMS_transformation.supertranslation,
-            frame_rotation=BMS_transformation.frame_rotation.components,
-            boost_velocity=BMS_transformation.boost_velocity,
-        )
-
-        # supertranslation
-        supertranslation, supertranslation_rel_errs = supertranslation_to_map_to_superrest_frame(
-            abd_interp_prime,
-            target_PsiM,
-            N_itr_max=N_itr_maxes["supertranslation"],
-            rel_err_tol=rel_err_tols["supertranslation"],
-            ell_max=ell_max,
-            print_conv=print_conv,
-        )
-
-        BMS_transformation = (supertranslation * BMS_transformation).reorder(
-            ["supertranslation", "frame_rotation", "boost_velocity"]
-        )
-
-        abd_interp_prime = abd_interp.transform(
-            supertranslation=BMS_transformation.supertranslation,
-            frame_rotation=BMS_transformation.frame_rotation.components,
-            boost_velocity=BMS_transformation.boost_velocity,
-        )
+            abd_interp_prime = abd_interp.transform(
+                supertranslation=BMS_transformation.supertranslation,
+                frame_rotation=BMS_transformation.frame_rotation.components,
+                boost_velocity=BMS_transformation.boost_velocity,
+            )
 
         rel_err = rel_err_for_abd_in_superrest(abd_interp_prime, target_PsiM, target_strain)
         if np.mean(rel_err) < min([np.mean(r) for r in rel_errs]):

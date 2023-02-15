@@ -40,7 +40,7 @@ def test_abd_to_abd():
         supertranslation=supertranslation, frame_rotation=frame_rotation, boost_velocity=boost_velocity
     )
 
-    # We don't preform time/phase fixing because this data is radiation-free so it doesn't make sense
+    # We don't perform time/phase fixing because this data is radiation-free so it doesn't make sense
     abd_recovered, transformation, rel_err = abd.map_to_abd_frame(
         abd_target,
         t_0=0,
