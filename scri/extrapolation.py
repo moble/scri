@@ -293,21 +293,7 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
     from numpy import array
 
     # Open the file twice.
-    # The first time is for the auxiliary quantities.
-    with File(filename,"r") as f:
-        W = f[groupname][WaveformName]
-
-        # Read the time, account for repeated indices
-        T = array(W["Time.dat"])
-        Indices = monotonic_indices(T)
-        T = T[Indices]
-
-        # Read the other auxiliary quantities
-        Radii = array(W["ArealRadius.dat"])[Indices]
-        AverageLapse = array(W["AverageLapse.dat"])[Indices]
-        CoordRadius = W["CoordRadius.dat"][1]
-        InitialAdmEnergy = W["InitialAdmEnergy.dat"][1]
-
+    # The first time reads the waveform.
     rpdmb_formats=["rotating_paired_diff_multishuffle_bzip2", "rpdmb", "RPDMB"]
     rpxmb_formats=["rotating_paired_xor_multishuffle_bzip2", "rpxmb", "rpxm",
                    "RPXMB", "RPXM"]
@@ -324,7 +310,6 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
         elif sxs_format in rpdmb_formats:
             read_rpxmb=True
 
-    # The second time we read the file is for the waveform
     # Note that groupname begins with a '/' so
     # os.path.join(filename,groupname,WaveformName) does not work.
     if read_rpxmb:
@@ -336,6 +321,21 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
     else:
         raise ValueError("Cannot find rpxmb/rpdmb format string "
                          " in {}, group {}".format(json_path,groupname))
+    T = waveform.t
+
+    # The second time we read the file is for the auxiliary quantities.
+    with File(filename,"r") as f:
+        W = f[groupname][WaveformName]
+
+        # Account for repeated indices in time.
+        Indices = monotonic_indices(T)
+        T = T[Indices]
+
+        # Read the other auxiliary quantities
+        Radii = array(W["ArealRadius.dat"])[Indices]
+        AverageLapse = array(W["AverageLapse.dat"])[Indices]
+        CoordRadius = W["CoordRadius.dat"][1]
+        InitialAdmEnergy = W["InitialAdmEnergy.dat"][1]
 
     return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
