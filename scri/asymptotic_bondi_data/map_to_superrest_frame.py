@@ -98,7 +98,7 @@ def 𝔇inverse(h, ell_max):
             value = 0
         else:
             value = 4.0 / ((ell + 2) * (ell + 1) * (ell) * (ell - 1))
-        h_with_operator[LM_index(ell, -ell, 0) : LM_index(ell, ell, 0) + 1] *= value
+        h_with_operator[..., LM_index(ell, -ell, 0) : LM_index(ell, ell, 0) + 1] *= value
 
     return h_with_operator
 
