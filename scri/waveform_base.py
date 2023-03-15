@@ -961,7 +961,7 @@ class WaveformBase(_object):
         W.t = np.copy(tprime)
         W.frame = quaternion.squad(self.frame, self.t, W.t)
         W.data = np.empty((W.n_times,) + self.data.shape[1:], dtype=self.data.dtype)
-        W.data_2d[:] = CubicSpline(self.t, self.data_2d.view(complex))(W.t).view(complex)
+        W.data_2d[:] = CubicSpline(self.t, self.data_2d)(W.t)
         W.__history_depth__ -= 1
         W._append_history(f"{W} = {self}.interpolate({tprime})")
         return W

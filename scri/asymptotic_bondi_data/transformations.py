@@ -33,19 +33,16 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
                 "documentation for details).\n           Thus, it must be an array with length given by a "
                 "perfect square; its length is {len(supertranslation)}"
             )
-        # Check that the resulting supertranslation will be real
+        # Impose reality 
         for ell in range(ell_max_supertranslation + 1):
             for m in range(ell + 1):
                 i_pos = sf.LM_index(ell, m, 0)
                 i_neg = sf.LM_index(ell, -m, 0)
                 a = supertranslation[i_pos]
                 b = supertranslation[i_neg]
-                if abs(a - (-1.0) ** m * b.conjugate()) > 1e-12 + 1e-12 * abs(b):
-                    raise ValueError(
-                        f"\nsupertranslation[{i_pos}]={a}  # (ell,m)=({ell},{m})\n"
-                        + "supertranslation[{}]={}  # (ell,m)=({},{})\n".format(i_neg, b, ell, -m)
-                        + "Will result in an imaginary supertranslation."
-                    )
+                supertranslation[i_pos] = (a + (-1.0) ** m * b.conjugate()) / 2.0
+                supertranslation[i_neg] = (-1.0) ** m * supertranslation[i_pos].conjugate()
+                
     spacetime_translation = np.zeros((4,), dtype=float)
     spacetime_translation[0] = sf.constant_from_ell_0_mode(supertranslation[0]).real
     spacetime_translation[1:4] = -sf.vector_from_ell_1_modes(supertranslation[1:4]).real
