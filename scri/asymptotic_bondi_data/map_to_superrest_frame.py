@@ -487,7 +487,7 @@ def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, re
 
         target_omega = target_news.angular_velocity()
         target_omega_spline = CubicSpline(
-            target_omega / np.linalg.norm(target_omega, axis=-1)[:, None], target_strain.t
+            target_strain.t, target_omega / np.linalg.norm(target_omega, axis=-1)[:, None]
         )
 
         itr = 0
@@ -637,7 +637,7 @@ def rel_err_for_abd_in_superrest(abd, target_PsiM, target_strain):
 
         target_omega = target_news.angular_velocity()
         target_omega_spline = CubicSpline(
-            target_omega / np.linalg.norm(target_omega, axis=-1)[:, None], target_strain.t
+            target_strain.t, target_omega / np.linalg.norm(target_omega, axis=-1)[:, None]
         )
 
         news = MT_to_WM(2.0 * abd.sigma.bar.dot, dataType=scri.hdot)
