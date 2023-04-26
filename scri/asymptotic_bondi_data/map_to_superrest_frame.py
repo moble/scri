@@ -5,6 +5,8 @@ import scri
 import spinsfast
 import spherical_functions as sf
 from spherical_functions import LM_index
+
+from sxs.waveforms.alignment import align2d
 from scri.asymptotic_bondi_data.bms_charges import charge_vector_from_aspect
 
 import quaternion
@@ -291,7 +293,7 @@ def supertranslation_to_map_to_superrest_frame(
                     target_PsiM_Grid_interp[i, j] = CubicSpline(target_PsiM.t, target_PsiM_Grid[:, i, j])(alpha_i_j)
             M_Grid = -target_PsiM_Grid_interp.view(np.ndarray)
 
-            target_PsiM_interp = compute_Moreschi_supermomentum(target_PsiM, alpha_Grid, ell_max)
+            target_PsiM_interp = spinsfast.map2salm(target_PsiM_Grid_interp.view(np.ndarray), 0, ell_max)
 
             rel_err = np.linalg.norm(PsiM_interp[4:] - target_PsiM_interp[4:]) / np.linalg.norm(target_PsiM_interp[4:])
         else:
@@ -657,7 +659,7 @@ def rel_err_for_abd_in_superrest(abd, target_PsiM, target_strain):
     if target_PsiM is not None:
         rel_err_PsiM = np.linalg.norm(
             np.array(abd.supermomentum("Moreschi"))[np.argmin(abs(abd.t - 0)), 4:]
-            - np.array(target_PsiM)[np.argmin(abs(abd.t - 0)), 4:]
+            - np.array(target_PsiM.data)[np.argmin(abs(target_PsiM.t - 0)), 4:]
         )
     else:
         rel_err_PsiM = np.linalg.norm(np.array(abd.supermomentum("Moreschi"))[np.argmin(abs(abd.t - 0)), 4:])
@@ -778,7 +780,7 @@ def map_to_superrest_frame(
         alpha_ell_max = ell_max
 
     abd_interp = abd.interpolate(
-        abd.t[np.argmin(abs(abd.t - (t_0 - padding_time))) : np.argmin(abs(abd.t - (t_0 + padding_time))) + 1]
+        abd.t[np.argmin(abs(abd.t - (t_0 - (padding_time + 200)))) : np.argmin(abs(abd.t - (t_0 + (padding_time + 200)))) + 1]
     )
 
     # apply a time translation so that we're mapping
@@ -792,11 +794,17 @@ def map_to_superrest_frame(
     rel_err = [np.inf, np.inf, np.inf]
     rel_errs = [[np.inf, np.inf, np.inf]]
     best_rel_err = [np.inf, np.inf, np.inf]
-    while itr < N_itr_maxes["superrest"] and not (
-        rel_err[0] < rel_err_tols["CoM_transformation"]
-        and rel_err[1] < rel_err_tols["rotation"]
-        and rel_err[2] < rel_err_tols["supertranslation"]
-    ):
+    while itr < N_itr_maxes["superrest"]:
+        if type(rel_err) == tuple:
+            if (
+                    rel_err[0] < rel_err_tols["CoM_transformation"]
+                    and rel_err[1] < rel_err_tols["rotation"]
+                    and rel_err[2] < rel_err_tols["supertranslation"]
+            ):
+                break
+        else:
+            pass
+            
         if itr == 0:
             abd_interp_prime = abd_interp.transform(
                 supertranslation=BMS_transformation.supertranslation,
@@ -835,15 +843,15 @@ def map_to_superrest_frame(
                         2.0 * abd_interp_prime.sigma.bar, dataType=scri.h
                     )
 
-                    _, rel_err, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
-                        strain_interp_prime,
-                        target_strain,
-                        t_0 - padding_time,
-                        t_0 + padding_time,
+                    rel_err, _, res = align2d(
+                        MT_to_WM(WM_to_MT(strain_interp_prime), sxs_version=True),
+                        MT_to_WM(WM_to_MT(target_strain), sxs_version=True),
+                        0 - padding_time,
+                        0 + padding_time,
                         n_brute_force_δt=None,
                         n_brute_force_δϕ=None,
                         include_modes=None,
-                        nprocs=nprocs,
+                        nprocs=4,
                     )
 
                     new_transformation = scri.bms_transformations.BMSTransformation(
@@ -861,7 +869,12 @@ def map_to_superrest_frame(
                 boost_velocity=BMS_transformation.boost_velocity,
             )
 
-        rel_err = rel_err_for_abd_in_superrest(abd_interp_prime, target_PsiM, target_strain)
+        if target_strain is not None and order[-1] == "time_phase":
+            # rel_err is obtained from align2d, so do nothing
+            pass
+        else:
+            rel_err = rel_err_for_abd_in_superrest(abd_interp_prime, target_PsiM, target_strain)
+            
         if np.mean(rel_err) < min([np.mean(r) for r in rel_errs]):
             best_BMS_transformation = BMS_transformation.copy()
             best_rel_err = rel_err

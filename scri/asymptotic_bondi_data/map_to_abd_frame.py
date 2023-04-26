@@ -16,7 +16,7 @@ from sxs.waveforms.alignment import align2d
 
 from functools import partial
 
-from scri.asymptotic_bondi_data.map_to_superrest_frame import time_translation, rotation
+from scri.asymptotic_bondi_data.map_to_superrest_frame import time_translation, rotation, MT_to_WM, WM_to_MT
 
 def rel_err_between_abds(abd1, abd2, t1, t2):
     t_array = abd1.t[np.argmin(abs(abd1.t - t1)) : np.argmin(abs(abd1.t - t2)) + 1]
@@ -213,9 +213,9 @@ def map_to_abd_frame(
                 2.0 * abd_interp_superrest.sigma.bar, dataType=scri.h
             )
 
-            rel_err, _, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
-                strain_interp_superrest,
-                target_strain_superrest,
+            rel_err, _, res = align2d(
+                MT_to_WM(WM_to_MT(strain_interp_superrest), sxs_version=True),
+                MT_to_WM(WM_to_MT(target_strain_superrest), sxs_version=True),
                 t_0 - padding_time,
                 t_0 + padding_time,
                 n_brute_force_δt=None,
@@ -249,9 +249,9 @@ def map_to_abd_frame(
                 2.0 * abd_interp_prime.sigma.bar, dataType=scri.h
             )
 
-            rel_err, _, res = scri.asymptotic_bondi_data.map_to_abd_frame.align2d(
-                strain_interp_prime,
-                target_strain,
+            rel_err, _, res = align2d(
+                MT_to_WM(WM_to_MT(strain_interp_prime), sxs_version=True),
+                MT_to_WM(WM_to_MT(target_strain), sxs_version=True),
                 t_0 - padding_time,
                 t_0 + padding_time,
                 n_brute_force_δt=None,
