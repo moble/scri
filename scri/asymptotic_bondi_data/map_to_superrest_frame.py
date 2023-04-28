@@ -680,7 +680,7 @@ def map_to_superrest_frame(
         "supertranslation": 10,
     },
     rel_err_tols={"CoM_transformation": 1e-12, "rotation": 1e-12, "supertranslation": 1e-12},
-    order=["rotation", "CoM_transformation", "supertranslation"],
+    order=["supertranslation", "rotation", "CoM_transformation"],
     ell_max=None,
     alpha_ell_max=None,
     fix_time_phase_freedom=False,
