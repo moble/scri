@@ -153,8 +153,8 @@ def map_to_abd_frame(
         time_translation = scri.bms_transformations.BMSTransformation(
             supertranslation=[
                 sf.constant_as_ell_0_mode(
-                    abd.t[np.argmax(abd.bondi_four_momentum()[np.argmin(abs(abd.t - t_0)), 0])]
-                    - target_abd.t[np.argmax(target_abd.bondi_four_momentum()[np.argmin(abs(target_abd.t - t_0)), 0])]
+                    abd.t[np.argmax(abd.bondi_four_momentum()[:, 0])]
+                    - target_abd.t[np.argmax(target_abd.bondi_four_momentum()[:, 0])]
                 )
             ]
         )
