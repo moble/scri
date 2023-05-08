@@ -684,6 +684,7 @@ def map_to_superrest_frame(
     ell_max=None,
     alpha_ell_max=None,
     fix_time_phase_freedom=False,
+    modes=None,
     print_conv=False,
 ):
     """Transform an abd object to the superrest frame.
@@ -747,6 +748,9 @@ def map_to_superrest_frame(
     fix_time_phase_freedom : bool, optional
         Whether or not to fix the time and phase freedom using a 2d minimization scheme.
         Default is True.
+    modes : list, optional
+        List of modes to include when performing the 2d alignment.
+        Default is every mode.
     print_conv: bool, defaults to False
         Whether or not to print the termination criterion. Default is False.
 
@@ -850,7 +854,7 @@ def map_to_superrest_frame(
                         0 + padding_time,
                         n_brute_force_δt=None,
                         n_brute_force_δϕ=None,
-                        include_modes=None,
+                        include_modes=modes,
                         nprocs=4,
                     )
 

@@ -69,7 +69,7 @@ def map_to_abd_frame(
         "supertranslation": 10,
     },
     rel_err_tols={"CoM_transformation": 1e-12, "rotation": 1e-12, "supertranslation": 1e-12},
-    order=["rotation", "CoM_transformation", "supertranslation"],
+    order=["supertranslation", "rotation", "CoM_transformation"],
     ell_max=None,
     alpha_ell_max=None,
     fix_time_phase_freedom=True,
@@ -116,7 +116,7 @@ def map_to_abd_frame(
         }.
     order : list, optional
         Order in which to solve for the BMS transformations.
-        Default is ["rotation", "CoM_transformation", "supertranslation"].
+        Default is ["supertranslation", "rotation", "CoM_transformation"].
     ell_max : int, optional
         Maximum ell to use for SWSH/Grid transformations.
         Default is self.ell_max.
@@ -150,11 +150,12 @@ def map_to_abd_frame(
     time_translation = scri.bms_transformations.BMSTransformation()
     if fix_time_phase_freedom:
         # ensure that they are reasonable close
+        energy = abd.bondi_four_momentum()[:, 0]
+        target_energy = target_abd.bondi_four_momentum()[:, 0]
         time_translation = scri.bms_transformations.BMSTransformation(
             supertranslation=[
                 sf.constant_as_ell_0_mode(
-                    abd.t[np.argmax(abd.bondi_four_momentum()[:, 0])]
-                    - target_abd.t[np.argmax(target_abd.bondi_four_momentum()[:, 0])]
+                    abd.t[np.argmin(abs(energy - target_energy[np.argmin(abs(target_abd.t - t_0))]))] - t_0
                 )
             ]
         )
