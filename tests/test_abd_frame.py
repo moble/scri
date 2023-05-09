@@ -45,7 +45,7 @@ def test_abd_to_abd():
         abd_target,
         t_0=0,
         padding_time=20,
-        N_itr_maxes={"abd": 1, "superrest": 1, "CoM_transformation": 10, "rotation": 10, "supertranslation": 10},
+        N_itr_maxes={"abd": 2, "superrest": 1, "CoM_transformation": 10, "rotation": 10, "supertranslation": 10},
         fix_time_phase_freedom=False,
         nprocs=-1,
     )
