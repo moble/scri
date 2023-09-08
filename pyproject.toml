@@ -1,7 +1,7 @@
 [project]
 name = "scri"
 dynamic = ["version"]
-description = "Time-dependent functions of spin-weighted spherical harmonics"
+description = "Time-dependent functions of spin-weighted spherical harmonics on future null infinity"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
