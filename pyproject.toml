@@ -41,14 +41,14 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "scri/__version__.py"
 
-[tool.hatch.envs.default]
+[tool.hatch.envs.test]
 dependencies = [
   "pytest",
   "pytest-cov",
   "black"
 ]
-[tool.hatch.envs.default.scripts]
-# Run these as `hatch run test`
+[tool.hatch.envs.test.scripts]
+# Run these as `hatch run test:test`
 test = "pytest {args:tests}"
 
 
