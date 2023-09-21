@@ -1,6 +1,7 @@
 # Copyright (c) 2015, Michael Boyle
 # See LICENSE file for details: <https://github.com/moble/scri/blob/master/LICENSE>
 
+import math
 import numpy as np
 import quaternion
 import spinsfast
