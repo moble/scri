@@ -9,7 +9,7 @@ Scri
 ====
 
 Python/numba code for manipulating time-dependent functions of spin-weighted
-spherical harmonics
+spherical harmonics on future null infinity
 
 ## Citing this code
 

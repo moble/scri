@@ -278,23 +278,56 @@ def read_finite_radius_waveform_nrar(filename, WaveformName):
     
     return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
-def read_finite_radius_waveform_rpxmb(filename, groupname, WaveformName):
+def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
+                                               groupname, WaveformName):
     """This is just a worker function defined for read_finite_radius_data, 
        below, reading a single waveform from an h5 file of many waveforms. 
        You probably don't need to call this directly.
     """
 
     from h5py import File
+    import os
     import scri
+    import sxs
+    import json
     from numpy import array
 
     # Open the file twice.
-    # The first time is for the auxiliary quantities.
+    # The first time reads the waveform.
+    rpdmb_formats=["rotating_paired_diff_multishuffle_bzip2", "rpdmb", "RPDMB"]
+    rpxmb_formats=["rotating_paired_xor_multishuffle_bzip2", "rpxmb", "rpxm",
+                   "RPXMB", "RPXM"]
+    json_path = filename.replace(".h5",".json")
+    read_rpxmb = False
+    read_rpdmb = False
+    if os.path.exists(json_path):
+        with open(json_path) as f:
+            full_group_name = groupname + '/' + WaveformName
+            json_data = json.load(f)[full_group_name]
+        sxs_format = json_data.get("sxs_format","")
+        if sxs_format in rpdmb_formats:
+            read_rpdmb=True
+        elif sxs_format in rpdmb_formats:
+            read_rpxmb=True
+
+    # Note that groupname begins with a '/' so
+    # os.path.join(filename,groupname,WaveformName) does not work.
+    if read_rpxmb:
+        waveform=scri.rpxmb.load(filename+groupname+"/"+
+                                 WaveformName)[0].to_inertial_frame()
+    elif read_rpdmb:
+        waveform=scri.WaveformModes.from_sxs(
+            sxs.rpdmb.load(filename+groupname+"/"+WaveformName))
+    else:
+        raise ValueError("Cannot find rpxmb/rpdmb format string "
+                         " in {}, group {}".format(json_path,groupname))
+    T = waveform.t
+
+    # The second time we read the file is for the auxiliary quantities.
     with File(filename,"r") as f:
         W = f[groupname][WaveformName]
 
-        # Read the time, account for repeated indices
-        T = array(W["Time.dat"])
+        # Account for repeated indices in time.
         Indices = monotonic_indices(T)
         T = T[Indices]
 
@@ -303,12 +336,6 @@ def read_finite_radius_waveform_rpxmb(filename, groupname, WaveformName):
         AverageLapse = array(W["AverageLapse.dat"])[Indices]
         CoordRadius = W["CoordRadius.dat"][1]
         InitialAdmEnergy = W["InitialAdmEnergy.dat"][1]
-
-    # The second time we read the file is for the waveform
-    # Note that groupname begins with a '/' so
-    # os.path.join(filename,groupname,WaveformName) does not work.
-    waveform=scri.rpxmb.load(filename+groupname+"/"+
-                             WaveformName)[0].to_inertial_frame()
 
     return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
@@ -322,7 +349,8 @@ def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
            read_finite_radius_waveform_nrar(filename,WaveformName)
     else:
        waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy = \
-           read_finite_radius_waveform_rpxmb(filename,groupname,WaveformName)
+           read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
+                                                      groupname,WaveformName)
 
     # Rescale and offset the time array so that the time array is
     # approximately the tortoise coordinate.

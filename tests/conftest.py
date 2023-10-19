@@ -177,3 +177,16 @@ def Rs():
     np.random.seed(hash("Rs") % 4294967294)  # Use mod to get in an acceptable range
     rs = rs + [np.quaternion(*np.random.uniform(-1, 1, 4)).normalized() for i in range(20)]
     return np.array(rs)
+
+
+def real_supertranslation(α):
+    """Update α in place to represent a real-valued supertranslation."""
+    ℓ = 0
+    while True:
+        for m in range(-ℓ, ℓ+1):
+            iₚ, iₘ = sf.LM_index(ℓ, m, 0), sf.LM_index(ℓ, -m, 0)
+            if iₚ >= α.size:
+                return α
+            α[iₚ] = (α[iₚ] + (-1.0)**m * α[iₘ].conj()) / 2
+            α[iₘ] = (-1.0)**m * α[iₚ].conj()
+        ℓ += 1

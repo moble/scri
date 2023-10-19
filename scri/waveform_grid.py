@@ -485,7 +485,7 @@ class WaveformGrid(WaveformBase):
         if beta != 0 or (supertranslation[1:] != 0).any():
             if w_modes.dataType == h:
                 # Note that SWSH_j_k will use s=-2 in this case, so it can be used in the tensordot correctly
-                supertranslation_deriv = 0.5 * sf.ethbar_GHP(sf.ethbar_GHP(supertranslation, 0, 0), -1, 0)
+                supertranslation_deriv = 2 * sf.ethbar_GHP(sf.ethbar_GHP(supertranslation, 0, 0), -1, 0)
                 supertranslation_deriv_values = np.tensordot(
                     supertranslation_deriv,
                     SWSH_j_k[:, :, : sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0) + 1],
@@ -494,7 +494,7 @@ class WaveformGrid(WaveformBase):
                 fprm_i_j_k -= supertranslation_deriv_values[np.newaxis, :, :]
             elif w_modes.dataType == sigma:
                 # Note that SWSH_j_k will use s=+2 in this case, so it can be used in the tensordot correctly
-                supertranslation_deriv = 0.5 * sf.eth_GHP(sf.eth_GHP(supertranslation, 0, 0), 1, 0)
+                supertranslation_deriv = sf.eth_GHP(sf.eth_GHP(supertranslation, 0, 0), 1, 0)
                 supertranslation_deriv_values = np.tensordot(
                     supertranslation_deriv,
                     SWSH_j_k[:, :, : sf.LM_index(ell_max_supertranslation, ell_max_supertranslation, 0) + 1],
