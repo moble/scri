@@ -961,7 +961,7 @@ class WaveformBase(_object):
         W.t = np.copy(tprime)
         W.frame = quaternion.squad(self.frame, self.t, W.t)
         W.data = np.empty((W.n_times,) + self.data.shape[1:], dtype=self.data.dtype)
-        W.data_2d[:] = CubicSpline(self.t, self.data_2d.view(float))(W.t).view(complex)
+        W.data_2d[:] = CubicSpline(self.t, self.data_2d)(W.t)
         W.__history_depth__ -= 1
         W._append_history(f"{W} = {self}.interpolate({tprime})")
         return W
@@ -1011,12 +1011,12 @@ class WaveformBase(_object):
         # quantities are curvature quantities, so they have dimensions 1/m^2, and thus have `m_scaling=2`.
         if self.r_is_scaled_out:
             if self.m_is_scaled_out:
-                amplitude_scaling = (R_over_M ** -self.r_scaling) * (M_in_meters ** -self.m_scaling)
+                amplitude_scaling = (R_over_M**-self.r_scaling) * (M_in_meters**-self.m_scaling)
             else:
-                amplitude_scaling = R_over_M ** -self.r_scaling
+                amplitude_scaling = R_over_M**-self.r_scaling
         else:
             if self.m_is_scaled_out:
-                amplitude_scaling = M_in_meters ** -self.m_scaling
+                amplitude_scaling = M_in_meters**-self.m_scaling
             else:
                 amplitude_scaling = 1.0
 

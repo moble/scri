@@ -180,6 +180,7 @@ class AsymptoticBondiData:
         # interpolate frame data if necessary
         if self.frame.shape[0] == self.n_times:
             import quaternion
+
             new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
         return new_abd
 
@@ -203,6 +204,7 @@ class AsymptoticBondiData:
         bondi_rest_mass,
         bondi_four_momentum,
         bondi_angular_momentum,
+        CWWY_angular_momentum,
         bondi_dimensionless_spin,
         bondi_boost_charge,
         bondi_CoM_charge,
@@ -210,3 +212,4 @@ class AsymptoticBondiData:
     )
 
     from .map_to_superrest_frame import map_to_superrest_frame
+    from .map_to_abd_frame import map_to_abd_frame

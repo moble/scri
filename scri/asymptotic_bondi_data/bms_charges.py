@@ -5,8 +5,10 @@
 ### class.  In particular, they assume that the first argument, `self` is an instance of
 ### AsymptoticBondData.  They should probably not be used outside of that class.
 
+import scri
 import numpy as np
 from math import sqrt, pi
+import spherical_functions as sf
 
 
 def mass_aspect(self, truncate_ell=max):
@@ -83,7 +85,7 @@ def bondi_four_momentum(self):
     return charge_vector_from_aspect(charge_aspect)
 
 
-def bondi_angular_momentum(self, output_dimensionless=False):
+def bondi_angular_momentum(self):
     """Compute the total Bondi angular momentum vector
 
         i (ψ₁ + σ ðσ̄)
@@ -95,6 +97,37 @@ def bondi_angular_momentum(self, output_dimensionless=False):
     charge_aspect = (
         1j
         * (self.psi1.truncate_ell(ell_max) + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max))
+    ).view(np.ndarray)
+    return charge_vector_from_aspect(charge_aspect)[:, 1:]
+
+
+def CWWY_angular_momentum(self):
+    """Compute the Chen/Wang/Wang/Yau angular momentum vector.
+
+    See Eq. (5) of https://arxiv.org/abs/2102.03235
+
+    """
+    ell_max = 1  # Compute only the parts we need, ell<=1
+    supertranslation_potential_data = scri.asymptotic_bondi_data.map_to_superrest_frame.𝔇inverse(
+        np.array(self.sigma.ethbar_GHP.ethbar_GHP + self.sigma.bar.eth_GHP.eth_GHP), self.ell_max
+    )
+    supertranslation_potential = scri.ModesTimeSeries(
+        sf.SWSH_modes.Modes(
+            supertranslation_potential_data,
+            spin_weight=0,
+            ell_min=0,
+            ell_max=self.ell_max,
+            multiplication_truncator=max,
+        ),
+        time=self.t,
+    )
+    charge_aspect = (
+        1j
+        * (
+            self.psi1.truncate_ell(ell_max)
+            + self.sigma.multiply(self.sigma.bar.eth_GHP, truncator=lambda tup: ell_max)
+            + supertranslation_potential.multiply(self.mass_aspect().eth_GHP, truncator=lambda tup: ell_max)
+        )
     ).view(np.ndarray)
     return charge_vector_from_aspect(charge_aspect)[:, 1:]
 
@@ -112,7 +145,7 @@ def bondi_dimensionless_spin(self):
     vhat = v.copy()
     t_idx = v_norm != 0  # Get the indices for timesteps with non-zero velocity
     vhat[t_idx] = v[t_idx] / v_norm[t_idx, np.newaxis]
-    gamma = (1 / np.sqrt(1 - v_norm ** 2))[:, np.newaxis]
+    gamma = (1 / np.sqrt(1 - v_norm**2))[:, np.newaxis]
     J_dot_vhat = np.einsum("ij,ij->i", J, vhat)[:, np.newaxis]
     spin_charge = (gamma * (J + np.cross(v, N)) - (gamma - 1) * J_dot_vhat * vhat) / M_sqr
     return spin_charge
@@ -209,7 +242,9 @@ def supermomentum(self, supermomentum_def, **kwargs):
     if supermomentum_def.lower() in ["bondi-sachs", "bs"]:
         supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs)
     elif supermomentum_def.lower() in ["moreschi", "m"]:
-        supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) + self.sigma.bar.eth_GHP.eth_GHP
+        supermomentum = (
+            self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) + self.sigma.bar.eth_GHP.eth_GHP
+        )
     elif supermomentum_def.lower() in ["geroch", "g"]:
         supermomentum = (
             self.psi2
@@ -217,7 +252,9 @@ def supermomentum(self, supermomentum_def, **kwargs):
             + 0.5 * (self.sigma.bar.eth_GHP.eth_GHP - self.sigma.ethbar_GHP.ethbar_GHP)
         )
     elif supermomentum_def.lower() in ["geroch-winicour", "gw"]:
-        supermomentum = self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) - self.sigma.ethbar_GHP.ethbar_GHP
+        supermomentum = (
+            self.psi2 + self.sigma.grid_multiply(self.sigma.bar.dot, **kwargs) - self.sigma.ethbar_GHP.ethbar_GHP
+        )
     else:
         raise ValueError(
             f"Supermomentum defintion '{supermomentum_def}' not recognized. Please choose one of "

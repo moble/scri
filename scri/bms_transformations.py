@@ -1,4 +1,5 @@
 import copy
+import h5py
 import scipy
 import spinsfast
 from scri.asymptotic_bondi_data.transformations import _process_transformation_kwargs, boosted_grid, conformal_factors
@@ -589,3 +590,34 @@ class BMSTransformation:
         )
 
         return bms_composed
+
+    def to_file(self, filename):
+        dt = h5py.special_dtype(vlen=str)
+        with h5py.File(filename, "w") as hf:
+            hf.create_dataset("supertranslation", data=self.supertranslation)
+            hf.create_dataset("frame_rotation", data=self.frame_rotation.components)
+            hf.create_dataset("boost_velocity", data=self.boost_velocity)
+            hf.create_dataset("order", data=self.order)
+            hf.create_dataset("ell_max", data=self.ell_max)
+
+        return
+
+    def from_file(self, filename):
+        with h5py.File(filename, "r") as hf:
+            supertranslation = np.array(hf.get("supertranslation"))
+            frame_rotation = np.array(hf.get("frame_rotation"))
+            boost_velocity = np.array(hf.get("boost_velocity"))
+            order = [x.decode("utf-8") for x in np.array(hf.get("order"))]
+            ell_max = int(np.array(hf.get("ell_max")))
+
+        BMS = BMSTransformation(
+            frame_rotation=frame_rotation,
+            boost_velocity=boost_velocity,
+            supertranslation=supertranslation,
+            order=order,
+            ell_max=ell_max,
+        )
+
+        self.__dict__.update(BMS.__dict__)
+
+        return
