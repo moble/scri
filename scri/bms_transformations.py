@@ -606,7 +606,7 @@ class BMSTransformation:
 
         return
 
-    def from_file(self, filename, group):
+    def from_file(self, filename, group=None):
         with h5py.File(filename, "r") as hf:
             if group is not None:
                 g = hf[group]
