@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Skip replicates on main branch
         env:
-          skip_replicates: ${{ github.ref == 'refs/heads/main' && (matrix.os != 'ubuntu-latest' || matrix.python-version != '3.11') }}
+          skip_replicates: ${{ github.ref == 'refs/heads/main' && github.repository_owner == 'moble' && (matrix.os != 'ubuntu-latest' || matrix.python-version != '3.11') }}
         shell: bash
         run: |
           echo "skipping_build_and_test_replicate=${skip_replicates}" >> $GITHUB_ENV
@@ -69,6 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
         github.ref == 'refs/heads/main'
+        && github.repository_owner == 'moble'
         && !contains(github.event.head_commit.message, '[no release]')
         && (success() || contains(github.event.head_commit.message, '[skip tests]'))
 

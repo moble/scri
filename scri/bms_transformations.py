@@ -591,24 +591,32 @@ class BMSTransformation:
 
         return bms_composed
 
-    def to_file(self, filename):
+    def to_file(self, filename, file_write_mode="w", group=None):
         dt = h5py.special_dtype(vlen=str)
-        with h5py.File(filename, "w") as hf:
-            hf.create_dataset("supertranslation", data=self.supertranslation)
-            hf.create_dataset("frame_rotation", data=self.frame_rotation.components)
-            hf.create_dataset("boost_velocity", data=self.boost_velocity)
-            hf.create_dataset("order", data=self.order)
-            hf.create_dataset("ell_max", data=self.ell_max)
+        with h5py.File(filename, file_write_mode) as hf:
+            if group is not None:
+                g = hf.create_group(group)
+            else:
+                g = hf
+            g.create_dataset("supertranslation", data=self.supertranslation)
+            g.create_dataset("frame_rotation", data=self.frame_rotation.components)
+            g.create_dataset("boost_velocity", data=self.boost_velocity)
+            g.create_dataset("order", data=self.order)
+            g.create_dataset("ell_max", data=self.ell_max)
 
         return
 
-    def from_file(self, filename):
+    def from_file(self, filename, group=None):
         with h5py.File(filename, "r") as hf:
-            supertranslation = np.array(hf.get("supertranslation"))
-            frame_rotation = np.array(hf.get("frame_rotation"))
-            boost_velocity = np.array(hf.get("boost_velocity"))
-            order = [x.decode("utf-8") for x in np.array(hf.get("order"))]
-            ell_max = int(np.array(hf.get("ell_max")))
+            if group is not None:
+                g = hf[group]
+            else:
+                g = hf
+            supertranslation = np.array(g.get("supertranslation"))
+            frame_rotation = np.array(g.get("frame_rotation"))
+            boost_velocity = np.array(g.get("boost_velocity"))
+            order = [x.decode("utf-8") for x in np.array(g.get("order"))]
+            ell_max = int(np.array(g.get("ell_max")))
 
         BMS = BMSTransformation(
             frame_rotation=frame_rotation,
