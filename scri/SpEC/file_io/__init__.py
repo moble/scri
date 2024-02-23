@@ -24,6 +24,7 @@ from ... import (
     psi0,
     Inertial,
 )
+import sxs
 from sxs.metadata import Metadata
 from . import corotating_paired_xor, rotating_paired_xor_multishuffle_bzip2
 from ...asymptotic_bondi_data import AsymptoticBondiData
@@ -477,6 +478,10 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
             elif file_format == "rpxmb" or file_format == "rpxm":
                 WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
                 WMs[data_label].to_inertial_frame()
+            elif file_format == "rpdmb" or file_format == "rpdm":
+                WMs[data_label] = WaveformModes.from_sxs(
+                    sxs.rpdmb.load(filenames[data_label])
+                )
             else:
                 raise ValueError(f"File format '{file_format}' not recognized. Must be either 'SXS', 'CCE', or 'RPXMB'.")
 
