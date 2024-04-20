@@ -6,6 +6,7 @@ import os
 import re
 import ast
 import numpy as np
+import h5py
 import quaternion
 import spherical_functions as sf
 from ... import (
@@ -428,10 +429,13 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
 
     Parameters
     ----------
-    file_format : 'SXS', 'CCE', or 'RPXMB'
+    file_format : 'SXS', 'CCE', 'SpECTRECCE1', 'RPDMB', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
           * 'CCE'  - Asymptotic waveforms output by SpECTRE CCE. These are not dimensionless.
+          * 'SpECTRECCE1' - Asymptotic waveforms output by SpECTRE CCE's original format.
+          * SpECTRECCE' - Asymptotic waveforms output by SpECTRE CCE's newest format.  (NOTE: this may break compatibility)
+          * 'RPDMB' - Dimensionless waveforms compressed using the rotating_paired_diff_multishuffle_bzip2 format.
           * 'RPXMB' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
     convention : 'SpEC' or 'Moreschi-Boyle'
         The data conventions of the waveform data that will be loaded. This defaults to 'SpEC' since this will be
@@ -462,28 +466,56 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
     # Load waveform data from H5 files into WaveformModes objects
     WMs = {}
     filenames = {}
-    for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "h"]:
-        if data_label in kwargs:
-            filenames[data_label] = kwargs.pop(data_label)
-            if file_format == "sxs":
-                WMs[data_label] = read_from_h5(filenames[data_label])
-            elif file_format == "cce":
-                WMs[data_label] = read_from_h5(
-                    filenames[data_label],
-                    dataType=DataNames.index(data_label),
+    if file_format == "spectrecce" or file_format == "spectrecce1":
+        file_name =  kwargs.pop("file_name")
+        with h5py.File(file_name, "r") as f:
+            cce = f["Cce"]
+            time = cce["Strain.dat"][:, 0]
+            indices = monotonic_indices(time)
+            time = time[indices]
+            ell_max = int(np.sqrt((cce["Strain.dat"].shape[1]-1) / 2) - 1)
+            for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "Strain"]:
+                if data_label != "Strain":
+                    dataType = DataNames.index(data_label)
+                else:
+                    dataType = DataNames.index("h")
+                WMs[data_label] = WaveformModes(
+                    t=time,
+                    data=cce[f"{data_label}.dat"][indices, 1:].view(np.complex128),
+                    ell_min=0,
+                    ell_max=ell_max,
                     frameType=Inertial,
+                    dataType=dataType,
+                    constructor_statement=f"create_abd_from_h5({file_format}, {convention=}, {file_name=})",
                     r_is_scaled_out=True,
                     m_is_scaled_out=False,
                 )
-            elif file_format == "rpxmb" or file_format == "rpxm":
-                WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
-                WMs[data_label].to_inertial_frame()
-            elif file_format == "rpdmb" or file_format == "rpdm":
-                WMs[data_label] = WaveformModes.from_sxs(
-                    sxs.rpdmb.load(filenames[data_label])
-                )
-            else:
-                raise ValueError(f"File format '{file_format}' not recognized. Must be either 'SXS', 'CCE', or 'RPXMB'.")
+    else:
+        for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "h"]:
+            if data_label in kwargs:
+                filenames[data_label] = kwargs.pop(data_label)
+                if file_format == "sxs":
+                    WMs[data_label] = read_from_h5(filenames[data_label])
+                elif file_format == "cce":
+                    WMs[data_label] = read_from_h5(
+                        filenames[data_label],
+                        dataType=DataNames.index(data_label),
+                        frameType=Inertial,
+                        r_is_scaled_out=True,
+                        m_is_scaled_out=False,
+                    )
+                elif file_format == "rpxmb" or file_format == "rpxm":
+                    WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
+                    WMs[data_label].to_inertial_frame()
+                elif file_format == "rpdmb" or file_format == "rpdm":
+                    WMs[data_label] = WaveformModes.from_sxs(
+                        sxs.rpdmb.load(filenames[data_label])
+                    )
+                else:
+                    raise ValueError(
+                        f"File format '{file_format}' not recognized. "
+                        "Must be 'SXS', 'CCE', 'SpECTRECCE', 'RPDMB', or 'RPXMB'."
+                    )
 
     if kwargs:
         import pprint
@@ -541,6 +573,11 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
     if "h" in WMs:
         abd.sigma[:, sf.LM_index(WMs["h"].ell_min, -WMs["h"].ell_min, 0) :] = (
             conversion_factor[convention][5] * WMs["h"].data
+        )
+        abd.sigma = abd.sigma.bar
+    elif "Strain" in WMs:
+        abd.sigma[:, sf.LM_index(WMs["Strain"].ell_min, -WMs["Strain"].ell_min, 0) :] = (
+            conversion_factor[convention][5] * WMs["Strain"].data
         )
         abd.sigma = abd.sigma.bar
 

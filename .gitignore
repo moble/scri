@@ -77,3 +77,4 @@ build_artifacts
 .envrc
 /notes
 /environment.yml
+.vscode
