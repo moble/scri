@@ -468,6 +468,8 @@ def create_abd_from_h5(
 
     Parameters
     ----------
+    file_name : str,
+        Path to .h5 file to be loaded.
     file_format : 'SXS', 'SpECTRECCE', 'RPDMB', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
