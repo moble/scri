@@ -277,3 +277,76 @@ These components of a BMS transformation can also all be stored in the
 :meth:`scri.bms_transformations.BMSTransformation` class, which allows for things like
 reording the components of the BMS transformation, inverting BMS transformations, and
 composing BMS transformations. For more, see :ref:`bms_transformations`. 
+
+==========
+BMS Frames
+==========
+
+All waveforms at future null infinity (and all waveforms more generally) are functions or coordinates.
+Therefore, there are certain "frames" which may be more useful than others, like that of a rest frame.
+For waveforms at future null infinity, the number of coordinates freedoms, i.e., the symmetries, that they
+exhibit is infinite and is summarized by a group known as the BMS group. This controls the types of frames
+that one may map waveforms to. Because GR is covariant, there is no preferred frame. However, for performing
+analysis on waveforms or building waveform models, it turns out that there are certain frames that are
+more useful than others. In particular, within GR one can extend the notion of a rest frame to something called
+a "superrest frame" (see arXiv:2405.08868 or arXiv:2208.04356 for more details), which typically yields waveforms
+that are easier to understand/analyze. Effectively, mapping to this frame amounts to mapping the system to be
+in the center-of-mass frame, with no instananeous memory, and it's angular velocity in the z-direction. For example,
+for a remnant black hole, this corresponds to making the coordinates match those of the usual Kerr metric and is
+therefore incredibly useful (and necessary) for fitting QNMs to NR waveforms.
+
+The function ``scri.asymptotic_bondi_data.map_to_superrest_frame`` maps to this exact frame.
+In particular, it takes as input:
+
+* ``t_0``, the time at which to map to the superrest frame;
+
+* ``target_PsiM_input``, the target Moreschi supermomentum; this should be ``None`` to map to the superrest frame,
+  but to map to the PN BMS frame one should input the PN Moreschi supermomentum (see arXiv:2208.04356).
+
+* ``target_strain_input``, the target strain; this should be ``None`` to map to the superrest frame,
+  but to map to the PN BMS frame one should input the PN strain (see arXiv:2208.04356).
+
+* ``padding_time``, the time window about ``t_0`` to be used when finding the BMS transformation to the superrest frame.
+
+========================================================
+Creating an AsymptoticBondiData Object from a CCE Output
+========================================================
+
+For processing the output of SpECTRE CCE, one may use the function ``scri.SpEC.file_io.create_abd_from_h5``.
+This function takes as input the path to SpECTRE CCE's output file (via the option ``file_name``) and
+creates an ``abd`` object from said file.
+It also can perform a number of other important post-processing steps, such as:
+
+* time translate the time array of the waveforms by the radius of the worldtube; this ensures that the CCE waveforms
+  are more closely aligned (in time) with extrapolated waveform. This is performed via the ``radius`` option.
+
+* scale out the total Christoudoulou mass of the system from each waveform. This is performed via the ``ch_mass`` option.
+
+* interpolate to a coarser time array, such as the time array of the worldtube. This is performed via the ``t_interpolate`` option.
+
+* map to the superrest BMS frame at some time. This is performed via the ``t_0_superrest`` and ``padding_time`` options.
+  E.g., to make reasonable-looking waveforms, one should map to the superrest frame at some time after junk;
+  ``t_0_superrest`` is the time at which to map to this frame, and ``padding_time`` is the window around ``t_0_superrest``
+  that is used when computing this BMS transformation. ``t_0_superrest - padding_time`` should be after junk radiation.
+  ``padding_time`` should be a few hundred :math:`h=2\overline{\sigma}`, e.g., two orbital periods.
+  The function used to do this is ``abd.map_to_superrest_frame`` (see the "BMS Frames" section).
+
+We recommend including all of these post-processing steps when processing a SpECTRE CCE output.
+
+To obtain the strain :math:`h` from the ``abd`` object, one can use the function ``scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM`` via ``h = MT_to_WM(2.0*abd.sigma.bar)``. 
+This is because the strain :math:`h` is related to the shear :math:`\sigma` via :math:`h=2\overline{\sigma}`.
+
+Example usage of this function could be:
+
+.. code-block:: python
+
+  >>> import scri
+  >>> abd = scri.SpEC.file_io.create_abd_from_h5(
+        file_name='CharacteristicExtractVolume_R0292.h5',
+        file_format="spectrecce",
+        ch_mass=1.0,
+        t_interpolate=t_worldtube,
+        t_0_superrest=1600,
+        padding_time=200
+      )
+  >>> h = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(2.0*abd.sigma.bar)
