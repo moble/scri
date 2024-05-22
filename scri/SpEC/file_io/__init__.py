@@ -33,7 +33,6 @@ from ...asymptotic_bondi_data import AsymptoticBondiData
 rpxmb = rotating_paired_xor_multishuffle_bzip2
 
 
-
 def translate_data_types_GWFrames_to_waveforms(d):
     if d < 8:
         return {0: UnknownDataType, 1: h, 2: hdot, 3: psi4, 4: psi3, 5: psi2, 6: psi1, 7: psi0}[d]
@@ -149,7 +148,6 @@ def read_from_h5(file_name, **kwargs):
         pass  # Probably couldn't find the metadata.json/metadata.txt file
 
     try:  # Make sure the h5py.File gets closed, even in the event of an exception
-
         # Add the old history to the new history, if found
         try:
             try:
@@ -420,7 +418,48 @@ def write_to_h5(w, file_name, file_write_mode="w", attributes={}, use_NRAR_forma
         f.close()
 
 
-def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
+def make_variable_dimensionless(WM, ch_mass=1.0):
+    """
+    Make variable dimensionless by scaling out Christodoulou mass.
+
+    Parameters:
+    -----------
+    WM: scri.WaveformModes
+        Waveform data.
+    ch_mass: float, optional
+        Total Christodoulou mass of the system.
+        [Default: 1.0].
+
+    """
+
+    if WM.m_is_scaled_out:
+        raise ValueError("Data is already dimensionless!")
+
+    if WM.dataType in [psi4, psi3, psi2, psi1, psi0]:
+        unit_scale_factor = (ch_mass) ** (WM.dataType - 4)
+    elif WM.dataType == h:
+        unit_scale_factor = 1 / ch_mass
+    elif WM.dataType == hdot:
+        unit_scale_factor = 1.0
+    else:
+        raise ValueError("DataType not determined.")
+
+    WM.t = WM.t / ch_mass
+    WM.data = WM.data * unit_scale_factor
+    WM.m_is_scaled_out = True
+
+
+def create_abd_from_h5(
+    file_name,
+    file_format,
+    convention="SpEC",
+    radius=None,
+    ch_mass=None,
+    t_interpolate=None,
+    t_0_superrest=None,
+    padding_time=None,
+    **kwargs,
+):
     """Returns an AsymptoticBondiData object with waveform data loaded from specified H5 files.
 
     The AsymptoticBondiData class internally uses the Moreschi-Boyle conventions, see the following reference:
@@ -429,18 +468,28 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
 
     Parameters
     ----------
-    file_format : 'SXS', 'CCE', 'SpECTRECCE1', 'RPDMB', or 'RPXMB'
+    file_format : 'SXS', 'SpECTRECCE', 'RPDMB', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
-          * 'CCE'  - Asymptotic waveforms output by SpECTRE CCE. These are not dimensionless.
-          * 'SpECTRECCE1' - Asymptotic waveforms output by SpECTRE CCE's original format.
-          * SpECTRECCE' - Asymptotic waveforms output by SpECTRE CCE's newest format.  (NOTE: this may break compatibility)
+          * 'SpECTRECCE' - Asymptotic waveforms output by SpECTRE CCE.
           * 'RPDMB' - Dimensionless waveforms compressed using the rotating_paired_diff_multishuffle_bzip2 format.
           * 'RPXMB' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
     convention : 'SpEC' or 'Moreschi-Boyle'
         The data conventions of the waveform data that will be loaded. This defaults to 'SpEC' since this will be
-        most often used with 'SpEC' convention waveforms.
-
+        most often used with 'SpEC' convention waveforms. The output convention is Moreschi-Boyle.
+    radius : str, optional
+        Worldtube radius used when running CCE; only needed for versions of SpECTRE before PR #5985.
+        The time array of the worldtube is translated by this radius.
+    ch_mass : float, optional
+        Total Christodoulou mass of the system.
+    t_interpolate: float array, optional
+        Time array to interpolate to, e.g., the time array of the worldtube.
+    t_0_superrest: float, optional
+        When to map to the BMS superrest frame.
+        Typically a few hundred M after the junk radiation is sufficient.
+    padding_time: float, optional
+        Time window length around t_0_superrest to use when mapping to the superrest frame.
+        Typically a few hundred M or a few orbits is sufficient.
 
     Keyword Parameters
     ------------------
@@ -466,14 +515,21 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
     # Load waveform data from H5 files into WaveformModes objects
     WMs = {}
     filenames = {}
-    if file_format == "spectrecce" or file_format == "spectrecce1":
-        file_name =  kwargs.pop("file_name")
+    if file_format == "spectrecce":
         with h5py.File(file_name, "r") as f:
-            cce = f["Cce"]
-            time = cce["Strain.dat"][:, 0]
+            cce_key = [x for x in f.keys() if "Spectre" in x][0]
+            if cce_key == []:
+                cce_key = "Cce"
+                data_label_suffix = ".dat"
+            else:
+                radius = cce_key.split("R")[1][:4]
+                data_label_suffix = ""
+
+            cce = f[cce_key]
+            time = cce[f"Strain{data_label_suffix}"][:, 0]
             indices = monotonic_indices(time)
             time = time[indices]
-            ell_max = int(np.sqrt((cce["Strain.dat"].shape[1]-1) / 2) - 1)
+            ell_max = int(np.sqrt((cce[f"Strain{data_label_suffix}"].shape[1] - 1) / 2) - 1)
             for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "Strain"]:
                 if data_label != "Strain":
                     dataType = DataNames.index(data_label)
@@ -481,7 +537,7 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
                     dataType = DataNames.index("h")
                 WMs[data_label] = WaveformModes(
                     t=time,
-                    data=cce[f"{data_label}.dat"][indices, 1:].view(np.complex128),
+                    data=cce[f"{data_label}{data_label_suffix}"][indices, 1:].view(np.complex128),
                     ell_min=0,
                     ell_max=ell_max,
                     frameType=Inertial,
@@ -508,9 +564,7 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
                     WMs[data_label] = rotating_paired_xor_multishuffle_bzip2.load(filenames[data_label])[0]
                     WMs[data_label].to_inertial_frame()
                 elif file_format == "rpdmb" or file_format == "rpdm":
-                    WMs[data_label] = WaveformModes.from_sxs(
-                        sxs.rpdmb.load(filenames[data_label])
-                    )
+                    WMs[data_label] = WaveformModes.from_sxs(sxs.rpdmb.load(filenames[data_label]))
                 else:
                     raise ValueError(
                         f"File format '{file_format}' not recognized. "
@@ -525,6 +579,7 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
     # Sanity check
     if not WMs:
         raise ValueError("No filenames have been provided. The data of at least one waveform quantity is required.")
+
     WM_ref = WMs[list(WMs.keys())[0]]
     for i in WMs:
         if not (WM_ref.t == WMs[i].t).all():
@@ -532,6 +587,15 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
                 f"All waveforms must share the same set of times. The data "
                 f"for {list(WMs.keys())[i].data_type_string} has a different set of times."
             )
+
+    for i in WMs:
+        # Make waveforms dimensionless (if they already are, does nothing)
+        if not ch_mass is None:
+            make_variable_dimensionless(WMs[i], ch_mass)
+
+        # Adjust time by worldtube radius
+        if file_format == "spectrecce":
+            WMs[i].t -= float(radius)
 
     # Create an instance of AsymptoticBondiData
     abd = AsymptoticBondiData(
@@ -580,5 +644,15 @@ def create_abd_from_h5(file_format, convention="SpEC", **kwargs):
             conversion_factor[convention][5] * WMs["Strain"].data
         )
         abd.sigma = abd.sigma.bar
+
+    # Interpolate to finer time array, if specified
+    if not t_interpolate is None:
+        idx1 = np.argmin(abs(t_interpolate - abd.t[0])) + 1
+        idx2 = np.argmin(abs(t_interpolate - abd.t[-1])) + 1 - 1
+        abd = abd.interpolate(t_interpolate[idx1:idx2])
+
+    # Map to superrest frame at some time over some window, if specified
+    if not (t_0_superrest is None or padding_time is None):
+        abd, BMS, _ = abd.map_to_superrest_frame(t_0=t_0_superrest, padding_time=padding_time)
 
     return abd
