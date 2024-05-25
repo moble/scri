@@ -1,5 +1,6 @@
 import numpy as np
 from spherical_functions import LM_total_size
+from .. import WaveformModes
 from .. import ModesTimeSeries
 from .. import Inertial
 
@@ -113,6 +114,20 @@ class AsymptoticBondiData:
     def sigma(self, sigmaprm):
         self._sigma[:] = sigmaprm
         return self.sigma
+
+    @property
+    def h(self):
+        h_mts = 2.0 * self._sigma.bar
+        return WaveformModes(
+            t=h_mts.t,
+            data=np.array(h_mts)[:, h_mts.index(abs(h_mts.s), -abs(h_mts.s)) :],
+            ell_min=abs(h_mts.s),
+            ell_max=h_mts.ell_max,
+            frameType=Inertial,
+            dataType=7,
+            r_is_scaled_out=True,
+            m_is_scaled_out=True,
+        )
 
     @property
     def psi4(self):

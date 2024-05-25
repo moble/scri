@@ -74,7 +74,7 @@ relativists. First, the ABD class uses the Moreschi-Boyle convention, which is *
 the standard convention used in NR. See Appendices B and C of
 `arXiv:2010.15200 <https://arxiv.org/abs/2010.15200>`_ for more information. Second,
 the Newman-Penrose shear :math:`\sigma` is *not* the gravitational-wave strain :math:`h`.
-In the Moreschi-Boyle convention, we have the relation :math:`h = \bar{\sigma}`, but
+In the Moreschi-Boyle convention, we have the relation :math:`h = 2\bar{\sigma}`, but
 this relation is not gauranteed in every convention and only holds for asymptotic
 quantities.
 
@@ -282,16 +282,16 @@ composing BMS transformations. For more, see :ref:`bms_transformations`.
 BMS Frames
 ==========
 
-All waveforms at future null infinity (and all waveforms more generally) are functions or coordinates.
+All waveforms at future null infinity (and all waveforms more generally) are functions of coordinates.
 Therefore, there are certain "frames" which may be more useful than others, like that of a rest frame.
-For waveforms at future null infinity, the number of coordinates freedoms, i.e., the symmetries, that they
+For waveforms at future null infinity, the number of coordinate freedoms, i.e., the symmetries, that they
 exhibit is infinite and is summarized by a group known as the BMS group. This controls the types of frames
 that one may map waveforms to. Because GR is covariant, there is no preferred frame. However, for performing
 analysis on waveforms or building waveform models, it turns out that there are certain frames that are
 more useful than others. In particular, within GR one can extend the notion of a rest frame to something called
 a "superrest frame" (see arXiv:2405.08868 or arXiv:2208.04356 for more details), which typically yields waveforms
 that are easier to understand/analyze. Effectively, mapping to this frame amounts to mapping the system to be
-in the center-of-mass frame, with no instananeous memory, and it's angular velocity in the z-direction. For example,
+in the center-of-mass frame, with no instananeous memory, and its angular velocity in the z-direction. For example,
 for a remnant black hole, this corresponds to making the coordinates match those of the usual Kerr metric and is
 therefore incredibly useful (and necessary) for fitting QNMs to NR waveforms.
 
@@ -325,13 +325,13 @@ It also can perform a number of other important post-processing steps, such as:
 * interpolate to a coarser time array, such as the time array of the worldtube. This is performed via the ``t_interpolate`` option.
 
 * map to the superrest BMS frame at some time. This is performed via the ``t_0_superrest`` and ``padding_time`` options.
-  E.g., to make reasonable-looking waveforms, one should map to the superrest frame at some time after junk;
+  E.g., to make reasonable-looking waveforms, one should map to the superrest frame at some time after junk radiation;
   ``t_0_superrest`` is the time at which to map to this frame, and ``padding_time`` is the window around ``t_0_superrest``
   that is used when computing this BMS transformation. ``t_0_superrest - padding_time`` should be after junk radiation.
-  ``padding_time`` should be a few hundred :math:`h=2\overline{\sigma}`, e.g., two orbital periods.
+  ``padding_time`` should be a few hundred :math:`h=2\overline{\sigma}` (where :math:`\sigma` is the shear), e.g., two orbital periods.
   The function used to do this is ``abd.map_to_superrest_frame`` (see the "BMS Frames" section).
 
-We recommend including all of these post-processing steps when processing a SpECTRE CCE output.
+We recommend including all of these post-processing steps when processing SpECTRE CCE output.
 
 To obtain the strain :math:`h` from the ``abd`` object, one can use the function ``scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM`` via ``h = MT_to_WM(2.0*abd.sigma.bar)``. 
 This is because the strain :math:`h` is related to the shear :math:`\sigma` via :math:`h=2\overline{\sigma}`.
@@ -341,6 +341,7 @@ Example usage of this function could be:
 .. code-block:: python
 
   >>> import scri
+  >>> import matplotlib.pyplot as plt
   >>> abd = scri.SpEC.file_io.create_abd_from_h5(
         file_name='CharacteristicExtractVolume_R0292.h5',
         file_format="spectrecce",
@@ -349,4 +350,8 @@ Example usage of this function could be:
         t_0_superrest=1600,
         padding_time=200
       )
-  >>> h = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(2.0*abd.sigma.bar)
+  >>> h = abd.h
+  >>> plt.plot(h.t, h.data[:, h.index(2,2)])
+  >>> plt.show()
+
+For more on the :meth:`scri.WaveformModes` class, i.e., what :math:`h` is in the above code, see https://github.com/moble/scri/blob/main/docs/tutorial_waveformmodes.rst.

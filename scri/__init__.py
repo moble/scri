@@ -159,6 +159,7 @@ from .asymptotic_bondi_data import AsymptoticBondiData
 
 from . import sample_waveforms, SpEC, LVC, utilities
 from .SpEC import rpxmb
+from .SpEC.file_io import create_abd_from_h5
 
 from .bms_transformations import LorentzTransformation, BMSTransformation
 

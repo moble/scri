@@ -424,16 +424,17 @@ def make_variable_dimensionless(WM, ch_mass=1.0):
 
     Parameters:
     -----------
-    WM: scri.WaveformModes
+    WM : scri.WaveformModes
         Waveform data.
-    ch_mass: float, optional
+    ch_mass : float, optional
         Total Christodoulou mass of the system.
         [Default: 1.0].
 
     """
 
     if WM.m_is_scaled_out:
-        raise ValueError("Data is already dimensionless!")
+        print("Data is already dimensionless!")
+        return
 
     if WM.dataType in [psi4, psi3, psi2, psi1, psi0]:
         unit_scale_factor = (ch_mass) ** (WM.dataType - 4)
@@ -450,7 +451,6 @@ def make_variable_dimensionless(WM, ch_mass=1.0):
 
 
 def create_abd_from_h5(
-    file_name,
     file_format,
     convention="SpEC",
     radius=None,
@@ -468,8 +468,6 @@ def create_abd_from_h5(
 
     Parameters
     ----------
-    file_name : str,
-        Path to .h5 file to be loaded.
     file_format : 'SXS', 'SpECTRECCE', 'RPDMB', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
@@ -484,12 +482,12 @@ def create_abd_from_h5(
         The time array of the worldtube is translated by this radius.
     ch_mass : float, optional
         Total Christodoulou mass of the system.
-    t_interpolate: float array, optional
+    t_interpolate : float array, optional
         Time array to interpolate to, e.g., the time array of the worldtube.
-    t_0_superrest: float, optional
+    t_0_superrest : float, optional
         When to map to the BMS superrest frame.
         Typically a few hundred M after the junk radiation is sufficient.
-    padding_time: float, optional
+    padding_time : float, optional
         Time window length around t_0_superrest to use when mapping to the superrest frame.
         Typically a few hundred M or a few orbits is sufficient.
 
@@ -510,6 +508,11 @@ def create_abd_from_h5(
 
     """
 
+    try:
+        file_name = kwargs.pop("file_name")
+    except:
+        raise ValueError('Need to specify "file_name" option!')
+
     # Use case insensitive parameters
     file_format = file_format.lower()
     convention = convention.lower()
@@ -519,13 +522,15 @@ def create_abd_from_h5(
     filenames = {}
     if file_format == "spectrecce":
         with h5py.File(file_name, "r") as f:
-            cce_key = [x for x in f.keys() if "Spectre" in x][0]
-            if cce_key == []:
-                cce_key = "Cce"
-                data_label_suffix = ".dat"
-            else:
-                radius = cce_key.split("R")[1][:4]
-                data_label_suffix = ""
+            for x in f.keys():
+                if "Spectre" in x:
+                    cce_key = x
+                    radius = cce_key.split("R")[1][:4]
+                    data_label_suffix = ""
+                    break
+                else:
+                    cce_key = "Cce"
+                    data_label_suffix = ".dat"
 
             cce = f[cce_key]
             time = cce[f"Strain{data_label_suffix}"][:, 0]
@@ -592,7 +597,7 @@ def create_abd_from_h5(
 
     for i in WMs:
         # Make waveforms dimensionless (if they already are, does nothing)
-        if not ch_mass is None:
+        if ch_mass is not None:
             make_variable_dimensionless(WMs[i], ch_mass)
 
         # Adjust time by worldtube radius
@@ -648,13 +653,13 @@ def create_abd_from_h5(
         abd.sigma = abd.sigma.bar
 
     # Interpolate to finer time array, if specified
-    if not t_interpolate is None:
+    if t_interpolate is not None:
         idx1 = np.argmin(abs(t_interpolate - abd.t[0])) + 1
         idx2 = np.argmin(abs(t_interpolate - abd.t[-1])) + 1 - 1
         abd = abd.interpolate(t_interpolate[idx1:idx2])
 
     # Map to superrest frame at some time over some window, if specified
-    if not (t_0_superrest is None or padding_time is None):
+    if t_0_superrest is not None and padding_time is not None:
         abd, BMS, _ = abd.map_to_superrest_frame(t_0=t_0_superrest, padding_time=padding_time)
 
     return abd
