@@ -3,6 +3,7 @@ from spherical_functions import LM_total_size
 from .. import WaveformModes
 from .. import ModesTimeSeries
 from .. import Inertial
+from .. import h as h_DataType
 
 
 class AsymptoticBondiData:
@@ -124,7 +125,7 @@ class AsymptoticBondiData:
             ell_min=abs(h_mts.s),
             ell_max=h_mts.ell_max,
             frameType=Inertial,
-            dataType=7,
+            dataType=h_DataType,
             r_is_scaled_out=True,
             m_is_scaled_out=True,
         )

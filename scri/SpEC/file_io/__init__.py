@@ -468,10 +468,10 @@ def create_abd_from_h5(
 
     Parameters
     ----------
-    file_format : 'SXS', 'SpECTRECCE', 'RPDMB', or 'RPXMB'
+    file_format : 'SXS', 'SpECTRECCE_v1', 'RPDMB', or 'RPXMB'
         The H5 files may be in the one of the following file formats:
           * 'SXS'  - Dimensionless extrapolated waveform files found in the SXS Catalog, also known as NRAR format.
-          * 'SpECTRECCE' - Asymptotic waveforms output by SpECTRE CCE.
+          * 'SpECTRECCE_v1' - Asymptotic waveforms output by SpECTRE CCE v1.
           * 'RPDMB' - Dimensionless waveforms compressed using the rotating_paired_diff_multishuffle_bzip2 format.
           * 'RPXMB' - Dimensionless waveforms compressed using the rotating_paired_xor_multishuffle_bzip2 format.
     convention : 'SpEC' or 'Moreschi-Boyle'
@@ -508,11 +508,6 @@ def create_abd_from_h5(
 
     """
 
-    try:
-        file_name = kwargs.pop("file_name")
-    except:
-        raise ValueError('Need to specify "file_name" option!')
-
     # Use case insensitive parameters
     file_format = file_format.lower()
     convention = convention.lower()
@@ -520,7 +515,12 @@ def create_abd_from_h5(
     # Load waveform data from H5 files into WaveformModes objects
     WMs = {}
     filenames = {}
-    if file_format == "spectrecce":
+    if file_format == "spectrecce_v1":
+        try:
+            file_name = kwargs.pop("file_name")
+        except:
+            raise ValueError('Need to specify "file_name" option!')
+
         with h5py.File(file_name, "r") as f:
             for x in f.keys():
                 if "Spectre" in x:
@@ -575,7 +575,7 @@ def create_abd_from_h5(
                 else:
                     raise ValueError(
                         f"File format '{file_format}' not recognized. "
-                        "Must be 'SXS', 'CCE', 'SpECTRECCE', 'RPDMB', or 'RPXMB'."
+                        "Must be 'SXS', 'CCE', 'SpECTRECCE_v1', 'RPDMB', or 'RPXMB'."
                     )
 
     if kwargs:
@@ -601,7 +601,7 @@ def create_abd_from_h5(
             make_variable_dimensionless(WMs[i], ch_mass)
 
         # Adjust time by worldtube radius
-        if file_format == "spectrecce":
+        if file_format == "spectrecce_v1":
             WMs[i].t -= float(radius)
 
     # Create an instance of AsymptoticBondiData
