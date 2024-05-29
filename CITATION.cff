@@ -26,7 +26,7 @@ authors:
   given-names: "Keefe"
   orcid: "https://orcid.org/0000-0003-0276-3856"
 title: "scri"
-version: 2022.8.11
+version: 2022.8.12
 doi: 10.5281/zenodo.4041971
-date-released: 2024-04-20
+date-released: 2024-05-28
 url: "https://github.com/moble/scri"
