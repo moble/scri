@@ -604,10 +604,14 @@ def create_abd_from_h5(
         if file_format == "spectrecce_v1":
             WMs[i].t -= float(radius)
 
+        indices = index_is_monotonic(WMs[i].t)
+        WMs[i].t = WMs[i].t[indices]
+        WMs[i].data = WMs[i].data[indices]
+            
     # Create an instance of AsymptoticBondiData
     abd = AsymptoticBondiData(
-        time=WM_ref.t,
-        ell_max=WM_ref.ell_max,
+        time=WMs[list(WMs.keys())[0]].t,
+        ell_max=WMs[list(WMs.keys())[0]].ell_max,
         multiplication_truncator=max,
     )
 
