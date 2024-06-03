@@ -308,9 +308,9 @@ In particular, it takes as input:
 
 * ``padding_time``, the time window about ``t_0`` to be used when finding the BMS transformation to the superrest frame.
 
-========================================================
-Creating an AsymptoticBondiData Object from a CCE Output
-========================================================
+============================================
+Loading CCE data and adjusting the BMS frame
+============================================
 
 For processing the output of SpECTRE CCE, one may use the function ``scri.SpEC.file_io.create_abd_from_h5``.
 This function takes as input the path to SpECTRE CCE's output file (via the option ``file_name``) and
@@ -342,11 +342,11 @@ Example usage of this function could be:
 
   >>> import scri
   >>> import matplotlib.pyplot as plt
-  >>> abd = scri.SpEC.file_io.create_abd_from_h5(
-        file_name='CharacteristicExtractVolume_R0292.h5',
-        file_format="spectrecce",
-        ch_mass=1.0,
-        t_interpolate=t_worldtube,
+  >>> abd = scri.create_abd_from_h5(
+        file_name="CharacteristicExtractVolume_R0292.h5",
+        file_format="spectrecce_v1",
+        # ch_mass=1.0,  # Optional; helpful if known
+        # t_interpolate=t_worldtube,  # Optional; for some specified values of `t_worldtube`
         t_0_superrest=1600,
         padding_time=200
       )
