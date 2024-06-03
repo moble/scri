@@ -610,8 +610,8 @@ def create_abd_from_h5(
             
     # Create an instance of AsymptoticBondiData
     abd = AsymptoticBondiData(
-        time=WMs[list(WMs.keys())[0]].t,
-        ell_max=WMs[list(WMs.keys())[0]].ell_max,
+        time=WM_ref.t,
+        ell_max=WM_ref.ell_max,
         multiplication_truncator=max,
     )
 
