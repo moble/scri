@@ -47,17 +47,23 @@ or
 ```sh
 python -m pip install scri
 ```
-If the latter command complains about permissions, you're probably using your system's version of `python`, which you should avoid at all costs; [use conda/mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html) instead.  
+If the latter command complains about permissions, you're probably using your
+operating system's version of `python`, which can cause serious conflicts with
+essential OS functions.  To avoid these issues,
+[install conda/mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).
+This will create a separate copy of python inside your home directory (avoiding
+issues with permissions) which you can update independently of your OS.
 
 Then, in python, you can check to make sure installation worked with
 ```python
 import scri
 w = scri.WaveformModes()
 ```
-Here, `w` is an object to contain time and waveform data, as well as various
-related pieces of information -- though it is trivial in this case, because we
-haven't given it any data.  For more information, see the docstrings of `scri`,
-`scri.WaveformModes`, etc.
+Note that scri can take a few seconds to import the first time as it compiles
+some code automatically.  Here, `w` is an object to contain time and waveform
+data, as well as various related pieces of information -- though it is trivial
+in this case, because we haven't given it any data.  For more information, see
+the docstrings of `scri`, `scri.WaveformModes`, etc.
 
 
 ## Documentation
@@ -67,24 +73,9 @@ Tutorials and automatically generated API documentation are available on [Read t
 
 ## Acknowledgments
 
-This code is, of course, hosted on github; because it is an open-source
-project, the hosting is free, and all the wonderful features of github are
-available, including free wiki space and web page hosting, pull requests, a
-nice interface to the git logs, etc.
-
-Every change in this code is
-[auomatically tested](https://travis-ci.org/moble/scri) on
-[Travis-CI](https://travis-ci.org/).  This is a free service (for open-source
-projects like this one), which integrates beautifully with github, detecting
-each commit and automatically re-running the tests.  The code is downloaded and
-installed fresh each time, and then tested, on both versions of python (2 and
-3).  This ensures that no change I make to the code breaks either installation
-or any of the features that I have written tests for.
-
-Every change to this code is also recompiled automatically, bundled into a
+Every change to this code is recompiled automatically, bundled into a
 `conda` package, and made available for download from
-[anaconda.org](https://anaconda.org/moble/scri).  Again, because this is an
-open-source project all those nice features are free.
+[anaconda.org](https://anaconda.org/moble/scri).
 
 The work of creating this code was supported in part by the Sherman Fairchild
 Foundation and by NSF Grants No. PHY-1306125 and AST-1333129.
