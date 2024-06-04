@@ -372,7 +372,7 @@ def multishuffle(shuffle_widths, forward=True):
                     b_array_bit += shuffle_width
             return b
 
-        return nb.jit(shuffle)
+        return nb.njit(shuffle)
 
     else:
         # This function is almost the same as above, except for:
@@ -404,4 +404,4 @@ def multishuffle(shuffle_widths, forward=True):
                     b_array_bit += shuffle_width
             return a
 
-        return nb.jit(unshuffle)
+        return nb.njit(unshuffle)
