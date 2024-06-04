@@ -159,6 +159,7 @@ def test_hyper_translation():
 
 
 def test_supertranslation_inverses():
+    np.random.seed(1234)
     w1 = samples.random_waveform_proportional_to_time(rotating=False)
     ell_max = 4
     for ellpp, mpp in sf.LM_range(0, ell_max):
