@@ -543,7 +543,7 @@ def create_abd_from_h5(
                 else:
                     dataType = DataNames.index("h")
                 WMs[data_label] = WaveformModes(
-                    t=time,
+                    t=time.copy(),
                     data=cce[f"{data_label}{data_label_suffix}"][indices, 1:].view(np.complex128),
                     ell_min=0,
                     ell_max=ell_max,
