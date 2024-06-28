@@ -340,7 +340,7 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
     return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
 def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
-    from scipy.integrate import cumtrapz as integrate
+    from scipy.integrate import cumulative_trapezoid as integrate
     from numpy import log, sqrt
     import scri
 
