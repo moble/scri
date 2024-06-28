@@ -18,8 +18,8 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Astronomy"
 ]
 dependencies = [
-  "numpy >=1.20",
-  "scipy >=1.0",
+  "numpy >=1.20, <2",
+  "scipy >=1.12",
   "numba >=0.55",
   "h5py >=3",
   "numpy-quaternion >=2022.4",
