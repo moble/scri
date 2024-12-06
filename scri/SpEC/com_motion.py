@@ -193,7 +193,11 @@ def estimate_avg_com_motion(
     """
     import os.path
     import numpy as np
-    from scipy.integrate import simps
+    # 'simps' changed to 'simpson' in scipy 1.14.0
+    try:
+        from scipy.integrate import simpson
+    except:
+        from scipy.integrate import simps as simpson
 
     t, com = com_motion(path_to_horizons_h5, path_to_matter_h5, m_A, m_B)
 
@@ -203,10 +207,10 @@ def estimate_avg_com_motion(
     i_i, i_f = np.argmin(np.abs(t - t_i)), np.argmin(np.abs(t - t_f))
 
     # Find the optimum analytically
-    CoM_0 = simps(com[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
-    CoM_1 = simps((t[:, np.newaxis] * com)[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
+    CoM_0 = simpson(com[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
+    CoM_1 = simpson((t[:, np.newaxis] * com)[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
     if fit_acceleration:
-        CoM_2 = simps((t[:, np.newaxis] ** 2 * com)[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
+        CoM_2 = simpson((t[:, np.newaxis] ** 2 * com)[i_i : i_f + 1], t[i_i : i_f + 1], axis=0)
         x_i = (
             3
             * (
