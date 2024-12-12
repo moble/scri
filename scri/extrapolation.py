@@ -169,7 +169,7 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
         if CompiledModeRegex.search(dataset):
             if not h5file[WaveformName + "/" + dataset].shape == (ExpectedNTimes, 3):
                 Valid = False
-                (
+                print(
                     "{}:{}/{}\n\tGot shape {}; expected ({}, 3)".format(
                         filename,
                         WaveformName,
