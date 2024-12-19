@@ -214,32 +214,32 @@ class WaveformGrid(WaveformBase):
         if assertions:
             from .waveform_base import test_with_assertions
 
-            test = test_with_assertions
+            test_func = test_with_assertions
         else:
             from .waveform_base import test_without_assertions
 
-            test = test_without_assertions
+            test_func = test_without_assertions
 
-        test(
+        test_func(
             errors,
             isinstance(self.__n_theta, numbers.Integral),
             "isinstance(self.__n_theta, numbers.Integral)  # type(self.__n_theta)={}".format(type(self.__n_theta)),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.__n_phi, numbers.Integral),
             "isinstance(self.__n_phi, numbers.Integral)  # type(self.__n_phi)={}".format(type(self.__n_phi)),
         )
-        test(errors, self.__n_theta >= 0, f"self.__n_theta>=0 # {self.__n_theta}")
-        test(errors, self.__n_phi >= 0, f"self.__n_phi>=0 # {self.__n_phi}")
+        test_func(errors, self.__n_theta >= 0, f"self.__n_theta>=0 # {self.__n_theta}")
+        test_func(errors, self.__n_phi >= 0, f"self.__n_phi>=0 # {self.__n_phi}")
 
-        test(
+        test_func(
             errors,
             self.data.dtype == np.dtype(complex),
             f"self.data.dtype == np.dtype(complex)  # self.data.dtype={self.data.dtype}",
         )
-        test(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
-        test(
+        test_func(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
+        test_func(
             errors,
             self.data.shape[1] == self.__n_theta * self.__n_phi,
             "self.data.shape[1] == self.__n_theta * self.__n_phi  "
