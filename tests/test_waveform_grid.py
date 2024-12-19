@@ -177,38 +177,45 @@ def test_supertranslation_inverses():
         w2 = w2.transform(supertranslation=supertranslation)
         w2 = w2.transform(supertranslation=-supertranslation)
 
-        i1A = np.argmin(abs(w1.t - (w1.t[0] + 3 * max_displacement)))
-        i1B = np.argmin(abs(w1.t - (w1.t[-1] - 3 * max_displacement)))
-        i2A = np.argmin(abs(w2.t - w1.t[i1A]))
-        i2B = np.argmin(abs(w2.t - w1.t[i1B]))
-        try:
-            assert np.allclose(w1.t[i1A : i1B + 1], w2.t[i2A : i2B + 1], rtol=0.0, atol=1e-15), (
-                w1.t[i1A],
-                w2.t[i2A],
-                w1.t[i1B],
-                w2.t[i2B],
-                w1.t[i1A : i1B + 1].shape,
-                w2.t[i2A : i2B + 1].shape,
-            )
-        except ValueError:
-            print("Indices:\n\t", i1A, i1B, i2A, i2B)
-            print("Times:\n\t", w1.t[i1A], w1.t[i1B], w2.t[i2A], w2.t[i2B])
-            raise
-        data1 = w1.data[i1A : i1B + 1]
-        data2 = w2.data[i2A : i2B + 1]
-        try:
-            assert np.allclose(data1, data2, rtol=5e-10, atol=5e-14), [
-                abs(data1 - data2).max(),
-                data1.ravel()[np.argmax(abs(data1 - data2))],
-                data2.ravel()[np.argmax(abs(data1 - data2))],
-                np.unravel_index(np.argmax(abs(data1 - data2)), data1.shape),
-            ]
-            # list(sf.LM_range(0, ell_max)[np.unravel_index(np.argmax(abs(data1-data2)),
-            #                                               data1.shape)[1]])])
-        except:
-            print("Indices:\n\t", i1A, i1B, i2A, i2B)
-            print("Times:\n\t", w1.t[i1A], w1.t[i1B], w2.t[i2A], w2.t[i2B])
-            raise
+        # Interpolate the original onto the new time set, because we've lost some time steps
+        w1 = w1.interpolate(w2.t)
+
+        # Check that everything agrees
+        # print(abs(w1.data-w2.data).max())
+        assert w1._allclose(w2, rtol=5e-10, atol=5e-14)
+
+        # i1A = np.argmin(abs(w1.t - (w1.t[0] + 3 * max_displacement)))
+        # i1B = np.argmin(abs(w1.t - (w1.t[-1] - 3 * max_displacement)))
+        # i2A = np.argmin(abs(w2.t - w1.t[i1A]))
+        # i2B = np.argmin(abs(w2.t - w1.t[i1B]))
+        # try:
+        #     assert np.allclose(w1.t[i1A : i1B + 1], w2.t[i2A : i2B + 1], rtol=0.0, atol=1e-15), (
+        #         f"{w1.t[i1A]=}",
+        #         f"{w2.t[i2A]=}",
+        #         f"{w1.t[i1B]=}",
+        #         f"{w2.t[i2B]=}",
+        #         f"{w1.t[i1A : i1B + 1].shape=}",
+        #         f"{w2.t[i2A : i2B + 1].shape=}",
+        #     )
+        # except ValueError:
+        #     print("Indices:\n\t", i1A, i1B, i2A, i2B)
+        #     print("Times:\n\t", w1.t[i1A], w1.t[i1B], w2.t[i2A], w2.t[i2B])
+        #     raise
+        # data1 = w1.data[i1A : i1B + 1]
+        # data2 = w2.data[i2A : i2B + 1]
+        # try:
+        #     assert np.allclose(data1, data2, rtol=5e-10, atol=5e-14), [
+        #         abs(data1 - data2).max(),
+        #         data1.ravel()[np.argmax(abs(data1 - data2))],
+        #         data2.ravel()[np.argmax(abs(data1 - data2))],
+        #         np.unravel_index(np.argmax(abs(data1 - data2)), data1.shape),
+        #     ]
+        #     # list(sf.LM_range(0, ell_max)[np.unravel_index(np.argmax(abs(data1-data2)),
+        #     #                                               data1.shape)[1]])])
+        # except:
+        #     print("Indices:\n\t", i1A, i1B, i2A, i2B)
+        #     print("Times:\n\t", w1.t[i1A], w1.t[i1B], w2.t[i2A], w2.t[i2B])
+        #     raise
 
 
 def test_boost_inverses():
