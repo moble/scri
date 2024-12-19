@@ -53,7 +53,7 @@ def test0():
 
 
 def test1():
-    """Add ℓ=0 term to ψ₂ intial value
+    """Add ℓ=0 term to ψ₂ initial value
 
     Ensures that first terms of ψ̇₁u = ðψ₂ + 2σψ₃ and ψ̇₀ = ðψ₁ + 3σψ₂ don't get excited
 
@@ -83,7 +83,7 @@ def test1():
 
 
 def test2():
-    """Add ℓ=1 term to ψ₂ intial value
+    """Add ℓ=1 term to ψ₂ initial value
 
     Checks first term of ψ̇₁ = ðψ₂ + 2σψ₃
 
@@ -113,7 +113,7 @@ def test2():
 
 
 def test3():
-    """Add ℓ=2 term to ψ₂ intial value
+    """Add ℓ=2 term to ψ₂ initial value
 
     Checks first term of ψ̇₀ = ðψ₁ + 3σψ₂
 
