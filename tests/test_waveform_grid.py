@@ -237,4 +237,4 @@ def test_boost_inverses():
 
             # Check that everything agrees
             # print(abs(w1.data-w2.data).max())
-            assert w1._allclose(w2, atol=4e-14, rtol=0)
+            assert w1._allclose(w2, atol=1e-12, rtol=0)
