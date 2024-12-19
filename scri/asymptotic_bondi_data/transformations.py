@@ -21,7 +21,7 @@ def _process_transformation_kwargs(input_ell_max, **kwargs):
             )
         # Make sure the array has size at least 4, by padding with zeros
         if supertranslation.size <= 4:
-            supertranslation = np.lib.pad(
+            supertranslation = np.pad(
                 supertranslation, (0, 4 - supertranslation.size), "constant", constant_values=(0.0,)
             )
         # Check that the shape is a possible array of scalar modes with complete (ell,m) data

@@ -420,7 +420,8 @@ def angular_velocity(W, include_frame_velocity=False):
     ll = W.LLMatrix()
 
     # Solve <Ldt> = - <LL> . omega
-    omega = -np.linalg.solve(ll, l)
+    # This newaxis nonsense deals with numpy 2.0 idiocy
+    omega = -np.linalg.solve(ll, l[..., np.newaxis])[..., 0]
 
     if include_frame_velocity and len(W.frame) == W.n_times:
         from quaternion import derivative, as_quat_array, as_float_array

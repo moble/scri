@@ -169,7 +169,7 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
         if CompiledModeRegex.search(dataset):
             if not h5file[WaveformName + "/" + dataset].shape == (ExpectedNTimes, 3):
                 Valid = False
-                (
+                print(
                     "{}:{}/{}\n\tGot shape {}; expected ({}, 3)".format(
                         filename,
                         WaveformName,
@@ -340,7 +340,7 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
     return waveform,T,Indices,Radii,AverageLapse,CoordRadius,InitialAdmEnergy
 
 def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
-    from scipy.integrate import cumtrapz as integrate
+    from scipy.integrate import cumulative_trapezoid as integrate
     from numpy import log, sqrt
     import scri
 
