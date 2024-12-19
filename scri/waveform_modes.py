@@ -277,26 +277,26 @@ class WaveformModes(WaveformBase):
         if assertions:
             from .waveform_base import test_with_assertions
 
-            test = test_with_assertions
+            test_func = test_with_assertions
         else:
             from .waveform_base import test_without_assertions
 
-            test = test_without_assertions
+            test_func = test_without_assertions
 
         # We first need to check that the ell values make sense,
         # because we'll use these below
-        test(
+        test_func(
             errors,
             isinstance(self.__ell_min, numbers.Integral),
             "isinstance(self.__ell_min, numbers.Integral) # type(self.__ell_min)={}".format(type(self.__ell_min)),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.__ell_max, numbers.Integral),
             "isinstance(self.__ell_max, numbers.Integral) # type(self.__ell_max)={}".format(type(self.__ell_max)),
         )
-        test(errors, self.__ell_min >= 0, f"self.__ell_min>=0 # {self.__ell_min}")
-        test(
+        test_func(errors, self.__ell_min >= 0, f"self.__ell_min>=0 # {self.__ell_min}")
+        test_func(
             errors,
             self.__ell_max >= self.__ell_min - 1,
             "self.__ell_max>=self.__ell_min-1 # self.__ell_max={}; self.__ell_min-1={}".format(
@@ -308,19 +308,19 @@ class WaveformModes(WaveformBase):
             alterations += [
                 "{}._{}__LM = sf.LM_range({}, {})".format(self, type(self).__name__, self.ell_min, self.ell_max)
             ]
-        test(
+        test_func(
             errors,
             np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max)),
             "np.array_equal(self.__LM, sf.LM_range(self.ell_min, self.ell_max))",
         )
 
-        test(
+        test_func(
             errors,
             self.data.dtype == np.dtype(complex),
             f"self.data.dtype == np.dtype(complex) # self.data.dtype={self.data.dtype}",
         )
-        test(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
-        test(
+        test_func(errors, self.data.ndim >= 2, f"self.data.ndim >= 2 # self.data.ndim={self.data.ndim}")
+        test_func(
             errors,
             self.data.shape[1] == self.__LM.shape[0],
             "self.data.shape[1]==self.__LM.shape[0] "

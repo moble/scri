@@ -292,17 +292,17 @@ class WaveformBase(_object):
         alterations = []
 
         if assertions:
-            test = test_with_assertions
+            test_func = test_with_assertions
         else:
-            test = test_without_assertions
+            test_func = test_without_assertions
 
         # Ensure that the various data are correct and compatible
-        test(
+        test_func(
             errors,
             isinstance(self.t, np.ndarray),
             "isinstance(self.t, np.ndarray) # type(self.t)={}".format(type(self.t)),
         )
-        test(
+        test_func(
             errors,
             self.t.dtype == np.dtype(float),
             f"self.t.dtype == np.dtype(float) # self.t.dtype={self.t.dtype}",
@@ -310,12 +310,12 @@ class WaveformBase(_object):
         if alter and self.t.ndim == 2 and self.t.shape[1] == 1:
             self.t = self.t[:, 0]
             alterations += ["{0}.t = {0}.t[:,0]".format(self)]
-        test(
+        test_func(
             errors,
             not self.t.size or self.t.ndim == 1,
             f"not self.t.size or self.t.ndim==1 # self.t.size={self.t.size}; self.t.ndim={self.t.ndim}",
         )
-        test(
+        test_func(
             errors,
             self.t.size <= 1 or np.all(np.diff(self.t) > 0.0),
             "self.t.size<=1 or np.all(np.diff(self.t)>0.0) "
@@ -323,12 +323,12 @@ class WaveformBase(_object):
                 self.t.size, (max(np.diff(self.t)) if self.t.size > 1 else np.nan)
             ),
         )
-        test(errors, np.all(np.isfinite(self.t)), "np.all(np.isfinite(self.t))")
+        test_func(errors, np.all(np.isfinite(self.t)), "np.all(np.isfinite(self.t))")
 
         if alter and self.frame is None:
             self.frame = np.empty((0,), dtype=np.quaternion)
             alterations += [f"{self}.frame = np.empty((0,), dtype=np.quaternion)"]
-        test(
+        test_func(
             errors,
             isinstance(self.frame, np.ndarray),
             "isinstance(self.frame, np.ndarray) # type(self.frame)={}".format(type(self.frame)),
@@ -339,32 +339,32 @@ class WaveformBase(_object):
                 alterations += ["{0}.frame = quaternion.as_quat_array({0}.frame)".format(self)]
             except (AssertionError, ValueError):
                 pass
-        test(
+        test_func(
             errors,
             self.frame.dtype == np.dtype(np.quaternion),
             f"self.frame.dtype == np.dtype(np.quaternion) # self.frame.dtype={self.frame.dtype}",
         )
-        test(
+        test_func(
             errors,
             self.frame.size <= 1 or self.frame.size == self.t.size,
             "self.frame.size<=1 or self.frame.size==self.t.size "
             "# self.frame.size={}; self.t.size={}".format(self.frame.size, self.t.size),
         )
-        test(errors, np.all(np.isfinite(self.frame)), "np.all(np.isfinite(self.frame))")
+        test_func(errors, np.all(np.isfinite(self.frame)), "np.all(np.isfinite(self.frame))")
 
-        test(
+        test_func(
             errors,
             isinstance(self.data, np.ndarray),
             "isinstance(self.data, np.ndarray) # type(self.data)={}".format(type(self.data)),
         )
-        test(errors, self.data.ndim >= 1, f"self.data.ndim >= 1 # self.data.ndim={self.data.ndim}")
-        test(
+        test_func(errors, self.data.ndim >= 1, f"self.data.ndim >= 1 # self.data.ndim={self.data.ndim}")
+        test_func(
             errors,
             self.data.shape[0] == self.t.shape[0],
             "self.data.shape[0]==self.t.shape[0] "
             "# self.data.shape[0]={}; self.t.shape[0]={}".format(self.data.shape[0], self.t.shape[0]),
         )
-        test(errors, np.all(np.isfinite(self.data)), "np.all(np.isfinite(self.data))")
+        test_func(errors, np.all(np.isfinite(self.data)), "np.all(np.isfinite(self.data))")
 
         # Information about this object
         if alter and not self.history:
@@ -373,39 +373,39 @@ class WaveformBase(_object):
         if alter and isinstance(self.history, str):
             self.history = self.history.split("\n")
             alterations += ["{0}.history = {0}.history.split('\n')".format(self)]
-        test(
+        test_func(
             errors,
             isinstance(self.history, list),
             "isinstance(self.history, list) # type(self.history)={}".format(type(self.history)),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.history[0], str),
             "isinstance(self.history[0], str) # type(self.history[0])={}".format(type(self.history[0])),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.frameType, numbers.Integral),
             "isinstance(self.frameType, numbers.Integral) # type(self.frameType)={}".format(type(self.frameType)),
         )
-        test(errors, self.frameType in FrameType, f"self.frameType in FrameType # self.frameType={self.frameType}")
-        test(
+        test_func(errors, self.frameType in FrameType, f"self.frameType in FrameType # self.frameType={self.frameType}")
+        test_func(
             errors,
             isinstance(self.dataType, numbers.Integral),
             "isinstance(self.dataType, numbers.Integral) # type(self.dataType)={}".format(type(self.dataType)),
         )
-        test(errors, self.dataType in DataType, f"self.dataType in DataType # self.dataType={self.dataType}")
-        test(
+        test_func(errors, self.dataType in DataType, f"self.dataType in DataType # self.dataType={self.dataType}")
+        test_func(
             errors,
             isinstance(self.r_is_scaled_out, bool),
             "isinstance(self.r_is_scaled_out, bool) # type(self.r_is_scaled_out)={}".format(type(self.r_is_scaled_out)),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.m_is_scaled_out, bool),
             "isinstance(self.m_is_scaled_out, bool) # type(self.m_is_scaled_out)={}".format(type(self.m_is_scaled_out)),
         )
-        test(
+        test_func(
             errors,
             isinstance(self.num, numbers.Integral),
             "isinstance(self.num, numbers.Integral) # type(self.num)={}".format(type(self.num)),
