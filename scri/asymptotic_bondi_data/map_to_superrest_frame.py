@@ -415,8 +415,13 @@ def rotation_from_spin_charge(chi, t):
         Time array corresponding to the size of the spin vector.
     """
     chi_f = quaternion.quaternion(*chi[np.argmin(abs(t))]).normalized()
-    q = (1 - chi_f * quaternion.z).normalized().components
-    return scri.bms_transformations.BMSTransformation(frame_rotation=q)
+    q = (1 - chi_f * quaternion.z).normalized()
+
+    x_rotated = quaternion.as_vector_part(q.inverse() * quaternion.x * q)
+    phase = np.angle(x_rotated[0] + 1j*x_rotated[1])
+    q = q * quaternion.from_rotation_vector(phase * np.array([0, 0, 1]))
+    
+    return scri.bms_transformations.BMSTransformation(frame_rotation=q.components)
 
 
 def rotation_from_vectors(vector, target_vector, t=None):
@@ -683,7 +688,6 @@ def map_to_superrest_frame(
     order=["supertranslation", "rotation", "CoM_transformation"],
     ell_max=None,
     alpha_ell_max=None,
-    fix_time_phase_freedom=False,
     modes=None,
     print_conv=False,
 ):
@@ -739,15 +743,13 @@ def map_to_superrest_frame(
     order : list, optional
         Order in which to solve for the BMS transformations.
         Default is ["rotation", "CoM_transformation", "supertranslation"].
+        If "time_phase" is included, then a time/phase optimization is performed.
     ell_max : int, optional
         Maximum ell to use for SWSH/Grid transformations.
         Default is self.ell_max.
     alpha_ell_max : int, optional
         Maximum ell of the supertranslation to use.
         Default is self.ell_max.
-    fix_time_phase_freedom : bool, optional
-        Whether or not to fix the time and phase freedom using a 2d minimization scheme.
-        Default is True.
     modes : list, optional
         List of modes to include when performing the 2d alignment.
         Default is every mode.
@@ -764,6 +766,9 @@ def map_to_superrest_frame(
 
     """
     abd = self.copy()
+
+    if order == []:
+        return abd, scri.bms_transformations.BMSTransformation(), None
 
     if target_strain_input is not None:
         target_strain = target_strain_input.copy()
@@ -874,7 +879,6 @@ def map_to_superrest_frame(
             )
 
         if target_strain is not None and order[-1] == "time_phase":
-            # rel_err is obtained from align2d, so do nothing
             pass
         else:
             rel_err = rel_err_for_abd_in_superrest(abd_interp_prime, target_PsiM, target_strain)
