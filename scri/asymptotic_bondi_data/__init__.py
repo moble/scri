@@ -175,6 +175,38 @@ class AsymptoticBondiData:
         self._psi0[:] = psi0prm
         return self.psi0
 
+    #Slicing
+    def __getitem__(self, key):
+        """
+        Extract time slices of the asymptotic Bondi data efficiently.
+        """
+        # If key is a valid time slice or index, extract the corresponding
+        # sliced data
+        
+        if not isinstance(key, (slice, int)):
+            raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")                 
+
+        import copy
+        import functools    
+    
+        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self.sigma._metadata['multiplication_truncator'])    
+        
+        new_abd = copy.copy(self)
+        new_abd._raw_data = self._raw_data[:, key, :]
+        new_abd._time = self._time[key]
+
+        new_abd._psi0 = ModesTS(new_abd._raw_data[0], new_abd._time, spin_weight=2)
+        new_abd._psi1 = ModesTS(new_abd._raw_data[1], new_abd._time, spin_weight=1)
+        new_abd._psi2 = ModesTS(new_abd._raw_data[2], new_abd._time, spin_weight=0)
+        new_abd._psi3 = ModesTS(new_abd._raw_data[3], new_abd._time, spin_weight=-1)
+        new_abd._psi4 = ModesTS(new_abd._raw_data[4], new_abd._time, spin_weight=-2)
+        new_abd._sigma = ModesTS(new_abd._raw_data[5], new_abd._time, spin_weight=2)
+
+        if self.frame.shape[0] == self.n_times:
+            new_abd.frame = self.frame[key]
+        return new_abd          
+
+
     def copy(self):
         import copy
 
