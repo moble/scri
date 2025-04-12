@@ -13,7 +13,7 @@ import quaternion
 from quaternion.calculus import indefinite_integral as integrate
 
 from scipy.interpolate import CubicSpline
-
+from scipy.optimize import least_squares
 
 def MT_to_WM(h_mts, sxs_version=False, dataType=scri.h):
     """Convert a ModesTimeSeries object to a scri or a sxs WaveformModes object.
@@ -319,7 +319,7 @@ def supertranslation_to_map_to_superrest_frame(
     return scri.bms_transformations.BMSTransformation(supertranslation=supertranslation), rel_errs
 
 
-def transformation_from_CoM_charge(G, t):
+def transformation_from_CoM_charge(G, t, Gfun=None, Gparams0=None, Gargs=None):
     """Obtain the space translation and boost velocity from the center-of-mass charge.
 
     This is defined in Eq (18) of https://journals.aps.org/prd/abstract/10.1103/PhysRevD.104.024051.
@@ -330,19 +330,47 @@ def transformation_from_CoM_charge(G, t):
         Center-of-mass charge.
     t: ndarray, real
         Time array corresponding to the size of the center-of-mass charge.
+    Gfun: callable, optional
+        Analytical function used for fitting the center-of-mass charge.
+        Default is None i.e., a linear fit.
+    Gparams0: array_like, optional
+        Initial guess for the fitting process. Default is None.
+    Gargs: tuple, optional
+        Additional arguments passed to `Gfun`. Default is None.
+
+    For documentation on Gfun, refer to the documentation of com_transformation_to_map_to_superrest_frame.
     """
-    polynomial_fit = np.polyfit(t, G, deg=1)
+
+    if Gfun is None and Gargs is None:
+        Gfun = lambda Gparams, time, *args: - time[:, None] @ Gparams[:3][None, :] + Gparams[3:6][None, :]
+        Gargs = ()
+
+    Gparams0 = np.zeros(6) if Gparams0 is None else Gparams0
+    Gparams0 = np.asarray(Gparams0)
+
+    if not (len(np.shape(Gparams0))==1 and np.shape(Gparams0)[0] >= 6):
+        raise ValueError("""The shape of Gparams0 doesn't match with the
+        expected input for Gfun. Refer to the documentation of
+        com_transformation_to_map_to_superrest_frame for the signature of Gfun.
+        """)
+
+    residual = lambda Gparams, time, *args: (G - Gfun(Gparams, time, *args)).ravel()
+
+    fit = least_squares(residual, Gparams0, args=(t, *Gargs), method='trf')
 
     CoM_transformation = scri.bms_transformations.BMSTransformation(
-        supertranslation=-np.insert(sf.vector_as_ell_1_modes(polynomial_fit[1]), 0, 0),
-        boost_velocity=polynomial_fit[0],
+        supertranslation=-np.insert(sf.vector_as_ell_1_modes(fit.x[3:6]), 0, 0),
+        boost_velocity=-fit.x[0:3],
         order=["supertranslation", "boost_velocity", "frame_rotation"],
     )
-
     return CoM_transformation
 
 
-def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=1e-12, print_conv=False):
+def com_transformation_to_map_to_superrest_frame(
+    abd, 
+    N_itr_max=10, rel_err_tol=1e-12, 
+    print_conv=False, 
+    Gfun=None, Gparams0=None, Gargsfun=None):
     """Determine the space translation and boost needed to map an abd object to the superrest frame.
 
     These are found through an iterative solve; e.g., compute the transformations needed to minimize
@@ -357,9 +385,40 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
     N_itr_max: int, defaults to 10
         Maximum number of iterations to perform. Default is 10.
     rel_err_tol: float, defaults to 1e-12
-        Minimum relativie error tolerance between transformation iterations. Default is 1e-12.
+        Minimum relative error tolerance between transformation iterations. Default is 1e-12.
     print_conv: bool, defaults to False
         Whether or not to print the termination criterion. Default is False.
+    Gfun: callable, optional
+        Function used for fitting the center-of-mass charge,
+        described further below.
+        Default is None which implies a linear fit.
+    Gparams0: array_like, optional
+        Initial guess for the fitting process. Default is None.
+    Gargsfun: tuple of callables, optional. Default is None.
+        These are used to determine the Gargs parameters to
+        transformation_from_CoM_charge. They are called as
+            Gargs = [func(abd) for func in Gargsfun] if Gargsfun else None
+
+    Gfun is used for producing a model timeseries of CoM charge (the G vector)
+    for the purpose of fitting translation and boost parameters. The signature
+    of Gfun should be like:
+        def Gfun(Gparams, time, *Gargs):
+            ... # produce a model timeseries of G
+            return G
+    Here Gparams[0:3] should be the components of boost_velocity vector,
+    Gparams[3:6] should be the components of the spatial translation vector, and
+    there can be any extra fit parameters desired (but their fitted values are
+    ignored). The shape of G that is returned by Gfun should be (n,3) where n is
+    the length of the time argument. The Gargs arguments are determined from the
+    Gargsfun tuple above from the whole abd object (for example, so that Gfun
+    can have access to a timeseries of angular velocity or Bondi mass aspect).
+
+    Returns
+    -------
+    best_CoM_transformation: BMSTransformation
+        Translations and boost velocity to map to the CoM frame.
+    rel_errs: list[float]
+        List of relative errors obtained at each iteration.
     """
     CoM_transformation = scri.bms_transformations.BMSTransformation()
     best_CoM_transformation = scri.bms_transformations.BMSTransformation()
@@ -371,8 +430,9 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
         if itr == 0:
             abd_prime = abd.copy()
             G_prime = abd_prime.bondi_CoM_charge() / abd_prime.bondi_four_momentum()[:, 0, None]
+            Gargs = [func(abd_prime) for func in Gargsfun] if Gargsfun else None
 
-        new_CoM_transformation = transformation_from_CoM_charge(G_prime, abd_prime.t)
+        new_CoM_transformation = transformation_from_CoM_charge(G_prime, abd_prime.t, Gfun=Gfun, Gparams0=Gparams0, Gargs=Gargs)
         CoM_transformation = (new_CoM_transformation * CoM_transformation).reorder(
             ["supertranslation", "frame_rotation", "boost_velocity"]
         )
@@ -387,6 +447,7 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
         )
 
         G_prime = abd_prime.bondi_CoM_charge() / abd_prime.bondi_four_momentum()[:, 0, None]
+        Gargs = [func(abd_prime) for func in Gargsfun] if Gargsfun else None
 
         rel_err = integrate(np.linalg.norm(G_prime, axis=-1), abd_prime.t)[-1] / (abd_prime.t[-1] - abd_prime.t[0])
         if rel_err < min(rel_errs):
@@ -686,6 +747,9 @@ def map_to_superrest_frame(
     fix_time_phase_freedom=False,
     modes=None,
     print_conv=False,
+    Gfun=None,
+    Gparams0=None,
+    Gargsfun=None,
 ):
     """Transform an abd object to the superrest frame.
 
@@ -753,7 +817,17 @@ def map_to_superrest_frame(
         Default is every mode.
     print_conv: bool, defaults to False
         Whether or not to print the termination criterion. Default is False.
+    Gfun: callable, optional
+        Analytical function used for fitting the center-of-mass charge.
+        Default is None i.e., a linear fit.
+    Gparams0: array_like, optional
+        Initial guess for the fitting process. Default is None.
+    Gargsfun: tuple, optional
+        Additional arguments passed to `Gfun`. Default is None.
 
+    For documentation on Gfun and Gargsfun, refer to the documentation of
+    com_transformation_to_map_to_superrest_frame.
+    
     Returns
     -------
     abd_prime : AsymptoticBondiData
@@ -761,7 +835,9 @@ def map_to_superrest_frame(
         the transformations found in the BMSTransformations object.
     transformations : BMSTransformation
         BMS transformation to map to the target BMS frame.
-
+    best_rel_err: (float, float, float)
+        (rel_err_CoM_transformation, rel_err_rotation, rel_err_PsiM) 
+        Best relative errors obtained during the routine.
     """
     abd = self.copy()
 
@@ -839,6 +915,9 @@ def map_to_superrest_frame(
                     N_itr_max=N_itr_maxes["CoM_transformation"],
                     rel_err_tol=rel_err_tols["CoM_transformation"],
                     print_conv=print_conv,
+                    Gfun=Gfun,
+                    Gparams0=Gparams0,
+                    Gargsfun=Gargsfun,
                 )
             elif transformation == "time_phase":
                 if target_strain is not None:
