@@ -783,9 +783,8 @@ def map_to_superrest_frame(
     if alpha_ell_max is None:
         alpha_ell_max = ell_max
 
-    abd_interp = abd.interpolate(
-        abd.t[np.argmin(abs(abd.t - (t_0 - (padding_time + 200)))) : np.argmin(abs(abd.t - (t_0 + (padding_time + 200)))) + 1]
-    )
+    # slice the abd object using padding time
+    abd_sliced = abd[np.abs(abd.t - (t_0 - (padding_time + 200))).argmin() : np.abs(abd.t - (t_0 + (padding_time + 200))).argmin() + 1]
 
     # apply a time translation so that we're mapping
     # to the superrest frame at u = 0
@@ -810,7 +809,7 @@ def map_to_superrest_frame(
             pass
             
         if itr == 0:
-            abd_interp_prime = abd_interp.transform(
+            abd_sliced_prime = abd_sliced.transform(
                 supertranslation=BMS_transformation.supertranslation,
                 frame_rotation=BMS_transformation.frame_rotation.components,
                 boost_velocity=BMS_transformation.boost_velocity,
@@ -819,7 +818,7 @@ def map_to_superrest_frame(
         for transformation in order:
             if transformation == "supertranslation":
                 new_transformation, supertranslation_rel_errs = supertranslation_to_map_to_superrest_frame(
-                    abd_interp_prime,
+                    abd_sliced_prime,
                     target_PsiM,
                     N_itr_max=N_itr_maxes["supertranslation"],
                     rel_err_tol=rel_err_tols["supertranslation"],
@@ -828,7 +827,7 @@ def map_to_superrest_frame(
                 )
             elif transformation == "rotation":
                 new_transformation, rot_rel_errs = rotation_to_map_to_superrest_frame(
-                    abd_interp_prime,
+                    abd_sliced_prime,
                     target_strain=target_strain,
                     N_itr_max=N_itr_maxes["rotation"],
                     rel_err_tol=rel_err_tols["rotation"],
@@ -836,19 +835,19 @@ def map_to_superrest_frame(
                 )
             elif transformation == "CoM_transformation":
                 new_transformation, CoM_rel_errs = com_transformation_to_map_to_superrest_frame(
-                    abd_interp_prime,
+                    abd_sliced_prime,
                     N_itr_max=N_itr_maxes["CoM_transformation"],
                     rel_err_tol=rel_err_tols["CoM_transformation"],
                     print_conv=print_conv,
                 )
             elif transformation == "time_phase":
                 if target_strain is not None:
-                    strain_interp_prime = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
-                        2.0 * abd_interp_prime.sigma.bar, dataType=scri.h
+                    strain_sliced_prime = scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM(
+                        2.0 * abd_sliced_prime.sigma.bar, dataType=scri.h
                     )
 
                     rel_err, _, res = align2d(
-                        MT_to_WM(WM_to_MT(strain_interp_prime), sxs_version=True),
+                        MT_to_WM(WM_to_MT(strain_sliced_prime), sxs_version=True),
                         MT_to_WM(WM_to_MT(target_strain), sxs_version=True),
                         0 - padding_time,
                         0 + padding_time,
@@ -867,7 +866,7 @@ def map_to_superrest_frame(
                 ["supertranslation", "frame_rotation", "boost_velocity"]
             )
 
-            abd_interp_prime = abd_interp.transform(
+            abd_sliced_prime = abd_sliced.transform(
                 supertranslation=BMS_transformation.supertranslation,
                 frame_rotation=BMS_transformation.frame_rotation.components,
                 boost_velocity=BMS_transformation.boost_velocity,
@@ -877,7 +876,7 @@ def map_to_superrest_frame(
             # rel_err is obtained from align2d, so do nothing
             pass
         else:
-            rel_err = rel_err_for_abd_in_superrest(abd_interp_prime, target_PsiM, target_strain)
+            rel_err = rel_err_for_abd_in_superrest(abd_sliced_prime, target_PsiM, target_strain)
             
         if np.mean(rel_err) < min([np.mean(r) for r in rel_errs]):
             best_BMS_transformation = BMS_transformation.copy()
