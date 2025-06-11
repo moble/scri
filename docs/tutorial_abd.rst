@@ -355,3 +355,39 @@ Example usage of this function could be:
   >>> plt.show()
 
 For more on the :meth:`scri.WaveformModes` class, i.e., what :math:`h` is in the above code, see https://github.com/moble/scri/blob/main/docs/tutorial_waveformmodes.rst.
+
+The CCE output is sometimes very densely sampled in time, which causes the BMS
+transformation to the superrest frame to take a long time (more than 10
+minutes). An effective way around this is to down sample the CCE data, compute
+the BMS transformation to the superrest frame with the down sampled data, and
+then apply to the full data. This can be done with the following two functions
+
+.. code-block:: python
+
+  def load_waveform(filename: str, dt: float = 1.0) -> scri.AsymptoticBondiData:
+      abd = scri.SpEC.file_io.create_abd_from_h5("SpECTRECCE_v1", file_name=filename)
+      cce_times = np.arange(abd.time[0], abd.time[-1], step=dt)
+      return scri.SpEC.file_io.create_abd_from_h5("SpECTRECCE_v1", file_name=filename, t_interpolate=cce_times)
+
+  def load_waveform_and_fix_to_superrest(filename: str, dt: float = 1.0,
+                                         t0_supperrest: float = 1800.0,
+                                         superrest_padding: float = 200.0,
+                                         superrest_dt: float = 5.0) -> scri.AsymptoticBondiData:
+      abd = load_waveform(filename, dt) # Load full data
+      # Interpolate to some lower-resolution in time ABD. This is to speed up the BMS optimization
+      # which can take an hour or two if you don't down-sample in time.
+      abd_for_bms = abd.interpolate(np.arange(t0_supperrest - 1.1 * superrest_padding,
+                                              t0_supperrest + 1.1 * superrest_padding,
+                                              step=superrest_dt))
+      # Compute the BMS transformation to the superrest frame on the low-resolution ABD.
+      _, BMS, _ = abd_for_bms.map_to_superrest_frame(t_0=t0_supperrest, padding_time=superrest_padding)
+      # Transform the full data with the BMS transformation from the low-resolution computation. There is
+      # minimal to no drawback from this.
+      return abd.transform(supertranslation=BMS.supertranslation,
+                           frame_rotation=BMS.frame_rotation.components,
+                           boost_velocity=BMS.boost_velocity,)
+
+The parameter `dt` can be used to choose the time sampling for the
+waveform ABD object you get back, with default of `1M`. Reducing the time
+sampling for the waveform ABD is also useful if the CCE data was written too
+frequently to work with.
