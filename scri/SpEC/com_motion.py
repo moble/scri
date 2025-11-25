@@ -551,7 +551,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_beginning_fraction",
         default=0.01,
-        nargs=1,
         type=float,
         action="store",
         help="optional initial portion of the data to ignore",
@@ -559,7 +558,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_ending_fraction",
         default=0.10,
-        nargs=1,
         type=float,
         action="store",
         help="optional final portion of the data to ignore",
