@@ -1,3 +1,4 @@
+import numbers
 import numpy as np
 from numpy.polynomial.polynomial import polyfit
 
@@ -307,7 +308,7 @@ def read_finite_radius_waveform_rpxmb_or_rpdmb(filename,
         sxs_format = json_data.get("sxs_format","")
         if sxs_format in rpdmb_formats:
             read_rpdmb=True
-        elif sxs_format in rpdmb_formats:
+        elif sxs_format in rpxmb_formats:
             read_rpxmb=True
 
     # Note that groupname begins with a '/' so
@@ -429,6 +430,13 @@ def read_finite_radius_data(ChMass=0.0,
     from re import compile as re_compile
     import scri
 
+    def extract_radius_string_from_waveform_name(name):
+        # Expected names like "R0247.dir"
+        m = re_compile(r"""R(?P<r>.*?)\.dir""").search(str(name))
+        if not m:
+            raise ValueError(f"Could not parse radius from waveform name {name!r}")
+        return m.group("r")
+
     YLMRegex = re_compile(mode_regex)
     
     # If 'filename' is of the form "h5_file_name.h5/groupname" then we have an
@@ -456,6 +464,7 @@ def read_finite_radius_data(ChMass=0.0,
                 WaveformNames.remove("VersionHist.ver")
         else:
             WaveformNames = list(f[groupname])
+        AllWaveformNames = list(WaveformNames)
         if not CoordRadii:
             # If the list of Radii is empty, figure out what they are
             CoordRadii = [
@@ -463,16 +472,37 @@ def read_finite_radius_data(ChMass=0.0,
             ]
         else:
             # Pare down the WaveformNames list appropriately
-            if type(CoordRadii[0]) == int:
+            if isinstance(CoordRadii[0], numbers.Integral):
                 WaveformNames = [WaveformNames[i] for i in CoordRadii]
-                CoordRadii = [
-                    m.group("r") for Name in CoordRadii
-                    for m in
-                    [ re_compile(r"""R(?P<r>.*?)\.dir""").search(Name)] if m ]
+                # Convert selected waveform names into radius strings, keeping the same order
+                CoordRadii = [extract_radius_string_from_waveform_name(Name) for Name in WaveformNames]
             else:
                 WaveformNames = [
                     Name for Name in WaveformNames for Radius in
                     CoordRadii for m in [re_compile(Radius).search(Name)] if m]
+                # Best-effort: If user gave explicit radii strings, keep them; otherwise derive
+                # parsed radii corresponding to selected names for consistent sorting later.
+                try:
+                    CoordRadii = [extract_radius_string_from_waveform_name(Name) for Name in WaveformNames]
+                except Exception:
+                    # Fall back to whatever the user provided (for backwards compatibility)
+                    pass
+
+        if not WaveformNames:
+            raise ValueError(
+                "No waveform groups matched the requested CoordRadii. "
+                f"Requested CoordRadii={CoordRadii}; available groups={AllWaveformNames}."
+            )
+        if len(WaveformNames) != len(CoordRadii):
+            raise ValueError(
+                "Mismatch between requested radii and matched waveform groups. "
+                f"Requested CoordRadii={CoordRadii}; matched groups={WaveformNames}."
+            )
+        try:
+            [float(r) for r in CoordRadii]
+        except Exception as e:
+            raise ValueError(f"Could not convert CoordRadii entries to float: CoordRadii={CoordRadii}") from e
+
         NWaveforms = len(WaveformNames)
         
         # Check input data for NRAR format
@@ -727,7 +757,7 @@ def extrapolate(**kwargs):
         D['DataFile'] = {DataFile}
         D['ChMass'] = {ChMass}
         D['HorizonsFile'] = {HorizonsFile}
-        D['CoordRadii'] = {CoordRadii}
+        D['CoordRadii'] = {CoordRadiiKwarg}
         D['ExtrapolationOrders'] = {ExtrapolationOrders}
         D['UseOmega'] = {UseOmega}
         D['OutputFrame'] = {OutputFrame}
@@ -826,7 +856,8 @@ def extrapolate(**kwargs):
 
         # Append the relevant information to the history
         ExtrapolatedWaveforms[i]._append_history(str(InputArguments))
-        ExtrapolatedWaveforms[i].extrapolate_coord_radii = CoordRadiiKwarg
+        # Record the actual radii used for extrapolation so downstream code has the normalized set
+        ExtrapolatedWaveforms[i].extrapolate_coord_radii = list(CoordRadii)
 
         # Output the data
         if OutputDirectory:
