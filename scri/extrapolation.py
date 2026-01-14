@@ -777,7 +777,7 @@ def extrapolate(**kwargs):
         DataFile=DataFile,
         ChMass=ChMass,
         HorizonsFile=HorizonsFile,
-        CoordRadii=CoordRadii,
+        CoordRadiiKwarg=CoordRadiiKwarg,
         ExtrapolationOrders=ExtrapolationOrders,
         UseOmega=UseOmega,
         OutputFrame=OutputFrame,
