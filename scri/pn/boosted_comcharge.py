@@ -15,20 +15,26 @@ def PN_charges(m, ν):
 
     Returns
     -------
-    (energy_pn, angular_momentum_pn, com_charge_pn, phase): tuple of callables
-        energy_pn is the PN series of energy up to 2PN order.
-        angular_momentum_pn is the PN series of angular momentum up to 3PN order.
-        com_charge_pn is the PN series of CoM charge up to leading order.
-        orbital_phase is the phase obtained from the (2,1) mode of the strain.
-        
-        Our conventions for defining the orbital phase differ from the standard
-        conventions used in PN theory. This stems from the fact that SpEC uses
-        h_{ab} to define the metric perturbation while PN theory uses h^{ab} for
-        the metric perturbation, which results in h^{NR}_{lm} = − h^{PN}_{lm}.
-        Also, the π/2 phase difference is due to the leading order complex phase
-        of h_{21} mode from PN theory.
+    energy_pn : callable
+        Returns PN approximation for energy up to 2PN order
+    angular_momentum_pn : callable
+        Returns PN approximation for angular momentum up to 3PN order
+    com_charge_pn : callable
+        Returns PN approximation for CoM charge up to leading order
+    phase : callable
+        Returns the phase obtained from the (2,1) mode of the strain
 
-    All of the callables accept abd object as a parameter.
+    All of the returned callables accept an `ABD` object as a parameter.
+
+    Notes
+    ------
+    Our conventions for defining the orbital phase differ from the standard
+    conventions used in PN theory.  This stems from the fact that SpEC uses
+    h_{ab} to define the metric perturbation while PN theory uses h^{ab} for
+    the metric perturbation, which results in h^{NR}_{l,m} = − h^{PN}_{l,m}.
+    Also, the π/2 phase difference is due to the leading-order complex phase
+    of h_{2,1} mode from PN theory.
+
     """
 
     def compute_x(abd):
