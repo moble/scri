@@ -19,10 +19,12 @@ def PN_charges(m, ν):
         Returns PN approximation for energy up to 2PN order
     angular_momentum_pn : callable
         Returns PN approximation for angular momentum up to 3PN order
-    com_charge_pn : callable
-        Returns PN approximation for CoM charge up to leading order
-    phase : callable
-        Returns the phase obtained from the (2,1) mode of the strain
+    G_mag_pn : callable
+        Returns PN approximation for the magnitude of CoM charge up to leading
+        PN order
+    orbital_phase : callable
+        Returns the orbital phase from the (2,1) mode of the strain. See notes
+        for convention used.
 
     All returned callables accept an `ABD` object as an input parameter and
     return their respective quantities evaluated at the same time steps as the
@@ -39,12 +41,14 @@ def PN_charges(m, ν):
     Notes
     ------
     Our conventions for defining the orbital phase differ from the standard
-    conventions used in PN theory.  This stems from the fact that SpEC uses
+    conventions used in PN theory. This stems from the fact that SpEC uses
     h_{ab} to define the metric perturbation while PN theory uses h^{ab} for
-    the metric perturbation, which results in h^{NR}_{l,m} = − h^{PN}_{l,m}.
-    Also, the π/2 phase difference is due to the leading-order complex phase
-    of h_{2,1} mode from PN theory.
-
+    the metric perturbation, which results in h^{PN}_{l,m} = − h^{NR}_{l,m}. The
+    leading order PN expression for the h_{2,1} mode is (Eq. 492 of
+    <https://arxiv.org/abs/1310.1528>)
+    h^{PN}_{21} = (2 G ν m x)/R * \sqrt(16 \pi/5) * ((1/3) 𝒾 Δ x^{1/2} + O(x^{3/2})).
+    Because of the 𝒾 factor we get the orbital phase numerically as
+    ψ = - arg(-h^{NR}_{2,1}) + π/2.
     """
 
     def compute_x(abd):
@@ -101,8 +105,7 @@ def analytical_CoM_func(θ, t, E, J_mag, G_mag, ψ):
         - θ[0:3] : components of the boost velocity
         - θ[3:6] : components of the spatial translation
         - θ[6:]  : two additional fit parameters referred to as the nuisance
-                   parameters in Khairnar et al. <add_arXiv_link>; their
-                   fitted values are ignored.
+                   parameters in Khairnar et al. <add_arXiv_link>.
     t: ndarray, real
         Time array corresponding to the window over which the frame fixing is
         performed.
@@ -116,7 +119,7 @@ def analytical_CoM_func(θ, t, E, J_mag, G_mag, ψ):
         fitting window.
     ψ: ndarray, real
         Unwrapped orbital phase obtained from the (2,1) mode of the strain over
-        the fitting window.
+        the fitting window. See PN_charges for appropriate conventions.
 
     Returns
     -------
