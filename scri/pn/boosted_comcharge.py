@@ -32,7 +32,8 @@ def PN_charges(m, ν):
     energy and angular momentum are taken from Eqs. (337) and (338) of
     Blanchet's Living Review (2014) <https://arxiv.org/abs/1310.1528>.
     The PN expression for CoM charge is derived in Khairnar et al.
-    <add_arXiv_link>.  The tuple of these callables can be passed as
+    <https://arxiv.org/abs/2603.24661>.
+    The tuple of these callables can be passed as
     the `Gargsfun` keyword argument to `map_to_superrest_frame`.
     These callables are then used to determine the Gargs parameters to
     `transformation_from_CoM_charge`.  They are called as
@@ -99,8 +100,8 @@ def analytical_CoM_func(θ, t, E, J_mag, G_mag, ψ):
     charge, along with the phase computed from the h_{21} mode.
 
     This model timeseries is derived in Khairnar et al.
-    <add_arXiv_link>.  It serves as a fitting function that can be
-    passed as the `Gfun` keyword argument to the
+    <https://arxiv.org/abs/2603.24661>.  It serves as a fitting
+    function that can be passed as the `Gfun` keyword argument to the
     `map_to_superrest_frame` function.  All the arguments are computed
     over the window used for fixing the frame.
 
@@ -112,7 +113,7 @@ def analytical_CoM_func(θ, t, E, J_mag, G_mag, ψ):
         - θ[3:6] : components of the spatial translation
         - θ[6:]  : two additional fit parameters referred to as the
                    nuisance parameters in Khairnar et al.
-                   <add_arXiv_link>.
+                   <https://arxiv.org/abs/2603.24661>.
     t: ndarray, real
         Time array corresponding to the window over which the frame
         fixing is performed.
