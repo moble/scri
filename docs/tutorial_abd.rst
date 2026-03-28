@@ -298,8 +298,8 @@ There is another choice of frame which we call the Post-Newtonian BMS frame (or
 PNBMS frame). In this frame, the waveform will agree with the Post-Newtonian
 description of the system at early times.
 
-The function ``scri.asymptotic_bondi_data.map_to_superrest_frame`` can map to
-one of these frames.
+The function :meth:`scri.asymptotic_bondi_data.map_to_superrest_frame.map_to_superrest_frame` can map
+to one of these frames.
 In particular, it takes as input:
 
 * ``t_0``, the time at which to map to the superrest frame;
@@ -337,7 +337,7 @@ It also can perform a number of other important post-processing steps, such as:
 
 We recommend including all of these post-processing steps when processing SpECTRE CCE output.
 
-To obtain the strain :math:`h` from the ``abd`` object, one can use the function ``scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM`` via ``h = MT_to_WM(2.0*abd.sigma.bar)``. 
+To obtain the strain :math:`h` from the ``abd`` object, one can use the function :meth:`scri.asymptotic_bondi_data.map_to_superrest_frame.MT_to_WM` via ``h = MT_to_WM(2.0*abd.sigma.bar)``. 
 This is because the strain :math:`h` is related to the shear :math:`\sigma` via :math:`h=2\overline{\sigma}`.
 
 Example usage of this function could be:
@@ -401,7 +401,7 @@ functions.
 Fixing the PNBMS frame using PN CoM charge
 ------------------------------------------
 
-The PNBMS frame fixing of CCE waveforms requires ``target_PsiM_input`` (the
+The PNBMS frame fixing of CCE waveforms requires ``target_PsiM_input`` (the PN 
 Moreschi supermomentum), and ``target_strain_input`` (the PN strain). These
 post-Newtonian waveform modes can be generated using the `PostNewtonian.jl 
 <https://github.com/moble/PostNewtonian.jl>`_ module. We can generate these
@@ -416,78 +416,86 @@ following functions.
   import numpy as np
   import sxs
   import scri
+  from scri.pn.boosted_comcharge import PN_charges, analytical_CoM_func
 
   def generate_h_and_Psi_M_from_abd(abd, params, t0_pnbms, pnbms_padding):
-    """This function computes the target strain and target PsiM waveform required for PNBMS frame fixing.
+      """This function computes the target strain and target PsiM waveform
+      required for PNBMS frame fixing.
 
-    Parameters
-    ----------
-    abd : AsymptoticBondiData
-        AsymptoticBondiData object from which the PN waveforms will be computed.
-    params: tuple
-        List of intrinsic parameters corresponding to the simulation. Its content should follow the form:
-        params = M1, M2, chi1, chi2
-        where M1, M2 are floats,
-        chi1 : list of floats (n,3)
-        chi2 : list of floats (n,3)
-    t0_pnbms : float
-        When to map to the PNBMS frame.
-    pnbms_padding : float
-        Amount by which to pad around t0 to speed up computations.
-        This also determines the range over which certain BMS charges will be
-        computed.
+      Parameters
+      ----------
+      abd : AsymptoticBondiData
+      AsymptoticBondiData object from which the PN waveforms will be computed.
+      params: tuple
+      List of intrinsic parameters corresponding to the simulation. Its
+      content should follow the form:
+      params = M1, M2, chi1, chi2
+      where M1, M2 are floats,
+      chi1 : list of floats (n,3)
+      chi2 : list of floats (n,3)
+      t0_pnbms : float
+      When to map to the PNBMS frame.
+      pnbms_padding : float
+      Amount by which to pad around t0 to speed up computations.
+      This also determines the range over which certain BMS charges will be
+      computed.
 
-    Returns
-    -------
-    h_pn_scri, Psi_M_scri : scri.WaveformModes object
-    """
-    # First we create a window for frame-fixing using t0 and padding time.
-    # The window is padded by an additional 200M on both sides of t0.
-    t_left = t0_pnbms - (pnbms_padding + 200)
-    t_right = t0_pnbms + (pnbms_padding + 200)
+      Returns
+      -------
+      h_pn_scri, Psi_M_scri : scri.WaveformModes object
+      """
+      # First we create a window for frame-fixing using t0 and padding time.
+      # The window is padded by an additional 200M on both sides of t0.
+      t_left = t0_pnbms - (pnbms_padding + 200)
+      t_right = t0_pnbms + (pnbms_padding + 200)
 
-    left_idx = np.abs(abd.t - t_left).argmin()
-    right_idx = np.abs(abd.t - t_right).argmin()
+      left_idx = np.abs(abd.t - t_left).argmin()
+      right_idx = np.abs(abd.t - t_right).argmin()
 
-    h = abd.h[left_idx : right_idx]
-    t = h.t - h.t[0]
+      h = abd.h[left_idx:right_idx]
+      t = h.t - h.t[0]
 
-    # The convention for choosing the phase from h_{21} mode and the factor of
-    # pi/2 is described in <https://arxiv.org/abs/2603.24661>.
-    h_21 = h.data[:, h.index(2,1)]
-    θ = -1 * np.unwrap(np.angle(-h_21) - np.pi/2)
-    ω = np.gradient(θ, t)
+      # The convention for choosing the phase from h_{21} mode and the factor of
+      # pi/2 is described in <https://arxiv.org/abs/2603.24661>.
+      h_21 = h.data[:, h.index(2, 1)]
+      θ = -1 * np.unwrap(np.angle(-h_21) - np.pi / 2)
+      ω = np.gradient(θ, t)[0]
 
-    cosθ, sinθ = np.cos(θ/2), np.sin(θ/2)
-    R_i = np.array([cosθ, 0*θ, 0*θ, sinθ]).T
+      R_i = np.array([np.cos(θ[0] / 2), 0, 0, np.sin(θ[0] / 2)]).T
 
-    M1, M2, chi1, chi2 = params
+      M1, M2, chi1, chi2 = params
 
-    h_PN = PNWaveform(M1, M2, chi1, chi2, ω[0], modes_function=sxs.julia.h_bang, R_i = R_i[0], saveat = t)
-    Psi_M_PN = PNWaveform(M1, M2, chi1, chi2, ω[0], modes_function=sxs.julia.Ψ_M_bang, R_i = R_i[0], saveat = t)
+      h_PN = PNWaveform(M1, M2, chi1, chi2, ω, modes_function=sxs.julia.h_bang,
+          R_i=R_i, saveat=t)
+      Psi_M_PN = PNWaveform(M1, M2, chi1, chi2, ω,
+          modes_function=sxs.julia.Ψ_M_bang, R_i=R_i, saveat=t)
 
-    # The PNWaveform function needs the kwarg times to start from t=0. Thus, we
-    # translate the time array of PN waveform modes to match with the inspiral
-    # window constructed from the abd object at the end.
-    h_PN.t += t0_pnbms - (pnbms_padding + 200)
-    Psi_M_PN.t += t0_pnbms - (pnbms_padding + 200)
+      # The PNWaveform function needs the kwarg times to start from t=0. Thus, we
+      # translate the time array of PN waveform modes to match with the inspiral
+      # window constructed from the abd object at the end.
+      h_PN.t += t0_pnbms - (pnbms_padding + 200)
+      Psi_M_PN.t += t0_pnbms - (pnbms_padding + 200)
 
-    # The sxs.WaveformModes objects should be converted to scri.WaveformModes
-    # before passing to map_to_superrest_frame.
-    h_pn_scri = scri.WaveformModes.from_sxs(h_PN)
-    Psi_M_scri = scri.WaveformModes.from_sxs(Psi_M_PN)
+      # The sxs.WaveformModes objects should be converted to scri.WaveformModes
+      # before passing to map_to_superrest_frame.
+      h_pn_scri = scri.WaveformModes.from_sxs(h_PN)
+      Psi_M_scri = scri.WaveformModes.from_sxs(Psi_M_PN)
 
-    return h_pn_scri, Psi_M_scri
+      return h_pn_scri, Psi_M_scri
 
-  def load_waveform_and_fix_to_pnbms(filename: str, params, dt: float = 1.0,
-                                        t0_pnbms: float = 1800.0,
-                                        pnbms_padding: float = 200.0,) ->
-                                        scri.AsymptoticBondiData:
+  def load_waveform_and_fix_to_pnbms(
+      filename: str,
+      params,
+      dt: float = 1.0,
+      t0_pnbms: float = 1800.0,
+      pnbms_padding: float = 200.0,
+      ) -> scri.AsymptoticBondiData:
       abd = load_waveform(filename, dt)
-      # params should take the same signature as it does in the previous function.
+      # params should take the same signature as it does in the previous
+      # function.
       M1, M2, chi1, chi2 = params
       M = M1 + M2
-      ν = M1*M2/M**2
+      ν = M1 * M2 / M**2
 
       # We use the parameters of the simulation, and the window information
       # (t0_pnbms and pnbms_padding) to generate PN strain and Moreschi
@@ -496,7 +504,15 @@ following functions.
 
       # Compute the BMS transformation to the PNBMS frame and the transformed
       # abd object.
-      abd_prime, BMS, _ = abd.map_to_superrest_frame(t_0=t0_pnbms, padding_time=pnbms_padding, target_PsiM_input=Psi_M_PN, target_strain_input=h_PN, Gfun=analytical_CoM_func, Gparams0=np.zeros(8), Gargsfun=PN_charges(M, ν))
+      abd_prime, BMS, _ = abd.map_to_superrest_frame(
+          t_0=t0_pnbms,
+          padding_time=pnbms_padding,
+          target_PsiM_input=Psi_M_PN,
+          target_strain_input=h_PN,
+          Gfun=analytical_CoM_func,
+          Gparams0=np.zeros(8),
+          Gargsfun=PN_charges(M, ν),
+      )
 
       return abd_prime
 
@@ -507,9 +523,9 @@ takes 3 additional keyword arguments - ``Gfun``, ``Gparams0`` and ``Gargsfun``. 
 is the analtyical function used for fitting the CoM charge, ``Gparams0`` is the
 initial guess for the fitting parameters, and ``Gargsfun`` are additional
 arguments passed to Gfun. See the documentation of
-``com_transformation_to_map_to_superrest_frame`` in
-``scri.asymptotic_bondi_data.map_to_superrest_frame`` for additional details on
-the signature of ``Gfun`` and ``Gargsfun``.
+:meth:`scri.asymptotic_bondi_data.map_to_superrest_frame.com_transformation_to_map_to_superrest_frame`
+in :meth:`scri.asymptotic_bondi_data.map_to_superrest_frame` for additional
+details on the signature of ``Gfun`` and ``Gargsfun``.
 
 The parameter `dt` can be used to choose the time sampling for the
 waveform ABD object you get back, with default of `1M`. Reducing the time
