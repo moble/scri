@@ -452,16 +452,21 @@ following functions.
       left_idx = np.abs(abd.t - t_left).argmin()
       right_idx = np.abs(abd.t - t_right).argmin()
 
-      h = abd.h[left_idx:right_idx]
+      h = abd.h[left_idx : right_idx]
       t = h.t - h.t[0]
 
-      # The convention for choosing the phase from h_{21} mode and the factor of
-      # pi/2 is described in <https://arxiv.org/abs/2603.24661>.
-      h_21 = h.data[:, h.index(2, 1)]
-      θ = -1 * np.unwrap(np.angle(-h_21) - np.pi / 2)
-      ω = np.gradient(θ, t)[0]
+      N = h.copy()
+      N.dataType = scri.hdot
+      N.data = h.data_dot
+      ω = np.linalg.norm(N.angular_velocity(), axis=1)[0]
 
-      R_i = np.array([np.cos(θ[0] / 2), 0, 0, np.sin(θ[0] / 2)]).T
+      # The convention for choosing the phase from h_{21} mode and the factor of
+      # pi/2 is described in <https://arxiv.org/abs/2603.24661>. This choice
+      # does not work for q=1.
+      h_21 = h.data[:, h.index(2, 1)]
+      θ = -1 * np.unwrap(np.angle(-h_21))[0] + np.pi/2
+
+      R_i = np.array([np.cos(θ / 2), 0, 0, np.sin(θ / 2)]).T
 
       M1, M2, chi1, chi2 = params
 
@@ -480,6 +485,8 @@ following functions.
       # before passing to map_to_superrest_frame.
       h_pn_scri = scri.WaveformModes.from_sxs(h_PN)
       Psi_M_scri = scri.WaveformModes.from_sxs(Psi_M_PN)
+
+      h_pn_scri.data *= -1
 
       return h_pn_scri, Psi_M_scri
 
@@ -526,6 +533,12 @@ arguments passed to Gfun. See the documentation of
 :meth:`scri.asymptotic_bondi_data.map_to_superrest_frame.com_transformation_to_map_to_superrest_frame`
 in :meth:`scri.asymptotic_bondi_data.map_to_superrest_frame` for additional
 details on the signature of ``Gfun`` and ``Gargsfun``.
+
+Note that we have used :math:`h_{21}` mode to define the initial phase for the
+PN waveform. This choice won't work for symmetric mass ratio systems because
+of the degeneracy in the choice of phase angle by :math:`\pi`. Therefore, we
+will have to carefully choose the initial phase to break this degeneracy for
+such cases.
 
 The parameter `dt` can be used to choose the time sampling for the
 waveform ABD object you get back, with default of `1M`. Reducing the time
