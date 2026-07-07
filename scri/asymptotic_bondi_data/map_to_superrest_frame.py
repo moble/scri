@@ -404,7 +404,7 @@ def com_transformation_to_map_to_superrest_frame(abd, N_itr_max=10, rel_err_tol=
     return best_CoM_transformation, rel_errs
 
 
-def rotation_from_spin_charge(chi, t, fix_xz_plane=False):
+def rotation_from_spin_charge(chi, t, fix_xz_plane=False, fix_yz_plane=False):
     """Obtain the rotation from the remnant BH's spin vector.
 
     This finds the rotation that aligns the z-component of the spin vector with the z-axis,
@@ -421,15 +421,28 @@ def rotation_from_spin_charge(chi, t, fix_xz_plane=False):
         such that the x unit vector remains in the x-z plane
         after the full rotation.
         Default is False.
+    fix_yz_plane: bool
+        Whether or not to modify the quaternion by a rotation about z
+        such that the y unit vector remains in the y-z plane
+        after the full rotation.
+        Default is False.
     """
     chi_f = quaternion.quaternion(*chi[np.argmin(abs(t))]).normalized()
     q = (1 - chi_f * quaternion.z).normalized()
-
+    
     if fix_xz_plane:
         y_rotated = quaternion.as_vector_part(q * quaternion.y * q.inverse())
-        phase = np.angle(1j*(y_rotated[0] + 1j*y_rotated[1]))
+        phase = np.angle((y_rotated[0] + 1j*y_rotated[1])) - np.pi/2
         q = q * quaternion.from_rotation_vector(phase * np.array([0, 0, 1]))
-    
+        if (q * quaternion.x * q.inverse()).components[1] < 0:
+            q = q * quaternion.from_rotation_vector(np.pi * np.array([0, 0, 1]))
+    elif fix_yz_plane:
+        x_rotated = quaternion.as_vector_part(q * quaternion.x * q.inverse())
+        phase = np.angle((x_rotated[0] + 1j*x_rotated[1]))
+        q = q * quaternion.from_rotation_vector(phase * np.array([0, 0, 1]))
+        if (q * quaternion.y * q.inverse()).components[2] < 0:
+            q = q * quaternion.from_rotation_vector(np.pi * np.array([0, 0, 1]))
+
     return scri.bms_transformations.BMSTransformation(frame_rotation=q.components)
 
 
@@ -452,7 +465,7 @@ def rotation_from_vectors(vector, target_vector, t=None):
     return scri.bms_transformations.BMSTransformation(frame_rotation=q.components)
 
 
-def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, rel_err_tol=1e-12, fix_xz_plane=False, print_conv=False):
+def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, rel_err_tol=1e-12, fix_xz_plane=False, fix_yz_plane=False, print_conv=False):
     """Determine the rotation needed to map an abd object to the superrest frame.
 
     This is found through an iterative solve; e.g., compute the transformation needed to align
@@ -481,6 +494,11 @@ def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, re
     fix_xz_plane: bool
         Whether or not to modify the quaternion by a rotation about z
         such that the x unit vector remains in the x-z plane
+        after the full rotation.
+        Default is False.
+    fix_yz_plane: bool
+        Whether or not to modify the quaternion by a rotation about z
+        such that the y unit vector remains in the y-z plane
         after the full rotation.
         Default is False.
     print_conv: bool, defaults to False
@@ -553,12 +571,12 @@ def rotation_to_map_to_superrest_frame(abd, target_strain=None, N_itr_max=10, re
                 chi_prime = chi_prime / np.linalg.norm(chi_prime, axis=-1)[:, None]
 
             rotation_transformation = (
-                rotation_from_spin_charge(chi_prime, abd_prime.t, fix_xz_plane) * rotation_transformation
+                rotation_from_spin_charge(chi_prime, abd_prime.t, fix_xz_plane, fix_yz_plane) * rotation_transformation
             ).reorder(["supertranslation", "frame_rotation", "boost_velocity"])
             # remove supertranslation and CoM components
             rotation_transformation.supertranslation *= 0
             rotation_transformation.boost_velocity *= 0
-
+            
             abd_prime = abd.transform(frame_rotation=rotation_transformation.frame_rotation.components)
 
             chi_prime = abd_prime.bondi_dimensionless_spin()
@@ -704,6 +722,7 @@ def map_to_superrest_frame(
     alpha_ell_max=None,
     modes=None,
     fix_xz_plane=False,
+    fix_yz_plane=False,
     print_conv=False,
 ):
     """Transform an abd object to the superrest frame.
@@ -771,6 +790,11 @@ def map_to_superrest_frame(
     fix_xz_plane: bool
         Whether or not to modify the quaternion by a rotation about z
         such that the x unit vector remains in the x-z plane
+        after the full rotation.
+        Default is False.
+    fix_yz_plane: bool
+        Whether or not to modify the quaternion by a rotation about z
+        such that the y unit vector remains in the y-z plane
         after the full rotation.
         Default is False.
     print_conv: bool, defaults to False
@@ -858,6 +882,7 @@ def map_to_superrest_frame(
                     N_itr_max=N_itr_maxes["rotation"],
                     rel_err_tol=rel_err_tols["rotation"],
                     fix_xz_plane=fix_xz_plane,
+                    fix_yz_plane=fix_yz_plane,
                     print_conv=print_conv,
                 )
             elif transformation == "CoM_transformation":
