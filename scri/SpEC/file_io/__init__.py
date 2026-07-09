@@ -496,34 +496,54 @@ def _parse_spectre_build_header(header):
         header = str(header)
 
     # SpECTRE's H5 Header appends Formaline environment/library information.
-    # Keep the compact build header in the waveform metadata; do not put the
-    # full Formaline block into every waveform JSON.
-    build_information = header
+    # Keep only the compact header portion, not the long environment block.
+    compact_header = header
     for delimiter in (
         "############### printenv ###############",
         "############### library versions ###############",
     ):
-        location = build_information.find(delimiter)
+        location = compact_header.find(delimiter)
         if location >= 0:
-            build_information = build_information[:location].rstrip()
+            compact_header = compact_header[:location].rstrip()
             break
 
     patterns = {
-        "spectre_version": r"(?m)^#?\s*Version:\s*(.+?)\s*$",
-        "spectre_git_branch": r"(?m)^#?\s*Compiled on git branch:\s*(.+?)\s*$",
-        "spectre_git_revision": r"(?m)^#?\s*Compiled on git revision:\s*(.+?)\s*$",
-        "spectre_link_date": r"(?m)^#?\s*Linked on:\s*(.+?)\s*$",
-        "spectre_build_type": r"(?m)^#?\s*Build type:\s*(.+?)\s*$",
+        "spectre_file_creation_time": (
+            r"(?m)^#?\s*File created on\s*([^#\n]+)",
+        ),
+        "spectre_version": (
+            r"(?m)^#?\s*Version:\s*(.+?)\s*$",
+        ),
+        "spectre_compiled_host": (
+            r"(?m)^#?\s*Compiled on host:\s*(.+?)\s*$",
+        ),
+        "spectre_compiled_directory": (
+            r"(?m)^#?\s*Compiled in directory:\s*(.+?)\s*$",
+        ),
+        "spectre_source_directory": (
+            r"(?m)^#?\s*Source directory is:\s*(.+?)\s*$",
+        ),
+        "spectre_git_branch": (
+            r"(?m)^#?\s*Compiled on git branch:\s*(.+?)\s*$",
+        ),
+        "spectre_git_revision": (
+            r"(?m)^#?\s*Compiled on git revision:\s*(.+?)\s*$",
+        ),
+        "spectre_link_date": (
+            r"(?m)^#?\s*Linked on:\s*(.+?)\s*$",
+        ),
+        "spectre_build_type": (
+            r"(?m)^#?\s*Build type:\s*(.+?)\s*$",
+        ),
     }
 
     metadata = {}
-    for key, pattern in patterns.items():
-        match = re.search(pattern, build_information)
-        if match:
-            metadata[key] = match.group(1).strip()
-
-    if build_information:
-        metadata["spectre_build_information"] = build_information
+    for key, key_patterns in patterns.items():
+        for pattern in key_patterns:
+            match = re.search(pattern, compact_header)
+            if match:
+                metadata[key] = match.group(1).strip()
+                break
 
     return metadata
 
@@ -546,31 +566,9 @@ def _spectre_cce_version_info_update_from_h5(h5_file, cce_key, file_name):
 
     spectre_cce = _parse_spectre_build_header(header)
 
-    spectre_cce["spectre_cce_output_file"] = os.path.basename(file_name)
-    spectre_cce["spectre_cce_subfile"] = cce_key
-
-    if header is not None:
-        spectre_cce["spectre_header_source"] = (
-            "cce_subfile_header.hdr" if cce_header is not None else "file_header.hdr"
-        )
-
-    cce_sxs_format = _read_h5_attr_for_metadata(cce, "sxs_format")
-    if cce_sxs_format is not None:
-        spectre_cce["spectre_cce_sxs_format"] = cce_sxs_format
-
-    cce_h5_object_version = _read_h5_attr_for_metadata(cce, "version.ver")
-    if cce_h5_object_version is not None:
-        try:
-            cce_h5_object_version = int(cce_h5_object_version)
-        except (TypeError, ValueError):
-            pass
-        spectre_cce["spectre_cce_h5_object_version"] = cce_h5_object_version
-
-    if "src.tar.gz" in h5_file:
-        spectre_cce["spectre_h5_source_archive_location"] = "/src.tar.gz"
-    elif "src.tar.gz" in cce:
-        spectre_cce["spectre_h5_source_archive_location"] = f"/{cce_key}/src.tar.gz"
-
+    if not spectre_cce:
+        return None
+    
     return {"spectre_cce": spectre_cce}
     
 
@@ -656,15 +654,31 @@ def create_abd_from_h5(
                     data_label_suffix = ""
                     break
             else:
+                # Note this else block is triggered whenever break is not;
+                # hence cce_key is always defined
                 cce_key = "Cce"
                 data_label_suffix = ".dat"
 
             cce = f[cce_key]
 
-            spectre_cce_version_info_update = (
-                _spectre_cce_version_info_update_from_h5(f, cce_key, file_name)
-            )
-
+            try:
+                spectre_cce_version_info_update = (
+                    _spectre_cce_version_info_update_from_h5(f, cce_key, file_name)
+                )
+                if (
+                    not spectre_cce_version_info_update
+                    or not spectre_cce_version_info_update.get("spectre_cce", None)
+                ):
+                    spectre_cce_version_info_update = None
+            except Exception as exc:
+                warnings.warn(
+                    "Unable to read SpECTRE CCE version/build metadata from "
+                    f"'{file_name}'. Continuing without SpECTRE version metadata. "
+                    f"Original error: {type(exc).__name__}: {exc}",
+                    RuntimeWarning,
+                )
+                spectre_cce_version_info_update = None
+                
             time = cce[f"Strain{data_label_suffix}"][:, 0]
             indices = monotonic_indices(time)
             time = time[indices]
