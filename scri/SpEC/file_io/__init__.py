@@ -450,6 +450,128 @@ def make_variable_dimensionless(WM, ch_mass=1.0):
     WM.m_is_scaled_out = True
 
 
+def _decode_h5_metadata_value(value):
+    """
+    Convert common h5py attribute values into JSON-safe Python values.
+    """
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+
+    if isinstance(value, np.generic):
+        return _decode_h5_metadata_value(value.item())
+
+    if isinstance(value, np.ndarray):
+        if value.shape == ():
+            return _decode_h5_metadata_value(value.item())
+        if value.size == 1:
+            return _decode_h5_metadata_value(value.reshape(-1)[0])
+        return [_decode_h5_metadata_value(x) for x in value.tolist()]
+
+    if isinstance(value, (list, tuple)):
+        return [_decode_h5_metadata_value(x) for x in value]
+
+    return value
+
+
+def _read_h5_attr_for_metadata(h5_obj, attr_name, default=None):
+    """
+    Read an HDF5 attribute and convert it into a JSON-safe value.
+    """
+    if attr_name not in h5_obj.attrs:
+        return default
+    return _decode_h5_metadata_value(h5_obj.attrs[attr_name])
+
+
+def _parse_spectre_build_header(header):
+    """
+    Extract compact SpECTRE build/version fields from SpECTRE's header.hdr.
+    """
+    if header is None:
+        return {}
+
+    header = _decode_h5_metadata_value(header)
+    if isinstance(header, list):
+        header = "\n".join(str(x) for x in header)
+    else:
+        header = str(header)
+
+    # SpECTRE's H5 Header appends Formaline environment/library information.
+    # Keep only the compact header portion, not the long environment block.
+    compact_header = header
+    for delimiter in (
+        "############### printenv ###############",
+        "############### library versions ###############",
+    ):
+        location = compact_header.find(delimiter)
+        if location >= 0:
+            compact_header = compact_header[:location].rstrip()
+            break
+
+    patterns = {
+        "spectre_file_creation_time": (
+            r"(?m)^#?\s*File created on\s*([^#\n]+)",
+        ),
+        "spectre_version": (
+            r"(?m)^#?\s*Version:\s*(.+?)\s*$",
+        ),
+        "spectre_compiled_host": (
+            r"(?m)^#?\s*Compiled on host:\s*(.+?)\s*$",
+        ),
+        "spectre_compiled_directory": (
+            r"(?m)^#?\s*Compiled in directory:\s*(.+?)\s*$",
+        ),
+        "spectre_source_directory": (
+            r"(?m)^#?\s*Source directory is:\s*(.+?)\s*$",
+        ),
+        "spectre_git_branch": (
+            r"(?m)^#?\s*Compiled on git branch:\s*(.+?)\s*$",
+        ),
+        "spectre_git_revision": (
+            r"(?m)^#?\s*Compiled on git revision:\s*(.+?)\s*$",
+        ),
+        "spectre_link_date": (
+            r"(?m)^#?\s*Linked on:\s*(.+?)\s*$",
+        ),
+        "spectre_build_type": (
+            r"(?m)^#?\s*Build type:\s*(.+?)\s*$",
+        ),
+    }
+
+    metadata = {}
+    for key, key_patterns in patterns.items():
+        for pattern in key_patterns:
+            match = re.search(pattern, compact_header)
+            if match:
+                metadata[key] = match.group(1).strip()
+                break
+
+    return metadata
+
+
+def _spectre_cce_version_info_update_from_h5(h5_file, cce_key, file_name):
+    """
+    Return metadata suitable for sxs.rpdmb.save(..., version_info_update=...).
+
+    Notes
+    -----
+    * `header.hdr` contains the SpECTRE build provenance.
+    * `version.ver` is the CCE H5-object/data-format version, not the
+      SpECTRE source-code version.
+    """
+    cce = h5_file[cce_key]
+
+    cce_header = _read_h5_attr_for_metadata(cce, "header.hdr")
+    file_header = _read_h5_attr_for_metadata(h5_file, "header.hdr")
+    header = cce_header if cce_header is not None else file_header
+
+    spectre_cce = _parse_spectre_build_header(header)
+
+    if not spectre_cce:
+        return None
+    
+    return {"spectre_cce": spectre_cce}
+    
+
 def create_abd_from_h5(
     file_format,
     convention="SpEC",
@@ -515,6 +637,9 @@ def create_abd_from_h5(
     # Load waveform data from H5 files into WaveformModes objects
     WMs = {}
     filenames = {}
+    
+    spectre_cce_version_info_update = None
+
     if file_format == "spectrecce_v1":
         try:
             file_name = kwargs.pop("file_name")
@@ -528,28 +653,57 @@ def create_abd_from_h5(
                     radius = cce_key.split("R")[1][:4]
                     data_label_suffix = ""
                     break
-                else:
-                    cce_key = "Cce"
-                    data_label_suffix = ".dat"
+            else:
+                # Note this else block is triggered whenever break is not;
+                # hence cce_key is always defined
+                cce_key = "Cce"
+                data_label_suffix = ".dat"
 
             cce = f[cce_key]
+
+            try:
+                spectre_cce_version_info_update = (
+                    _spectre_cce_version_info_update_from_h5(f, cce_key, file_name)
+                )
+                if (
+                    not spectre_cce_version_info_update
+                    or not spectre_cce_version_info_update.get("spectre_cce", None)
+                ):
+                    spectre_cce_version_info_update = None
+            except Exception as exc:
+                warnings.warn(
+                    "Unable to read SpECTRE CCE version/build metadata from "
+                    f"'{file_name}'. Continuing without SpECTRE version metadata. "
+                    f"Original error: {type(exc).__name__}: {exc}",
+                    RuntimeWarning,
+                )
+                spectre_cce_version_info_update = None
+                
             time = cce[f"Strain{data_label_suffix}"][:, 0]
             indices = monotonic_indices(time)
             time = time[indices]
-            ell_max = int(np.sqrt((cce[f"Strain{data_label_suffix}"].shape[1] - 1) / 2) - 1)
+            ell_max = int(
+                np.sqrt((cce[f"Strain{data_label_suffix}"].shape[1] - 1) / 2) - 1
+            )
+
             for data_label in ["Psi4", "Psi3", "Psi2", "Psi1", "Psi0", "Strain"]:
                 if data_label != "Strain":
                     dataType = DataNames.index(data_label)
                 else:
                     dataType = DataNames.index("h")
+
                 WMs[data_label] = WaveformModes(
                     t=time.copy(),
-                    data=cce[f"{data_label}{data_label_suffix}"][indices, 1:].view(np.complex128),
+                    data=cce[f"{data_label}{data_label_suffix}"][
+                        indices, 1:
+                    ].view(np.complex128),
                     ell_min=0,
                     ell_max=ell_max,
                     frameType=Inertial,
                     dataType=dataType,
-                    constructor_statement=f"create_abd_from_h5({file_format}, {convention=}, {file_name=})",
+                    constructor_statement=(
+                        f"create_abd_from_h5({file_format}, {convention=}, {file_name=})"
+                    ),
                     r_is_scaled_out=True,
                     m_is_scaled_out=False,
                 )
@@ -664,6 +818,13 @@ def create_abd_from_h5(
 
     # Map to superrest frame at some time over some window, if specified
     if t_0_superrest is not None and padding_time is not None:
-        abd, BMS, _ = abd.map_to_superrest_frame(t_0=t_0_superrest, padding_time=padding_time)
+        abd, BMS, _ = abd.map_to_superrest_frame(
+            t_0=t_0_superrest, padding_time=padding_time
+        )
+
+    # Attach metadata after interpolation / frame transformations because those
+    # operations construct new ABD objects.
+    if file_format == "spectrecce_v1" and spectre_cce_version_info_update is not None:
+        abd.version_info_update = spectre_cce_version_info_update
 
     return abd
