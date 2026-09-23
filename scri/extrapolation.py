@@ -182,7 +182,7 @@ def validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, Exp
     return Valid
 
 
-def validate_group_of_waveforms(h5file, filename, WaveformNames):
+def validate_group_of_waveforms(h5file, filename, WaveformNames, AllowUnequalRadiiArrays=False):
     from re import compile as re_compile
     import scri
 
@@ -207,6 +207,9 @@ def validate_group_of_waveforms(h5file, filename, WaveformNames):
     Valid = True
     FailedWaveforms = []
     for WaveformName in WaveformNames:
+        if AllowUnequalRadiiArrays:
+            # Override ExpectedNTimes to only require each waveform to be internally consistent
+            ExpectedNTimes = h5file[WaveformName + "/ArealRadius.dat"].shape[0]
         if not validate_single_waveform(h5file, filename, WaveformName, ExpectedNModes, ExpectedNTimes, LModes):
             Valid = False
             FailedWaveforms.append(WaveformName)
@@ -418,7 +421,8 @@ def read_finite_radius_waveform(filename, groupname, WaveformName, ChMass):
         
 def read_finite_radius_data(ChMass=0.0,
                             filename="rh_FiniteRadii_CodeUnits.h5",
-                            CoordRadii=[]):
+                            CoordRadii=[],
+                            AllowUnequalRadiiArrays=False):
     """Read data at various radii, and offset by tortoise coordinate."""
 
     if ChMass == 0.0:
@@ -507,7 +511,7 @@ def read_finite_radius_data(ChMass=0.0,
         
         # Check input data for NRAR format
         if groupname is None:
-            if not validate_group_of_waveforms(f, filename, WaveformNames):
+            if not validate_group_of_waveforms(f, filename, WaveformNames, AllowUnequalRadiiArrays):
                 raise ValueError(f"Bad input waveforms in {filename}.")
             stdout.write(f"{filename} passed the data-integrity tests.\n")
             stdout.flush()
@@ -650,6 +654,10 @@ def extrapolate(**kwargs):
         radii are not included in the extrapolation. The value
         1.0e-9 seems to work well for a few BBH systems.
 
+    AllowUnequalRadiiArrays : bool, (Default: False)
+        If True, the waveforms at different radii are allowed to have
+        different numbers of time steps e.g. GW escorted runs.
+
     """
 
     # Basic imports
@@ -682,6 +690,7 @@ def extrapolate(**kwargs):
     LatestTime = kwargs.pop("LatestTime", 3.0e300)
     AlignmentTime = kwargs.pop("AlignmentTime", None)
     NoiseFloor = kwargs.pop("NoiseFloor", None)
+    AllowUnequalRadiiArrays = kwargs.pop("AllowUnequalRadiiArrays", False)
     return_finite_radius_waveforms = kwargs.pop("return_finite_radius_waveforms", False)
     if len(kwargs) > 0:
         raise ValueError(f"Unknown arguments to `extrapolate`: kwargs={kwargs}")
@@ -720,7 +729,8 @@ def extrapolate(**kwargs):
     print(f"Reading Waveforms from {DataFile}...")
     stdout.flush()
     Ws, Radii, CoordRadii = read_finite_radius_data(
-        ChMass=ChMass, filename=DataFile, CoordRadii=CoordRadii)
+        ChMass=ChMass, filename=DataFile, CoordRadii=CoordRadii,
+        AllowUnequalRadiiArrays=AllowUnequalRadiiArrays)
 
     Radii_shape = (len(Radii), len(Radii[0]))
 
@@ -770,6 +780,7 @@ def extrapolate(**kwargs):
         D['LatestTime'] = {LatestTime}
         D['AlignmentTime'] = {AlignmentTime}
         D['NoiseFloor'] = {NoiseFloor}
+        D['AllowUnequalRadiiArrays'] = {AllowUnequalRadiiArrays}
         # End Extrapolation input arguments
         """.format(
         InputDirectory=InputDirectory,
@@ -790,6 +801,7 @@ def extrapolate(**kwargs):
         LatestTime=LatestTime,
         AlignmentTime=AlignmentTime,
         NoiseFloor=NoiseFloor,
+        AllowUnequalRadiiArrays=AllowUnequalRadiiArrays,
     )
     InputArguments = dedent(InputArguments)
 
