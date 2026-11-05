@@ -1,5 +1,5 @@
 import numpy as np
-from spherical import LM_total_size, Yindex
+from spherical import LM_total_size
 from .. import WaveformModes
 from .. import ModesTimeSeries
 from .. import Inertial
