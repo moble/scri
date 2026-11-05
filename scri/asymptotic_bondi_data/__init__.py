@@ -1,10 +1,9 @@
 import numpy as np
-from spherical_functions import LM_total_size
+from spherical import LM_total_size, Yindex
 from .. import WaveformModes
 from .. import ModesTimeSeries
 from .. import Inertial
 from .. import h as h_DataType
-
 
 class AsymptoticBondiData:
     """Class to store asymptotic Bondi data
@@ -61,18 +60,17 @@ class AsymptoticBondiData:
             raise ValueError(f"Input `time` parameter must be an integer or a 1-d array; it has shape {time.shape}")
         if time.dtype != float:
             raise ValueError(f"Input `time` parameter must have dtype float; it has dtype {time.dtype}")
-        ModesTS = functools.partial(ModesTimeSeries, ell_max=ell_max, multiplication_truncator=multiplication_truncator)
-        shape = [6, time.size, LM_total_size(0, ell_max)]
+
         self.frame = np.array([])
         self.frameType = frameType
         self._time = time.copy()
-        self._raw_data = np.zeros(shape, dtype=complex)
-        self._psi0 = ModesTS(self._raw_data[0], self._time, spin_weight=2)
-        self._psi1 = ModesTS(self._raw_data[1], self._time, spin_weight=1)
-        self._psi2 = ModesTS(self._raw_data[2], self._time, spin_weight=0)
-        self._psi3 = ModesTS(self._raw_data[3], self._time, spin_weight=-1)
-        self._psi4 = ModesTS(self._raw_data[4], self._time, spin_weight=-2)
-        self._sigma = ModesTS(self._raw_data[5], self._time, spin_weight=2)
+        self._ell_max = ell_max
+        self._multiplication_truncator = multiplication_truncator
+
+        fields = ("psi0", "psi1", "psi2", "psi3", "psi4", "sigma")
+        #Initialize field attributes with None.
+        for field in fields:
+            setattr(self, f"_{field}", None)
 
     @property
     def time(self):
@@ -93,7 +91,7 @@ class AsymptoticBondiData:
 
     @property
     def n_modes(self):
-        return self._raw_data.shape[-1]
+        return self.data.shape[-1]
 
     @property
     def ell_min(self):
@@ -101,7 +99,7 @@ class AsymptoticBondiData:
 
     @property
     def ell_max(self):
-        return self._psi2.ell_max
+        return self._ell_max
 
     @property
     def LM(self):
@@ -109,10 +107,15 @@ class AsymptoticBondiData:
 
     @property
     def sigma(self):
-        return self._sigma
+        if self._sigma is None:
+            raise AttributeError("sigma data has not been provided.")
+        else:
+            return self._sigma
 
     @sigma.setter
     def sigma(self, sigmaprm):
+        if self._sigma is None:
+            self._sigma = self._construct_MTS_with_zeros(spin_weight=2)
         self._sigma[:] = sigmaprm
         return self.sigma
 
@@ -132,48 +135,100 @@ class AsymptoticBondiData:
 
     @property
     def psi4(self):
-        return self._psi4
+        if self._psi4 is None:
+            raise AttributeError("psi4 data has not been provided.")
+        else:
+            return self._psi4
 
     @psi4.setter
     def psi4(self, psi4prm):
+        if self._psi4 is None:
+            self._psi4 = self._construct_MTS_with_zeros(spin_weight=-2)
         self._psi4[:] = psi4prm
         return self.psi4
 
     @property
     def psi3(self):
-        return self._psi3
+        if self._psi3 is None:
+            raise AttributeError("psi3 data has not been provided.")
+        else:
+            return self._psi3
 
     @psi3.setter
     def psi3(self, psi3prm):
+        if self._psi3 is None:
+            self._psi3 = self._construct_MTS_with_zeros(spin_weight=-1)
         self._psi3[:] = psi3prm
         return self.psi3
 
     @property
     def psi2(self):
-        return self._psi2
+        if self._psi2 is None:
+            raise AttributeError("psi2 data has not been provided.")
+        else:
+            return self._psi2
 
     @psi2.setter
     def psi2(self, psi2prm):
+        if self._psi2 is None:
+            self._psi2 = self._construct_MTS_with_zeros(spin_weight=0)
         self._psi2[:] = psi2prm
         return self.psi2
 
     @property
     def psi1(self):
-        return self._psi1
+        if self._psi1 is None:
+            raise AttributeError("psi1 data has not been provided.")
+        else:
+            return self._psi1
 
     @psi1.setter
     def psi1(self, psi1prm):
+        if self._psi1 is None:
+            self._psi1 = self._construct_MTS_with_zeros(spin_weight=1)
         self._psi1[:] = psi1prm
         return self.psi1
 
     @property
     def psi0(self):
-        return self._psi0
+        if self._psi0 is None:
+            raise AttributeError("psi0 data has not been provided")
+        else:
+            return self._psi0
 
     @psi0.setter
     def psi0(self, psi0prm):
+        if self._psi0 is None:
+            self._psi0 = self._construct_MTS_with_zeros(spin_weight=2)
         self._psi0[:] = psi0prm
         return self.psi0
+
+    @property
+    def data_components(self):
+        """Return fields that are present in the ABD object."""
+
+        fields = ["psi0", "psi1", "psi2", "psi3", "psi4", "sigma"]
+        fields_present = [field for field in fields if getattr(self, f"_{field}") is not None]
+
+        return fields_present
+
+    @property
+    def data(self):
+        """Retun a consolidated array of the fields present in the ABD object
+        with shape (n_components, n_times, n_modes).
+        """
+        fields = self.data_components
+        n_modes = LM_total_size(0, self.ell_max)
+        n_times = self.n_times
+        n_components = len(fields)
+
+        shape = [n_components, n_times, n_modes]
+        data = np.empty(shape, dtype=complex)
+
+        for i, field in enumerate(fields):
+            data[i] = getattr(self, f"_{field}")
+
+        return data
 
     #Slicing
     def __getitem__(self, key):
@@ -182,30 +237,23 @@ class AsymptoticBondiData:
         """
         # If key is a valid time slice or index, extract the corresponding
         # sliced data
-        
         if not isinstance(key, (slice, int)):
-            raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")                 
+            raise ValueError(f"Invalid key `{key}` of type `{type(key)}`.")
 
-        import copy
-        import functools    
-    
-        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self.sigma._metadata['multiplication_truncator'])    
-        
-        new_abd = copy.copy(self)
-        new_abd._raw_data = self._raw_data[:, key, :]
-        new_abd._time = self._time[key]
+        import functools
 
-        new_abd._psi0 = ModesTS(new_abd._raw_data[0], new_abd._time, spin_weight=2)
-        new_abd._psi1 = ModesTS(new_abd._raw_data[1], new_abd._time, spin_weight=1)
-        new_abd._psi2 = ModesTS(new_abd._raw_data[2], new_abd._time, spin_weight=0)
-        new_abd._psi3 = ModesTS(new_abd._raw_data[3], new_abd._time, spin_weight=-1)
-        new_abd._psi4 = ModesTS(new_abd._raw_data[4], new_abd._time, spin_weight=-2)
-        new_abd._sigma = ModesTS(new_abd._raw_data[5], new_abd._time, spin_weight=2)
+        ModesTS = functools.partial(ModesTimeSeries, ell_max=self.ell_max, multiplication_truncator=self._multiplication_truncator)
+
+        new_times = self.time[key]
+        new_abd = type(self)(new_times, self.ell_max)
+
+        for i, field in enumerate(self.data_components):
+            sliced_data = getattr(self, field)[key]
+            setattr(new_abd, f"{field}", sliced_data)
 
         if self.frame.shape[0] == self.n_times:
             new_abd.frame = self.frame[key]
-        return new_abd          
-
+        return new_abd
 
     def copy(self):
         import copy
@@ -216,21 +264,48 @@ class AsymptoticBondiData:
         return new_abd
 
     def interpolate(self, new_times):
-        new_abd = type(self)(new_times, self.ell_max)
-        new_abd.frameType = self.frameType
+        new_abd = self.copy()
+        new_abd._time = new_times
         # interpolate waveform data
-        new_abd.sigma = self.sigma.interpolate(new_times)
-        new_abd.psi4 = self.psi4.interpolate(new_times)
-        new_abd.psi3 = self.psi3.interpolate(new_times)
-        new_abd.psi2 = self.psi2.interpolate(new_times)
-        new_abd.psi1 = self.psi1.interpolate(new_times)
-        new_abd.psi0 = self.psi0.interpolate(new_times)
+        for field in new_abd.data_components:
+            interpolated_fields = getattr(self, field).interpolate(new_times)
+            setattr(new_abd, f"_{field}", interpolated_fields)
+
         # interpolate frame data if necessary
         if self.frame.shape[0] == self.n_times:
             import quaternion
 
             new_abd.frame = quaternion.squad(self.frame, self.t, new_times)
         return new_abd
+
+    def _construct_MTS_with_zeros(self, spin_weight=0):
+        """Return a new zero-filled ModesTimeSeries of shape (n_times, n_modes),
+        spanning ell = 0 to ell_max, with the given spin weight. This is a
+        helper function used for supporting the setter property of ABD fields.
+        """
+        n_modes = LM_total_size(0, self.ell_max)
+        n_times = self.n_times
+
+        shape = [n_times, n_modes]
+        zeros_array = np.zeros(shape, dtype=complex)
+
+        zeros_MTS = ModesTimeSeries(zeros_array, self.t, ell_min=0, ell_max=self.ell_max, spin_weight=spin_weight, multiplication_truncator=self._multiplication_truncator)
+
+        return zeros_MTS
+
+    def validate_fields(self):
+        """Check if the provided fields are sensible for performing BMS
+        transformations.
+        """
+        fields = ["psi0", "psi1", "psi2", "psi3", "psi4"]
+        data_components = self.data_components
+        fields_present = [True if field in data_components else False for field in fields]
+
+        for i, (name, present) in enumerate(zip(fields, fields_present)):
+            if present:
+                missing = [f for f, p in zip(fields[i + 1 :], fields_present[i + 1 :]) if not p]
+                if missing:
+                    raise ValueError(f"{name} is present but higher-order Weyl scalars are missing: {missing}")
 
     from .from_initial_values import from_initial_values
 
