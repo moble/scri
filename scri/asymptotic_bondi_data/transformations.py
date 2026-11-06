@@ -281,6 +281,8 @@ def transform(self, **kwargs):
     """
     from quaternion import rotate_vectors
     from scipy.interpolate import CubicSpline
+    import functools
+    from sxs import WaveformModes
 
     # Parse the input arguments, and define the basic parameters for this function
     (
@@ -320,69 +322,82 @@ def transform(self, **kwargs):
     # ðu'(u, θ', ϕ') exp(iλ) / k(θ', ϕ')
     ðuprime_over_k = ðk_over_k * (u - α) - ðα
 
-    # ψ0(u, θ', ϕ') exp(2iλ)
-    ψ0 = sf.Grid(self.psi0.evaluate(distorted_grid_rotors), spin_weight=2)
-    # ψ1(u, θ', ϕ') exp(iλ)
-    ψ1 = sf.Grid(self.psi1.evaluate(distorted_grid_rotors), spin_weight=1)
-    # ψ2(u, θ', ϕ')
-    ψ2 = sf.Grid(self.psi2.evaluate(distorted_grid_rotors), spin_weight=0)
-    # ψ3(u, θ', ϕ') exp(-1iλ)
-    ψ3 = sf.Grid(self.psi3.evaluate(distorted_grid_rotors), spin_weight=-1)
-    # ψ4(u, θ', ϕ') exp(-2iλ)
-    ψ4 = sf.Grid(self.psi4.evaluate(distorted_grid_rotors), spin_weight=-2)
-    # σ(u, θ', ϕ') exp(2iλ)
-    σ = sf.Grid(self.sigma.evaluate(distorted_grid_rotors), spin_weight=2)
+    spin_weights = {"psi0": 2, "psi1": 1, "psi2": 0, "psi3": -1, "psi4": -2, "sigma": 2}
+    data_components = self.data_components
+    self.validate_fields()
+    n_components = len(data_components)
+
+    grids = {field: sf.Grid(getattr(self,field).evaluate(distorted_grid_rotors), spin_weight=spin_weights[field]) for field in data_components}
+    ψ0 = grids.get("psi0", None)
+    ψ1 = grids.get("psi1", None)
+    ψ2 = grids.get("psi2", None)
+    ψ3 = grids.get("psi3", None)
+    ψ4 = grids.get("psi4", None)
+    σ = grids.get("sigma", None)
 
     ### The following calculations are done using in-place Horner form.  I suspect this will be the
     ### most efficient form of this calculation, within reason.  Note that the factors of exp(isλ)
     ### were computed automatically by evaluating in terms of quaternions.
     #
-    fprime_of_timenaught_directionprime = np.empty((6, self.n_times, n_theta, n_phi), dtype=complex)
-    # ψ0'(u, θ', ϕ')
-    fprime_temp = ψ4.copy()
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += -4 * ψ3
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += 6 * ψ2
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += -4 * ψ1
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += ψ0
-    fprime_temp *= one_over_k_cubed
-    fprime_of_timenaught_directionprime[0] = fprime_temp
-    # ψ1'(u, θ', ϕ')
-    fprime_temp = -ψ4
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += 3 * ψ3
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += -3 * ψ2
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += ψ1
-    fprime_temp *= one_over_k_cubed
-    fprime_of_timenaught_directionprime[1] = fprime_temp
-    # ψ2'(u, θ', ϕ')
-    fprime_temp = ψ4.copy()
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += -2 * ψ3
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += ψ2
-    fprime_temp *= one_over_k_cubed
-    fprime_of_timenaught_directionprime[2] = fprime_temp
-    # ψ3'(u, θ', ϕ')
-    fprime_temp = -ψ4
-    fprime_temp *= ðuprime_over_k
-    fprime_temp += ψ3
-    fprime_temp *= one_over_k_cubed
-    fprime_of_timenaught_directionprime[3] = fprime_temp
-    # ψ4'(u, θ', ϕ')
-    fprime_temp = ψ4.copy()
-    fprime_temp *= one_over_k_cubed
-    fprime_of_timenaught_directionprime[4] = fprime_temp
-    # σ'(u, θ', ϕ')
-    fprime_temp = σ.copy()
-    fprime_temp -= ððα
-    fprime_temp *= one_over_k
-    fprime_of_timenaught_directionprime[5] = fprime_temp
+    fprime_of_timenaught_directionprime = np.empty((n_components, self.n_times, n_theta, n_phi), dtype=complex)
+    idx = {c: i for i, c in enumerate(data_components)}
+
+    if "psi0" in data_components:
+        # ψ0'(u, θ', ϕ')
+        fprime_temp = ψ4.copy()
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += -4 * ψ3
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += 6 * ψ2
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += -4 * ψ1
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += ψ0
+        fprime_temp *= one_over_k_cubed
+        fprime_of_timenaught_directionprime[idx["psi0"]] = fprime_temp
+
+    if "psi1" in data_components:
+        # ψ1'(u, θ', ϕ')
+        fprime_temp = -ψ4
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += 3 * ψ3
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += -3 * ψ2
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += ψ1
+        fprime_temp *= one_over_k_cubed
+        fprime_of_timenaught_directionprime[idx["psi1"]] = fprime_temp
+
+    if "psi2" in data_components:
+        # ψ2'(u, θ', ϕ')
+        fprime_temp = ψ4.copy()
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += -2 * ψ3
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += ψ2
+        fprime_temp *= one_over_k_cubed
+        fprime_of_timenaught_directionprime[idx["psi2"]] = fprime_temp
+
+    if "psi3" in data_components:
+        # ψ3'(u, θ', ϕ')
+        fprime_temp = -ψ4
+        fprime_temp *= ðuprime_over_k
+        fprime_temp += ψ3
+        fprime_temp *= one_over_k_cubed
+        fprime_of_timenaught_directionprime[idx["psi3"]] = fprime_temp
+
+    if "psi4" in data_components:
+        # ψ4'(u, θ', ϕ')
+        fprime_temp = ψ4.copy()
+        fprime_temp *= one_over_k_cubed
+        fprime_of_timenaught_directionprime[idx["psi4"]] = fprime_temp
+
+    if "sigma" in data_components:
+        # σ'(u, θ', ϕ')
+        fprime_temp = σ.copy()
+        fprime_temp -= ððα
+        fprime_temp *= one_over_k
+        fprime_of_timenaught_directionprime[idx["sigma"]] = fprime_temp
 
     # Determine the new time slices.  The set timeprime is chosen so that on each slice of constant
     # u'_i, the average value of u=(u'/k)+α is precisely <u>=u'γ+<α>=u_i.  But then, we have to
@@ -396,7 +411,7 @@ def transform(self, **kwargs):
     timeprime = timeprime[(timeprime >= earliest_complete_timeprime) & (timeprime <= latest_complete_timeprime)]
 
     # This will store the values of f'(u', θ', ϕ') for the various functions `f`
-    fprime_of_timeprime_directionprime = np.zeros((6, timeprime.size, n_theta, n_phi), dtype=complex)
+    fprime_of_timeprime_directionprime = np.zeros((n_components, timeprime.size, n_theta, n_phi), dtype=complex)
 
     # Interpolate the various transformed function values on the transformed grid from the original
     # time coordinate to the new set of time coordinates, independently for each direction.
@@ -415,17 +430,10 @@ def transform(self, **kwargs):
     # grid.  I'll abuse notation slightly here by indicating those "distorted" mode weights with
     # primes, so that f'(u')_{ℓ', m'} = ∫ f'(u', θ', ϕ') sȲ_{ℓ', m'}(θ', ϕ') sin(θ') dθ' dϕ'
     abdprime = type(self)(timeprime, output_ell_max)
-    # ψ0'(u')_{ℓ', m'}
-    abdprime.psi0 = spinsfast.map2salm(fprime_of_timeprime_directionprime[0], 2, output_ell_max)
-    # ψ1'(u')_{ℓ', m'}
-    abdprime.psi1 = spinsfast.map2salm(fprime_of_timeprime_directionprime[1], 1, output_ell_max)
-    # ψ2'(u')_{ℓ', m'}
-    abdprime.psi2 = spinsfast.map2salm(fprime_of_timeprime_directionprime[2], 0, output_ell_max)
-    # ψ3'(u')_{ℓ', m'}
-    abdprime.psi3 = spinsfast.map2salm(fprime_of_timeprime_directionprime[3], -1, output_ell_max)
-    # ψ4'(u')_{ℓ', m'}
-    abdprime.psi4 = spinsfast.map2salm(fprime_of_timeprime_directionprime[4], -2, output_ell_max)
-    # σ'(u')_{ℓ', m'}
-    abdprime.sigma = spinsfast.map2salm(fprime_of_timeprime_directionprime[5], 2, output_ell_max)
+
+    # ψi'(u')_{ℓ', m'}
+    for field in data_components:
+        transformed_modes_data = spinsfast.map2salm(fprime_of_timeprime_directionprime[idx[field]], spin_weights[field], output_ell_max)
+        setattr(abdprime, field, transformed_modes_data)
 
     return abdprime
