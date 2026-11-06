@@ -274,7 +274,7 @@ class AsymptoticBondiData:
         new_abd.frameType = self.frameType
         new_abd._multiplication_truncator = self._multiplication_truncator
         # interpolate waveform data
-        for field in new_abd.data_components:
+        for field in self.data_components:
             interpolated_fields = getattr(self, field).interpolate(new_times)
             setattr(new_abd, f"_{field}", interpolated_fields)
 
