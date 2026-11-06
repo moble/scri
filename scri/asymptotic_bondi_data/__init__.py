@@ -65,6 +65,7 @@ class AsymptoticBondiData:
         self.frameType = frameType
         self._time = time.copy()
         self._ell_max = ell_max
+        self._ell_min = 0
         self._multiplication_truncator = multiplication_truncator
 
         fields = ("psi0", "psi1", "psi2", "psi3", "psi4", "sigma")
@@ -95,7 +96,7 @@ class AsymptoticBondiData:
 
     @property
     def ell_min(self):
-        return self._psi2.ell_min
+        return self._ell_min
 
     @property
     def ell_max(self):
@@ -103,7 +104,10 @@ class AsymptoticBondiData:
 
     @property
     def LM(self):
-        return self.psi2.LM
+        """Array of (ell, m) values in the data
+        This array is just a flat array of `[ell, m]` pairs.
+        """
+        return np.array([[ell, m] for ell in range(self.ell_min, self.ell_max+1) for m in range(-ell, ell+1)])
 
     @property
     def sigma(self):
@@ -246,6 +250,8 @@ class AsymptoticBondiData:
 
         new_times = self.time[key]
         new_abd = type(self)(new_times, self.ell_max)
+        new_abd.frameType = self.frameType
+        new_abd._multiplication_truncator = self._multiplication_truncator
 
         for i, field in enumerate(self.data_components):
             sliced_data = getattr(self, field)[key]
@@ -264,8 +270,9 @@ class AsymptoticBondiData:
         return new_abd
 
     def interpolate(self, new_times):
-        new_abd = self.copy()
-        new_abd._time = new_times
+        new_abd = type(self)(new_times, self.ell_max)
+        new_abd.frameType = self.frameType
+        new_abd._multiplication_truncator = self._multiplication_truncator
         # interpolate waveform data
         for field in new_abd.data_components:
             interpolated_fields = getattr(self, field).interpolate(new_times)
